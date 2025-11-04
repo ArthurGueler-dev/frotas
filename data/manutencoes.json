@@ -1,0 +1,28 @@
+[
+  {
+    "id": "manut_001",
+    "veiculoId": "veiculo_001",
+    "planoItemId": "item_001",
+    "tipo": "Troca de Óleo",
+    "data": "2024-10-15",
+    "kmRealizado": 10200,
+    "oficina": "Oficina Central",
+    "mecanico": "João Silva",
+    "pecasUtilizadas": [
+      {
+        "nome": "Óleo motor 5W30",
+        "quantidade": 4.5,
+        "custoUnitario": 25.00
+      },
+      {
+        "nome": "Filtro de óleo",
+        "quantidade": 1,
+        "custoUnitario": 35.00
+      }
+    ],
+    "custoReal": 227.50,
+    "observacoes": "Troca realizada conforme programado",
+    "status": "concluida",
+    "preventiva": true
+  }
+]

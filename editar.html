@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FleetFlow - Editar Veículo</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937",
+                        "text-light": "#1F2937",
+                        "text-dark": "#F3F4F6",
+                        "success": "#10B981",
+                        "warning": "#F59E0B",
+                        "danger": "#EF4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
+<div class="flex h-screen">
+<aside class="w-64 bg-white dark:bg-gray-800 flex flex-col">
+<div class="p-6 flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12" data-alt="Logotipo da FrotaTech, um F estilizado dentro de um círculo azul" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCGN6802M2uMUllVNe6cUECAOBgT4SbZhCTr8ARJ09cTm9L8GJGrkmBCVFClmz0Pu7itIrhbTuGJKWSITPRcM4jU-A6FOfQqHeauIv7l9RV6Q9eJpPfU7pJMJANnDJwFLqfgwv8OUyzumGmtzDaZ6a8KgFfHBX6j-t2W0kL8zLA_1kuS_yepHHsiixH_MxAHX1axiCl_QY549AhK-cXDNOOvaAv9yPMpVZWxvnWUsj27Sr7ycVylhbguA9KaU3TgDHdHC3BLtGRia8");'></div>
+<div class="flex flex-col">
+<h1 class="text-gray-800 dark:text-white text-xl font-bold leading-normal">FrotaTech</h1>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Gestão Inteligente</p>
+</div>
+</div>
+<nav class="flex-1 px-4 py-2">
+<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" href="dashboard.html">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary dark:text-white" href="veiculos.html">
+<span class="material-symbols-outlined">directions_car</span>
+<p class="text-sm font-bold">Veículos</p>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" href="#">
+<span class="material-symbols-outlined">groups</span>
+<p class="text-sm font-medium">Motoristas</p>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" href="#">
+<span class="material-symbols-outlined">build</span>
+<p class="text-sm font-medium">Manutenção</p>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<p class="text-sm font-medium">Relatórios</p>
+</a>
+</nav>
+<div class="p-4 border-t border-gray-200 dark:border-gray-700">
+<a class="flex items-center gap-3 px-4 py-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" href="#">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium">Configurações</p>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<p class="text-sm font-medium">Ajuda</p>
+</a>
+</div>
+</aside>
+<main class="flex-1 p-8 overflow-y-auto">
+<div class="flex justify-between items-center mb-8">
+<div>
+<h1 class="text-3xl font-black text-gray-800 dark:text-white">Visual Fleet Overview</h1>
+<p class="text-gray-500 dark:text-gray-400 mt-1">Gerencie e visualize sua frota de forma intuitiva.</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+<h2 class="text-xl font-bold text-gray-800 dark:text-white mb-6">Adicionar Novo Veículo</h2>
+<div class="space-y-6">
+<div class="flex flex-col rounded-lg border-2 border-primary/20 dark:border-primary/30 p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-semibold text-primary dark:text-white">1. Dados Básicos</h3>
+<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-base">directions_car</span>
+                                Informações essenciais do veículo
+                            </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Placa</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="ABC-1234"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Contrato</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Contrato-001"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Marca</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Volkswagen"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Modelo</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Gol"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Ano Fabricação</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 2020" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Ano Modelo</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 2021" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Tipo</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm">
+<option>Passeio</option>
+<option>Caminhão</option>
+<option>Van</option>
+<option>Motocicleta</option>
+<option>Ônibus</option>
+<option>Utilitário</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Template Visual</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm">
+<option>Caminhão Baú (Lateral)</option>
+<option>Van (Lateral)</option>
+<option>Carro (Lateral)</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Combustível</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm">
+<option>Flex (Álcool/Gasolina)</option>
+<option>Gasolina</option>
+<option>Etanol</option>
+<option>Diesel</option>
+<option>GNV</option>
+<option>Híbrido</option>
+<option>Elétrico</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Status</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm">
+<option>Ativo</option>
+<option>Manutenção</option>
+<option>Inativo</option>
+</select>
+</label>
+</div>
+</div>
+<div class="flex flex-col rounded-lg border-2 border-primary/20 dark:border-primary/30 p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-semibold text-primary dark:text-white">2. Especificações</h3>
+<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-base">settings</span>
+                                Detalhes técnicos do veículo
+                            </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Cor Predominante</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Branco"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Categoria</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Compacto"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Potência</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 80 CV" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Cilindradas</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 1000 CC" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Número do Motor</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 123456789ABC"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Tipo de Carroceria</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Hatchback"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Quilometragem</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 50000" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Layout dos Pneus</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Carro (2x2)"/>
+</label>
+</div>
+</div>
+<div class="flex flex-col rounded-lg border-2 border-primary/20 dark:border-primary/30 p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-semibold text-primary dark:text-white">3. Documentação</h3>
+<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-base">description</span>
+                                Informações legais do veículo
+                            </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">RENAVAM</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="01234567890"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Exercício</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 2023" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Chassi</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="9BW ZZZ377 VT 004251"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Vencimento da Documentação</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" type="date"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Status da Documentação</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm">
+<option>Em dia</option>
+<option>Vencida</option>
+<option>Pendente</option>
+</select>
+</label>
+</div>
+</div>
+<div class="flex flex-col rounded-lg border-2 border-primary/20 dark:border-primary/30 p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-semibold text-primary dark:text-white">4. Proprietário</h3>
+<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-base">person</span>
+                                Dados do proprietário/responsável
+                            </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Nome do Proprietário</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: João da Silva"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">CPF/CNPJ</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="000.000.000-00"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Local do Proprietário</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: São Paulo, SP"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Lotado/Atribuído a</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Depto. Logística"/>
+</label>
+</div>
+</div>
+<div class="flex flex-col rounded-lg border-2 border-primary/20 dark:border-primary/30 p-6">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-lg font-semibold text-primary dark:text-white">5. Financeiro</h3>
+<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-base">attach_money</span>
+                                Custos e valores associados ao veículo
+                            </div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Valor FIPE (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="45000.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo IPVA (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="1800.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo Seguro (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="2500.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo Licenciamento (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="150.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Valor Depreciação (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="3000.00" type="number"/>
+</label>
+</div>
+</div>
+</div>
+<div class="flex justify-end gap-4 mt-8">
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-4 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white text-sm font-bold">
+<span class="truncate">Limpar</span>
+</button>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-4 bg-primary text-white text-sm font-bold">
+<span class="truncate">Salvar Veículo</span>
+</button>
+</div>
+</div>
+<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+<h2 class="text-xl font-bold text-gray-800 dark:text-white mb-4">Sua Frota</h2>
+<div class="relative mb-4">
+<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 pl-10 pr-4 text-sm" placeholder="Pesquisar por placa ou modelo..."/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-2">
+<div class="p-4 rounded-lg bg-background-light dark:bg-background-dark cursor-pointer shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200">
+<div class="flex flex-col items-center justify-center mb-3">
+<img alt="Car illustration" class="w-24 h-auto mb-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCSKAQRdFe50JCJNAefePwMcuJhh8FjZTCWkWsLOr0lK8uzxCtgxY8yehUIH_O_euygNzWbi1xfPUntDDu5rBW7T7KGlv5HLJBpeGoJIUnVqICMeouArvTBL5FusbonVbIRf86SpyiwKRVATH7KGL-vuSXxa9ONif24qTzhX5BBglWKhDxYOpfeIJ-tAv9zLIMqtQXpIOpfdbNWvtr3HQSq9omrvCtjKKjrf3AdfaaL8FPRPV7PEwnSQWT96vwElhDRIN2HV17JtTc"/>
+<p class="font-bold text-lg text-gray-800 dark:text-white text-center">ABC-1234</p>
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center">Volkswagen Gol</p>
+</div>
+<div class="flex items-center justify-between text-xs font-semibold">
+<span class="py-1 px-2.5 rounded-full bg-success/20 text-success">Ativo</span>
+<span class="material-symbols-outlined text-gray-500 text-lg">arrow_forward_ios</span>
+</div>
+<div class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm space-y-2">
+<p><strong>Tipo:</strong> Passeio</p>
+<p><strong>Cor:</strong> Branco</p>
+<p><strong>Quilometragem:</strong> 50.000 km</p>
+<p><strong>Próxima Manutenção:</strong> 01/01/2025</p>
+</div>
+</div>
+<div class="p-4 rounded-lg bg-background-light dark:bg-background-dark cursor-pointer shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200">
+<div class="flex flex-col items-center justify-center mb-3">
+<img alt="Truck illustration" class="w-24 h-auto mb-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzqb5SNCLJWaKOCec9WEyCMys3-EiMXIcS1w6GRDeivyWzZzx-fUs_pnPVtKv64SOPdKhYvNih2yEAxMgtq37hBCWFx1FJGo00usdZYfZFBCdAKtO8OuhBW51_jUQcePqOR-8gqGqjoe_56Djery0kXC-fcf7asUblCPExeC4rn-mfspcq-_ruv8OIPy2Z14CJ2ytgTaxWkAzIZJrqVi7OJkYctoUQMY2-GImWwtStpt9zuVTVSFOuBgEbEehGSlMRIRS6R3FBCuU"/>
+<p class="font-bold text-lg text-gray-800 dark:text-white text-center">DEF-5678</p>
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center">Fiat Strada</p>
+</div>
+<div class="flex items-center justify-between text-xs font-semibold">
+<span class="py-1 px-2.5 rounded-full bg-warning/20 text-warning">Manutenção</span>
+<span class="material-symbols-outlined text-gray-500 text-lg">arrow_forward_ios</span>
+</div>
+<div class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm space-y-2">
+<p><strong>Tipo:</strong> Caminhão</p>
+<p><strong>Cor:</strong> Vermelho</p>
+<p><strong>Quilometragem:</strong> 120.000 km</p>
+<p><strong>Próxima Manutenção:</strong> 15/03/2024</p>
+</div>
+</div>
+<div class="p-4 rounded-lg bg-background-light dark:bg-background-dark cursor-pointer shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200">
+<div class="flex flex-col items-center justify-center mb-3">
+<img alt="Van illustration" class="w-24 h-auto mb-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCumTZsVtAc81MH77K_D5iFOTCbbR2RccK4ovkhjVqVviVogF2VqMfbggBcRH0BDgl1kOA0wpSl7FftkDecamxsrKU_xO9VaN8cIh2ncpT_mIjnTZU_7CLy4CTPd_nYlSkIU7_SAL7QomCGZbdBVQ6KAlBdqSlzyqcR5DkUV86LJjKpF7f0ILQiXvD7VRZxUUhYg4lcf5sCWsWQKaHAxZRZb4KX-e0tUPLjRY5Ea2hKHvuCL7pqobMfpUSAKE1L6slbMv6gyHyAaQg"/>
+<p class="font-bold text-lg text-gray-800 dark:text-white text-center">GHI-9012</p>
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center">Chevrolet Onix</p>
+</div>
+<div class="flex items-center justify-between text-xs font-semibold">
+<span class="py-1 px-2.5 rounded-full bg-danger/20 text-danger">Inativo</span>
+<span class="material-symbols-outlined text-gray-500 text-lg">arrow_forward_ios</span>
+</div>
+<div class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm space-y-2">
+<p><strong>Tipo:</strong> Van</p>
+<p><strong>Cor:</strong> Prata</p>
+<p><strong>Quilometragem:</strong> 80.000 km</p>
+<p><strong>Próxima Manutenção:</strong> 10/06/2024</p>
+</div>
+</div>
+<div class="p-4 rounded-lg bg-background-light dark:bg-background-dark cursor-pointer shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all duration-200">
+<div class="flex flex-col items-center justify-center mb-3">
+<img alt="Car illustration" class="w-24 h-auto mb-2" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSXUI5vsIlbsbzmvXc0AeR-ygJTmTwTZxOUbb_beimh_cppkdejkuRXrBmAr0rFzmWLqoh4YCCrlKAOrtZUBs2dCVjY0oC_lfq12LcbHlcMD9xYInFNCBaPQfdjsj-n1ufEQYPnTurxhgXtHBrWdEFu7trtwAum58V3TWUAIQRJuNtfilx3hcJJIdBPio7KACq_RaLhrVob-VWyHsF4V-EETPb91YtYxIuIajh5uWn7OaRI9nZ02a0fmaD7EIDjoh7CBattsWt9QY"/>
+<p class="font-bold text-lg text-gray-800 dark:text-white text-center">JKL-3456</p>
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center">Renault Kwid</p>
+</div>
+<div class="flex items-center justify-between text-xs font-semibold">
+<span class="py-1 px-2.5 rounded-full bg-success/20 text-success">Ativo</span>
+<span class="material-symbols-outlined text-gray-500 text-lg">arrow_forward_ios</span>
+</div>
+<div class="hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm space-y-2">
+<p><strong>Tipo:</strong> Passeio</p>
+<p><strong>Cor:</strong> Azul</p>
+<p><strong>Quilometragem:</strong> 30.000 km</p>
+<p><strong>Próxima Manutenção:</strong> 20/07/2025</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<script src="api-client.js"></script>
+<script>
+    let editingVehicleId = null;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Card expand/collapse functionality
+        document.querySelectorAll('.p-4.rounded-lg.bg-background-light').forEach(card => {
+            card.addEventListener('click', () => {
+                const details = card.querySelector('.hidden.mt-4');
+                const arrow = card.querySelector('.material-symbols-outlined.text-lg');
+                if (details) {
+                    details.classList.toggle('hidden');
+                    if (details.classList.contains('hidden')) {
+                        arrow.textContent = 'arrow_forward_ios';
+                    } else {
+                        arrow.textContent = 'expand_less';
+                    }
+                }
+            });
+        });
+
+        // Check for vehicle ID in URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const vehicleId = urlParams.get('id');
+
+        if (vehicleId) {
+            editingVehicleId = vehicleId;
+            await loadVehicleData(vehicleId);
+        }
+
+        // Save button click handler
+        const saveButton = document.querySelector('button span.truncate');
+        if (saveButton && saveButton.textContent === 'Salvar Veículo') {
+            saveButton.parentElement.addEventListener('click', handleSave);
+        }
+
+        // Clear button click handler
+        const clearButton = document.querySelectorAll('button')[0];
+        clearButton.addEventListener('click', handleClear);
+    });
+
+    async function loadVehicleData(vehicleId) {
+        try {
+            const vehicle = await FleetAPI.getVehicle(vehicleId);
+            if (vehicle) {
+                // Update form title
+                const title = document.querySelector('h2.text-xl.font-bold.text-gray-800');
+                if (title) {
+                    title.textContent = 'Editar Veículo';
+                }
+
+                // Populate form fields
+                const inputs = document.querySelectorAll('input, select');
+                inputs.forEach(input => {
+                    const label = input.closest('label');
+                    if (!label) return;
+
+                    const labelText = label.querySelector('p.text-sm')?.textContent;
+
+                    // Map label text to vehicle properties
+                    const fieldMap = {
+                        'Placa': 'plate',
+                        'Contrato': 'contract',
+                        'Marca': 'brand',
+                        'Modelo': 'model',
+                        'Ano Fabricação': 'year',
+                        'Ano Modelo': 'modelYear',
+                        'Tipo': 'type',
+                        'Template Visual': 'template',
+                        'Combustível': 'fuel',
+                        'Status': 'status',
+                        'Cor Predominante': 'color',
+                        'Categoria': 'category',
+                        'Potência': 'power',
+                        'Cilindradas': 'displacement',
+                        'Número do Motor': 'engineNumber',
+                        'Tipo de Carroceria': 'bodyType',
+                        'Quilometragem': 'mileage',
+                        'Layout dos Pneus': 'tireLayout',
+                        'RENAVAM': 'renavam',
+                        'Exercício': 'fiscalYear',
+                        'Chassi': 'chassis',
+                        'Vencimento da Documentação': 'docExpiration',
+                        'Status da Documentação': 'docStatus',
+                        'Nome do Proprietário': 'ownerName',
+                        'CPF/CNPJ': 'ownerDocument',
+                        'Local do Proprietário': 'ownerLocation',
+                        'Lotado/Atribuído a': 'assignedTo',
+                        'Valor FIPE (R$)': 'fipeValue',
+                        'Custo IPVA (R$)': 'ipvaCost',
+                        'Custo Seguro (R$)': 'insuranceCost',
+                        'Custo Licenciamento (R$)': 'licensingCost',
+                        'Valor Depreciação (R$)': 'depreciationValue'
+                    };
+
+                    const fieldKey = fieldMap[labelText];
+                    if (fieldKey && vehicle[fieldKey] !== undefined) {
+                        if (input.tagName === 'SELECT') {
+                            // For select elements, set the value
+                            input.value = vehicle[fieldKey];
+                        } else if (input.type === 'date') {
+                            // For date inputs, format the date
+                            if (vehicle[fieldKey]) {
+                                const date = new Date(vehicle[fieldKey]);
+                                input.value = date.toISOString().split('T')[0];
+                            }
+                        } else {
+                            input.value = vehicle[fieldKey];
+                        }
+                    }
+                });
+
+                // Add delete button if editing
+                addDeleteButton();
+            }
+        } catch (error) {
+            console.error('Erro ao carregar veículo:', error);
+            alert('❌ Erro ao carregar dados do veículo');
+        }
+    }
+
+    function addDeleteButton() {
+        const buttonContainer = document.querySelector('.flex.justify-end.gap-4.mt-8');
+        if (buttonContainer && !document.getElementById('delete-button')) {
+            const deleteButton = document.createElement('button');
+            deleteButton.id = 'delete-button';
+            deleteButton.className = 'flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-4 bg-danger text-white text-sm font-bold';
+            deleteButton.innerHTML = '<span class="truncate">Excluir</span>';
+            deleteButton.addEventListener('click', handleDelete);
+            buttonContainer.insertBefore(deleteButton, buttonContainer.firstChild);
+        }
+    }
+
+    async function handleSave(e) {
+        e.preventDefault();
+
+        // Collect form data
+        const vehicleData = {};
+        const inputs = document.querySelectorAll('input, select');
+
+        inputs.forEach(input => {
+            const label = input.closest('label');
+            if (!label) return;
+
+            const labelText = label.querySelector('p.text-sm')?.textContent;
+
+            const fieldMap = {
+                'Placa': 'plate',
+                'Contrato': 'contract',
+                'Marca': 'brand',
+                'Modelo': 'model',
+                'Ano Fabricação': 'year',
+                'Ano Modelo': 'modelYear',
+                'Tipo': 'type',
+                'Template Visual': 'template',
+                'Combustível': 'fuel',
+                'Status': 'status',
+                'Cor Predominante': 'color',
+                'Categoria': 'category',
+                'Potência': 'power',
+                'Cilindradas': 'displacement',
+                'Número do Motor': 'engineNumber',
+                'Tipo de Carroceria': 'bodyType',
+                'Quilometragem': 'mileage',
+                'Layout dos Pneus': 'tireLayout',
+                'RENAVAM': 'renavam',
+                'Exercício': 'fiscalYear',
+                'Chassi': 'chassis',
+                'Vencimento da Documentação': 'docExpiration',
+                'Status da Documentação': 'docStatus',
+                'Nome do Proprietário': 'ownerName',
+                'CPF/CNPJ': 'ownerDocument',
+                'Local do Proprietário': 'ownerLocation',
+                'Lotado/Atribuído a': 'assignedTo',
+                'Valor FIPE (R$)': 'fipeValue',
+                'Custo IPVA (R$)': 'ipvaCost',
+                'Custo Seguro (R$)': 'insuranceCost',
+                'Custo Licenciamento (R$)': 'licensingCost',
+                'Valor Depreciação (R$)': 'depreciationValue'
+            };
+
+            const fieldKey = fieldMap[labelText];
+            if (fieldKey && input.value) {
+                vehicleData[fieldKey] = input.value;
+            }
+        });
+
+        try {
+            let result;
+            if (editingVehicleId) {
+                // Update existing vehicle
+                result = await FleetAPI.updateVehicle(editingVehicleId, vehicleData);
+                if (result) {
+                    alert('✅ Veículo atualizado com sucesso!');
+                    window.location.href = 'veiculos.html';
+                }
+            } else {
+                // Create new vehicle
+                result = await FleetAPI.createVehicle(vehicleData);
+                if (result) {
+                    alert('✅ Veículo cadastrado com sucesso!');
+                    window.location.href = 'veiculos.html';
+                }
+            }
+        } catch (error) {
+            console.error('Erro ao salvar veículo:', error);
+            alert('❌ Erro ao salvar veículo');
+        }
+    }
+
+    async function handleDelete(e) {
+        e.preventDefault();
+
+        if (!editingVehicleId) return;
+
+        if (confirm('⚠️ Tem certeza que deseja excluir este veículo? Esta ação não pode ser desfeita.')) {
+            try {
+                const result = await FleetAPI.deleteVehicle(editingVehicleId);
+                if (result) {
+                    alert('✅ Veículo excluído com sucesso!');
+                    window.location.href = 'veiculos.html';
+                }
+            } catch (error) {
+                console.error('Erro ao excluir veículo:', error);
+                alert('❌ Erro ao excluir veículo');
+            }
+        }
+    }
+
+    function handleClear(e) {
+        e.preventDefault();
+
+        if (confirm('🔄 Deseja limpar todos os campos do formulário?')) {
+            const inputs = document.querySelectorAll('input, select');
+            inputs.forEach(input => {
+                if (input.tagName === 'SELECT') {
+                    input.selectedIndex = 0;
+                } else {
+                    input.value = '';
+                }
+            });
+        }
+    }
+</script>
+
+</body></html>

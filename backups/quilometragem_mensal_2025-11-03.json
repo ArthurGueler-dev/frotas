@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "placa": "ABC-1234",
+    "ano": 2025,
+    "mes": 11,
+    "km_total": "125.50",
+    "dias_rodados": 1,
+    "tempo_ignicao_total_minutos": 180,
+    "created_at": "2025-11-03T16:19:04.000Z",
+    "updated_at": "2025-11-03T16:19:04.000Z"
+  }
+]

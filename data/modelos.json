@@ -1,0 +1,29 @@
+[
+  {
+    "id": "modelo_001",
+    "marca": "Fiat",
+    "modelo": "Strada",
+    "ano": "2023",
+    "tipo": "Utilitário",
+    "motor": "1.4 Flex",
+    "observacoes": ""
+  },
+  {
+    "id": "modelo_002",
+    "marca": "VW",
+    "modelo": "Gol",
+    "ano": "2022",
+    "tipo": "Passeio",
+    "motor": "1.0 Flex",
+    "observacoes": ""
+  },
+  {
+    "id": "modelo_003",
+    "marca": "Toyota",
+    "modelo": "Hilux",
+    "ano": "2024",
+    "tipo": "Caminhonete",
+    "motor": "2.8 Diesel",
+    "observacoes": ""
+  }
+]

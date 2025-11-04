@@ -1,0 +1,71 @@
+[
+  {
+    "id": "plano_001",
+    "modeloId": "modelo_001",
+    "nome": "Plano Preventivo Fiat Strada 2023",
+    "itens": [
+      {
+        "id": "item_001",
+        "tipo": "Troca de Óleo",
+        "categoria": "Motor",
+        "descricao": "Troca de óleo e filtro do motor conforme manual do fabricante",
+        "intervalo": {
+          "km": 10000,
+          "meses": 6,
+          "criterio": "o_que_vier_primeiro"
+        },
+        "pecas": [
+          {
+            "nome": "Óleo motor 5W30",
+            "quantidade": 4.5,
+            "unidade": "litros",
+            "custoUnitario": 25.00
+          },
+          {
+            "nome": "Filtro de óleo",
+            "quantidade": 1,
+            "unidade": "unidade",
+            "custoUnitario": 35.00
+          }
+        ],
+        "maoDeObra": {
+          "tempo": 30,
+          "custo": 80
+        },
+        "custoEstimado": 227.50,
+        "criticidade": "alta"
+      },
+      {
+        "id": "item_002",
+        "tipo": "Revisão de Freios",
+        "categoria": "Freios",
+        "descricao": "Verificação completa do sistema de freios, incluindo pastilhas, discos e fluidos",
+        "intervalo": {
+          "km": 20000,
+          "meses": 12,
+          "criterio": "o_que_vier_primeiro"
+        },
+        "pecas": [
+          {
+            "nome": "Pastilhas de freio (dianteiras)",
+            "quantidade": 1,
+            "unidade": "jogo",
+            "custoUnitario": 150.00
+          },
+          {
+            "nome": "Fluido de freio DOT4",
+            "quantidade": 0.5,
+            "unidade": "litros",
+            "custoUnitario": 40.00
+          }
+        ],
+        "maoDeObra": {
+          "tempo": 90,
+          "custo": 150
+        },
+        "custoEstimado": 320.00,
+        "criticidade": "alta"
+      }
+    ]
+  }
+]

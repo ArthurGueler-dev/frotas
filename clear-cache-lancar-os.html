@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Limpando Cache...</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin: 0;
+        }
+        h1 { font-size: 2rem; margin-bottom: 1rem; }
+        p { font-size: 1.2rem; margin: 0.5rem; }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 2rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Limpando Cache...</h1>
+    <div class="spinner"></div>
+    <p id="status">Preparando...</p>
+
+    <script>
+        let countdown = 3;
+        const statusEl = document.getElementById('status');
+
+        function updateStatus(msg) {
+            statusEl.textContent = msg;
+            console.log('✅', msg);
+        }
+
+        updateStatus('Limpando cache do navegador...');
+
+        // Tentar limpar cache
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                return Promise.all(
+                    names.map(name => caches.delete(name))
+                );
+            }).then(() => {
+                updateStatus('Cache limpo! Redirecionando em ' + countdown + 's...');
+                startCountdown();
+            });
+        } else {
+            updateStatus('Redirecionando em ' + countdown + 's...');
+            startCountdown();
+        }
+
+        function startCountdown() {
+            const interval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    updateStatus('Redirecionando em ' + countdown + 's...');
+                } else {
+                    clearInterval(interval);
+                    updateStatus('Abrindo página...');
+                    // Adicionar timestamp para garantir que não use cache
+                    window.location.href = 'lancar-os.html?nocache=' + new Date().getTime();
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

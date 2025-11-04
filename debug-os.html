@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Ordens de Serviço</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1 { color: #4ec9b0; }
+        h2 { color: #569cd6; margin-top: 30px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #2d2d2d;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #3e3e3e;
+        }
+        th {
+            background: #0e639c;
+            color: white;
+            font-weight: bold;
+        }
+        tr:hover {
+            background: #3e3e3e;
+        }
+        .highlight {
+            background: #264f78;
+        }
+        .error {
+            color: #f48771;
+            background: #3f1f1f;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            color: #4ec9b0;
+            background: #1f3f3f;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #0e639c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        button:hover {
+            background: #1177bb;
+        }
+        pre {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .info {
+            background: #1f3f5f;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            color: #9cdcfe;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Ordens de Serviço</h1>
+
+    <div class="info">
+        <strong>ℹ️ Explicação:</strong><br>
+        • <code>id</code> = ID interno do banco (auto_increment) → usado para relacionamentos<br>
+        • <code>ordem_numero</code> = Número da OS visível (ex: "OS-2025-00002") → usado para humanos<br>
+        • <code>os_id</code> na tabela itens = referência ao <code>id</code>, NÃO ao <code>ordem_numero</code>
+    </div>
+
+    <button onclick="loadData()">🔄 Recarregar Dados</button>
+
+    <h2>📋 Tabela: ordemservico</h2>
+    <div id="ordemservico"></div>
+
+    <h2>📦 Tabela: ordemservico_itens</h2>
+    <div id="itens"></div>
+
+    <h2>🔗 Relacionamento (JOIN)</h2>
+    <div id="relacionamento"></div>
+
+    <script>
+        async function loadData() {
+            try {
+                // Buscar dados da tabela ordemservico
+                const resOS = await fetch('/api/debug-os');
+                const dataOS = await resOS.json();
+
+                // Buscar dados da tabela ordemservico_itens
+                const resItens = await fetch('/api/debug-os-itens');
+                const dataItens = await resItens.json();
+
+                // Buscar relacionamento
+                const resJoin = await fetch('/api/debug-os-join');
+                const dataJoin = await resJoin.json();
+
+                // Renderizar tabela ordemservico
+                if (dataOS.data && dataOS.data.length > 0) {
+                    let html = '<table><thead><tr>';
+                    Object.keys(dataOS.data[0]).forEach(key => {
+                        html += `<th>${key}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+
+                    dataOS.data.forEach(row => {
+                        html += '<tr>';
+                        Object.values(row).forEach(val => {
+                            html += `<td>${val !== null ? val : '<em>NULL</em>'}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('ordemservico').innerHTML = html;
+                } else {
+                    document.getElementById('ordemservico').innerHTML = '<div class="error">Nenhuma OS encontrada</div>';
+                }
+
+                // Renderizar tabela ordemservico_itens
+                if (dataItens.data && dataItens.data.length > 0) {
+                    let html = '<table><thead><tr>';
+                    Object.keys(dataItens.data[0]).forEach(key => {
+                        html += `<th>${key}</th>`;
+                    });
+                    html += '</tr></thead><tbody>';
+
+                    dataItens.data.forEach(row => {
+                        html += '<tr>';
+                        Object.values(row).forEach(val => {
+                            html += `<td>${val !== null ? val : '<em>NULL</em>'}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    document.getElementById('itens').innerHTML = html;
+                } else {
+                    document.getElementById('itens').innerHTML = '<div class="error">Nenhum item encontrado</div>';
+                }
+
+                // Renderizar relacionamento
+                if (dataJoin.data && dataJoin.data.length > 0) {
+                    let html = '<div class="success">✅ Relacionamento está correto!</div>';
+                    html += '<table><thead><tr>';
+                    html += '<th>OS ID (PK)</th>';
+                    html += '<th>Ordem Número</th>';
+                    html += '<th>Placa</th>';
+                    html += '<th>Item ID</th>';
+                    html += '<th>os_id (FK)</th>';
+                    html += '<th>Descrição Item</th>';
+                    html += '<th>Quantidade</th>';
+                    html += '<th>Valor</th>';
+                    html += '</tr></thead><tbody>';
+
+                    dataJoin.data.forEach(row => {
+                        html += '<tr>';
+                        html += `<td class="highlight">${row.os_pk_id}</td>`;
+                        html += `<td><strong>${row.ordem_numero}</strong></td>`;
+                        html += `<td>${row.placa_veiculo}</td>`;
+                        html += `<td>${row.item_id}</td>`;
+                        html += `<td class="highlight">${row.item_os_id}</td>`;
+                        html += `<td>${row.descricao}</td>`;
+                        html += `<td>${row.quantidade}</td>`;
+                        html += `<td>R$ ${parseFloat(row.valor_unitario).toFixed(2)}</td>`;
+                        html += '</tr>';
+                    });
+                    html += '</tbody></table>';
+
+                    html += '<div class="info">';
+                    html += '💡 <strong>Como interpretar:</strong><br>';
+                    html += '• <code>os_pk_id</code> e <code>item_os_id</code> devem ser IGUAIS (relacionamento correto)<br>';
+                    html += '• <code>ordem_numero</code> é apenas para exibição (ex: "OS-2025-00002")<br>';
+                    html += '• O banco usa IDs numéricos internos para relacionamentos (melhor performance)';
+                    html += '</div>';
+
+                    document.getElementById('relacionamento').innerHTML = html;
+                } else {
+                    document.getElementById('relacionamento').innerHTML = '<div class="error">Nenhum relacionamento encontrado</div>';
+                }
+
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('ordemservico').innerHTML = `<div class="error">Erro: ${error.message}</div>`;
+            }
+        }
+
+        // Carregar automaticamente ao abrir
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+{
+  "services": [
+    {
+      "id": "srv001",
+      "name": "Troca de óleo do motor",
+      "category": "motor",
+      "defaultPrice": 150.00
+    },
+    {
+      "id": "srv002",
+      "name": "Alinhamento e balanceamento",
+      "category": "pneus",
+      "defaultPrice": 80.00
+    },
+    {
+      "id": "srv003",
+      "name": "Troca de pastilha de freio",
+      "category": "freio",
+      "defaultPrice": 120.00
+    },
+    {
+      "id": "srv004",
+      "name": "Revisão de suspensão",
+      "category": "suspensao",
+      "defaultPrice": 200.00
+    },
+    {
+      "id": "srv005",
+      "name": "Troca de fluido de câmbio",
+      "category": "cambio",
+      "defaultPrice": 180.00
+    },
+    {
+      "id": "srv006",
+      "name": "Reparo elétrico",
+      "category": "eletrica",
+      "defaultPrice": 100.00
+    },
+    {
+      "id": "srv007",
+      "name": "Pintura de carroceria",
+      "category": "carroceria",
+      "defaultPrice": 500.00
+    },
+    {
+      "id": "srv008",
+      "name": "Lavagem completa",
+      "category": "limpeza",
+      "defaultPrice": 50.00
+    },
+    {
+      "id": "srv009",
+      "name": "Conserto de pneu",
+      "category": "pneus",
+      "defaultPrice": 30.00
+    },
+    {
+      "id": "srv010",
+      "name": "Serviço de munck",
+      "category": "munck",
+      "defaultPrice": 250.00
+    },
+    {
+      "id": "srv011",
+      "name": "Revisão da caixa de marcha",
+      "category": "caixa",
+      "defaultPrice": 300.00
+    },
+    {
+      "id": "srv012",
+      "name": "Troca de correia dentada",
+      "category": "motor",
+      "defaultPrice": 220.00
+    },
+    {
+      "id": "srv013",
+      "name": "Sangria de freio",
+      "category": "freio",
+      "defaultPrice": 60.00
+    },
+    {
+      "id": "srv014",
+      "name": "Troca de bateria",
+      "category": "eletrica",
+      "defaultPrice": 350.00
+    },
+    {
+      "id": "srv015",
+      "name": "Polimento de faróis",
+      "category": "limpeza",
+      "defaultPrice": 80.00
+    }
+  ],
+  "products": [
+    {
+      "id": "prd001",
+      "name": "Filtro de óleo",
+      "category": "motor",
+      "defaultPrice": 45.50
+    },
+    {
+      "id": "prd002",
+      "name": "Filtro de ar",
+      "category": "motor",
+      "defaultPrice": 35.00
+    },
+    {
+      "id": "prd003",
+      "name": "Pneu 185/60 R15",
+      "category": "pneus",
+      "defaultPrice": 280.00
+    },
+    {
+      "id": "prd004",
+      "name": "Pastilha de freio dianteira",
+      "category": "freio",
+      "defaultPrice": 85.00
+    },
+    {
+      "id": "prd005",
+      "name": "Pastilha de freio traseira",
+      "category": "freio",
+      "defaultPrice": 75.00
+    },
+    {
+      "id": "prd006",
+      "name": "Amortecedor dianteiro",
+      "category": "suspensao",
+      "defaultPrice": 180.00
+    },
+    {
+      "id": "prd007",
+      "name": "Amortecedor traseiro",
+      "category": "suspensao",
+      "defaultPrice": 160.00
+    },
+    {
+      "id": "prd008",
+      "name": "Bateria 60Ah",
+      "category": "eletrica",
+      "defaultPrice": 350.00
+    },
+    {
+      "id": "prd009",
+      "name": "Óleo de motor 5W30",
+      "category": "motor",
+      "defaultPrice": 55.00
+    },
+    {
+      "id": "prd010",
+      "name": "Disco de freio dianteiro",
+      "category": "freio",
+      "defaultPrice": 120.00
+    },
+    {
+      "id": "prd011",
+      "name": "Vela de ignição",
+      "category": "motor",
+      "defaultPrice": 18.00
+    },
+    {
+      "id": "prd012",
+      "name": "Correia dentada",
+      "category": "motor",
+      "defaultPrice": 95.00
+    },
+    {
+      "id": "prd013",
+      "name": "Fluido de freio DOT 4",
+      "category": "freio",
+      "defaultPrice": 25.00
+    },
+    {
+      "id": "prd014",
+      "name": "Lâmpada de farol H7",
+      "category": "eletrica",
+      "defaultPrice": 35.00
+    },
+    {
+      "id": "prd015",
+      "name": "Filtro de combustível",
+      "category": "motor",
+      "defaultPrice": 42.00
+    }
+  ],
+  "categories": [
+    "pneus",
+    "munck",
+    "carroceria",
+    "motor",
+    "caixa",
+    "limpeza",
+    "cambio",
+    "suspensao",
+    "eletrica",
+    "freio"
+  ]
+}

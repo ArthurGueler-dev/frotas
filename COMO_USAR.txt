@@ -1,0 +1,67 @@
+═══════════════════════════════════════════════════════════
+    🚗 FLEETFLOW - SISTEMA DE GESTÃO DE FROTAS 🚗
+═══════════════════════════════════════════════════════════
+
+✅ SISTEMA JÁ ESTÁ RODANDO!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📍 COMO ACESSAR:
+
+1. Abra seu navegador (Chrome, Firefox, Edge, etc.)
+
+2. Acesse uma das URLs:
+
+   🏠 Dashboard Principal:
+   http://localhost:5000
+
+   🚙 Gestão de Veículos:
+   http://localhost:5000/veiculos
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 FUNCIONALIDADES DISPONÍVEIS:
+
+✓ Dashboard com estatísticas em tempo real
+✓ Cadastro de veículos (botão "Novo Registro")
+✓ Listagem de veículos ativos
+✓ Sistema de manutenções (aba "Manutenção")
+✓ Veículos arquivados (aba "Arquivados")
+✓ Alertas automáticos
+✓ Gráficos e relatórios
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔄 REINICIAR O SISTEMA:
+
+Se o servidor parar, execute:
+   node server.js
+
+Ou use o script:
+   start.bat
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 API REST:
+
+Base URL: http://localhost:5000/api
+
+Endpoints:
+• GET  /api/stats              - Estatísticas gerais
+• GET  /api/vehicles           - Listar veículos
+• POST /api/vehicles           - Criar veículo
+• PUT  /api/vehicles/:id       - Atualizar veículo
+• GET  /api/maintenances       - Listar manutenções
+• GET  /api/drivers            - Listar motoristas
+• GET  /api/alerts             - Buscar alertas
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 DICA:
+
+O sistema já vem com 9 veículos cadastrados para você testar!
+Experimente adicionar um novo veículo clicando em "Novo Registro".
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Desenvolvido com Node.js + Express + TailwindCSS

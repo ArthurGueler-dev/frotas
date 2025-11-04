@@ -1,0 +1,142 @@
+═══════════════════════════════════════════════════════════
+   SISTEMA DE OTIMIZAÇÃO DE ROTAS - GUIA RÁPIDO
+═══════════════════════════════════════════════════════════
+
+✅ INSTALAÇÃO COMPLETA!
+As tabelas foram criadas no banco de dados com sucesso.
+
+═══════════════════════════════════════════════════════════
+📋 COMO USAR
+═══════════════════════════════════════════════════════════
+
+1️⃣ ACESSAR O SISTEMA
+   - Abra: http://localhost:5000/rotas.html
+   - Ou clique em "Rotas" no menu lateral
+
+2️⃣ PLANEJAR UMA NOVA ROTA
+   ┌─────────────────────────────────────────────┐
+   │ a) Preencha o formulário:                   │
+   │    • Nome da rota                           │
+   │    • Selecione o veículo                    │
+   │    • Selecione o motorista                  │
+   │    • Digite o endereço de partida           │
+   │                                              │
+   │ b) Adicione as paradas:                     │
+   │    • Clique em "Adicionar Parada"           │
+   │    • Digite cada endereço                   │
+   │    • Adicione quantas paradas precisar      │
+   │                                              │
+   │ c) Clique em "Otimizar Rota"                │
+   │                                              │
+   │ d) O sistema mostrará:                      │
+   │    ✓ Distância total                        │
+   │    ✓ Tempo estimado                         │
+   │    ✓ Sequência otimizada de paradas         │
+   │    ✓ Visualização no mapa                   │
+   └─────────────────────────────────────────────┘
+
+3️⃣ SALVAR A ROTA
+   - Clique em "Salvar Rota"
+   - A rota ficará disponível na lista abaixo
+
+4️⃣ ENVIAR PARA O MOTORISTA VIA WHATSAPP
+   ┌─────────────────────────────────────────────┐
+   │ • Clique em "Enviar WhatsApp"               │
+   │ • Digite o número do motorista              │
+   │   (com DDD, ex: 27999887766)                │
+   │ • O WhatsApp abrirá com a mensagem pronta   │
+   │ • Clique em enviar                          │
+   │                                              │
+   │ A mensagem incluirá:                        │
+   │ ✓ Nome da rota                              │
+   │ ✓ Distância e tempo estimado                │
+   │ ✓ Lista de todas as paradas                 │
+   │ ✓ Link do Google Maps                       │
+   └─────────────────────────────────────────────┘
+
+5️⃣ MONITORAR A EXECUÇÃO DA ROTA
+   ┌─────────────────────────────────────────────┐
+   │ a) Na lista de rotas, clique no ícone 📍    │
+   │                                              │
+   │ b) Clique em "Iniciar Rota" quando o        │
+   │    motorista começar a viagem               │
+   │                                              │
+   │ c) Acompanhe em tempo real:                 │
+   │    • Distância percorrida                   │
+   │    • Desvio da rota planejada               │
+   │    • Conformidade (%)                       │
+   │    • Posição no mapa                        │
+   │                                              │
+   │ d) Clique em "Concluir Rota" ao terminar    │
+   └─────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════
+🎯 FUNCIONALIDADES PRINCIPAIS
+═══════════════════════════════════════════════════════════
+
+✅ Otimização automática de rotas
+   - Calcula melhor sequência de paradas
+   - Estima distância e tempo
+
+✅ Visualização no mapa
+   - Marcadores coloridos para cada parada
+   - Linha mostrando o trajeto
+   - Zoom automático
+
+✅ Envio via WhatsApp
+   - Mensagem formatada profissionalmente
+   - Link direto do Google Maps
+   - Pronto para navegação
+
+✅ Monitoramento em tempo real
+   - Compara rota planejada vs executada
+   - Calcula desvio e conformidade
+   - Atualização automática a cada 10s
+
+✅ Gestão de rotas
+   - Listar todas as rotas salvas
+   - Visualizar detalhes
+   - Excluir rotas antigas
+
+═══════════════════════════════════════════════════════════
+📊 EXEMPLO DE USO PRÁTICO
+═══════════════════════════════════════════════════════════
+
+CENÁRIO: Entregas na região metropolitana
+
+1. Nome: "Entregas Zona Norte - 30/10"
+2. Veículo: ABC-1234
+3. Motorista: João Silva
+4. Partida: Av. Américo Buaiz, 200, Vitória
+5. Paradas:
+   - Rua das Flores, 100, Serra
+   - Av. Central, 500, Cariacica
+   - Rua do Comércio, 80, Serra
+   - Praça da Independência, Vila Velha
+
+6. Sistema otimiza para:
+   → Partida → Serra (Flores) → Serra (Comércio) →
+   Cariacica → Vila Velha → Retorno
+
+7. Economizando: 15km e 25 minutos
+
+═══════════════════════════════════════════════════════════
+⚠️ IMPORTANTE
+═══════════════════════════════════════════════════════════
+
+• Use endereços completos para melhor precisão
+• O sistema usa OpenStreetMap (gratuito)
+• Monitoramento depende dos dados de rastreamento
+• Pode levar alguns segundos para geocodificar endereços
+
+═══════════════════════════════════════════════════════════
+🔧 SUPORTE
+═══════════════════════════════════════════════════════════
+
+Se algo não funcionar:
+1. Verifique se o servidor está rodando (node server.js)
+2. Abra o console do navegador (F12) para ver erros
+3. Verifique se tem conexão com internet (para mapas)
+4. Confirme que as tabelas foram criadas no banco
+
+═══════════════════════════════════════════════════════════

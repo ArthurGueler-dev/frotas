@@ -1,0 +1,447 @@
+{
+	"info": {
+		"_postman_id": "0878b6f6-0c4e-413a-8d5e-e1e81008de3f",
+		"name": "i9 Carros",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "36797691"
+	},
+	"item": [
+		{
+			"name": "GetVehicleLocation",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
+			"request": {
+				"method": "GET",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{host}}/ituranmobileservice/mobileservice.asmx/GetVehicleLocationWithActiveStatus?UserName=api@i9tecnologia&Password=Api@In9Eng&strPlatformId={{strPlatformId}}",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranmobileservice",
+						"mobileservice.asmx",
+						"GetVehicleLocationWithActiveStatus"
+					],
+					"query": [
+						{
+							"key": "UserName",
+							"value": "api@i9tecnologia"
+						},
+						{
+							"key": "Password",
+							"value": "Api@In9Eng"
+						},
+						{
+							"key": "strPlatformId",
+							"value": "{{strPlatformId}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetVehicleLocationWithActiveStatus",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranmobileservice/mobileservice.asmx/GetVehicleLocationWithActiveStatus?UserName={{UserName}}&Password={{Password}}&strPlatformId=OVE4358",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranmobileservice",
+						"mobileservice.asmx",
+						"GetVehicleLocationWithActiveStatus"
+					],
+					"query": [
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						},
+						{
+							"key": "strPlatformId",
+							"value": "OVE4358"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetUserDrivers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranmobileservice/mobileservice.asmx/GetUserDrivers?UserName={{UserName}}&Password={{Password}}",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranmobileservice",
+						"mobileservice.asmx",
+						"GetUserDrivers"
+					],
+					"query": [
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetBasicRuleAlerts_WebService",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranmobileservice/mobileservice.asmx/GetUserDrivers?UserName={{UserName}}&Password={{Password}}",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranmobileservice",
+						"mobileservice.asmx",
+						"GetUserDrivers"
+					],
+					"query": [
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetAllPlatformsData",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranwebservice3/Service3.asmx/GetAllPlatformsData?UserName={{UserName}}&Password={{Password}}&ShowAreas=true&ShowStatuses=true&ShowMileageInMeters=true&ShowDriver=true",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranwebservice3",
+						"Service3.asmx",
+						"GetAllPlatformsData"
+					],
+					"query": [
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						},
+						{
+							"key": "ShowAreas",
+							"value": "true"
+						},
+						{
+							"key": "ShowStatuses",
+							"value": "true"
+						},
+						{
+							"key": "ShowMileageInMeters",
+							"value": "true"
+						},
+						{
+							"key": "ShowDriver",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetFullReport",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranwebservice3/Service3.asmx/GetAllPlatformsData?UserName={{UserName}}&Password={{Password}}&ShowAreas=true&ShowStatuses=true&ShowMileageInMeters=true&ShowDriver=true",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranwebservice3",
+						"Service3.asmx",
+						"GetAllPlatformsData"
+					],
+					"query": [
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						},
+						{
+							"key": "ShowAreas",
+							"value": "true"
+						},
+						{
+							"key": "ShowStatuses",
+							"value": "true"
+						},
+						{
+							"key": "ShowMileageInMeters",
+							"value": "true"
+						},
+						{
+							"key": "ShowDriver",
+							"value": "true"
+						}
+					]
+				}
+			},
+			"response": [
+				{
+					"name": "GetAllPlatformsData Copy",
+					"originalRequest": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{host}}/ituranwebservice3/Service3.asmx/GetFullReport?UserName={{UserName}}&Password={{Password}}&Plate=MTQ7J93&Start=2014-09-20 12:00:00&End=2014-09-23 12:00:00&UAID=0&MaxNumberOfRecords=50000",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"ituranwebservice3",
+								"Service3.asmx",
+								"GetFullReport"
+							],
+							"query": [
+								{
+									"key": "UserName",
+									"value": "{{UserName}}"
+								},
+								{
+									"key": "Password",
+									"value": "{{Password}}"
+								},
+								{
+									"key": "Plate",
+									"value": "MTQ7J93"
+								},
+								{
+									"key": "Start",
+									"value": "2014-09-20 12:00:00"
+								},
+								{
+									"key": "End",
+									"value": "2014-09-23 12:00:00"
+								},
+								{
+									"key": "UAID",
+									"value": "0"
+								},
+								{
+									"key": "MaxNumberOfRecords",
+									"value": "50000"
+								}
+							]
+						}
+					},
+					"status": "OK",
+					"code": 200,
+					"_postman_previewlanguage": "xml",
+					"header": [
+						{
+							"key": "Server",
+							"value": "rhino-core-shield"
+						},
+						{
+							"key": "Date",
+							"value": "Tue, 24 Sep 2024 16:31:06 GMT"
+						},
+						{
+							"key": "Content-Type",
+							"value": "text/xml; charset=utf-8"
+						},
+						{
+							"key": "Content-Length",
+							"value": "474"
+						},
+						{
+							"key": "Cache-Control",
+							"value": "private, max-age=0"
+						},
+						{
+							"key": "X-AspNet-Version",
+							"value": "4.0.30319"
+						},
+						{
+							"key": "X-Powered-By",
+							"value": "ASP.NET"
+						},
+						{
+							"key": "Strict-Transport-Security",
+							"value": "max-age=31536000; includeSubDomains"
+						},
+						{
+							"key": "Via",
+							"value": "1.1 google"
+						},
+						{
+							"key": "Alt-Svc",
+							"value": "clear"
+						}
+					],
+					"cookie": [],
+					"body": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<FullReport xmlns:xsd=\"http://www.w3.org/2001/XMLSchema\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xmlns=\"http://www.ituran.com/ituranWebService3\">\n    <ReturnCode>OK</ReturnCode>\n    <Username>thiago.costa</Username>\n    <Plates>\n        <string>MTQ7J93</string>\n    </Plates>\n    <StartTime>2014-09-20T12:00:00</StartTime>\n    <EndTime>2014-09-23T12:00:00</EndTime>\n    <Records />\n    <NumOfRecords>0</NumOfRecords>\n</FullReport>"
+				}
+			]
+		},
+		{
+			"name": "GetVehicleMileage",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranwebservice3/Service3.asmx/GetVehicleMileage?Plate={{Plate}}&LocTime=2024-09-05 12:00:00&UserName={{UserName}}&Password={{Password}}",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranwebservice3",
+						"Service3.asmx",
+						"GetVehicleMileage"
+					],
+					"query": [
+						{
+							"key": "Plate",
+							"value": "{{Plate}}"
+						},
+						{
+							"key": "LocTime",
+							"value": "2024-09-05 12:00:00"
+						},
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetAllVehicleMileage",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranwebservice3/Service3.asmx/GetVehicleMileage?Plate={{Plate}}&LocTime=2024-09-05 12:00:00&UserName={{UserName}}&Password={{Password}}",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranwebservice3",
+						"Service3.asmx",
+						"GetVehicleMileage"
+					],
+					"query": [
+						{
+							"key": "Plate",
+							"value": "{{Plate}}"
+						},
+						{
+							"key": "LocTime",
+							"value": "2024-09-05 12:00:00"
+						},
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetPlatformData",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{host}}/ituranwebservice3/Service3.asmx/GetPlatformData?Plate={{Plate}}&UserName={{UserName}}&Password={{Password}}&ShowAreas=&ShowStatuses=",
+					"host": [
+						"{{host}}"
+					],
+					"path": [
+						"ituranwebservice3",
+						"Service3.asmx",
+						"GetPlatformData"
+					],
+					"query": [
+						{
+							"key": "Plate",
+							"value": "{{Plate}}"
+						},
+						{
+							"key": "UserName",
+							"value": "{{UserName}}"
+						},
+						{
+							"key": "Password",
+							"value": "{{Password}}"
+						},
+						{
+							"key": "ShowAreas",
+							"value": ""
+						},
+						{
+							"key": "ShowStatuses",
+							"value": ""
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
