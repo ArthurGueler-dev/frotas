@@ -1,0 +1,434 @@
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-title>Painel Administrativo</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="carregarChecklists()">
+        <ion-icon slot="icon-only" name="refresh"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" color="light">
+  <ion-header collapse="condense">
+    <ion-toolbar color="primary">
+      <ion-title size="large">Admin</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <!-- Pull to Refresh -->
+  <ion-refresher slot="fixed" (ionRefresh)="recarregar($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <div class="content-container">
+    <!-- Botão de Acesso ao Checklist Completo -->
+    <ion-card color="primary">
+      <ion-card-content>
+        <ion-button expand="block" fill="solid" color="light" routerLink="/checklist-completo">
+          <ion-icon slot="start" name="clipboard"></ion-icon>
+          Acessar Checklist Completo
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Estatísticas -->
+    <div class="stats-container">
+      <ion-card class="stat-card">
+        <ion-card-content>
+          <ion-icon name="document-text" color="primary"></ion-icon>
+          <h2>{{ totalChecklists }}</h2>
+          <p>Total</p>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="stat-card">
+        <ion-card-content>
+          <ion-icon name="today" color="success"></ion-icon>
+          <h2>{{ checklistsHoje }}</h2>
+          <p>Hoje</p>
+        </ion-card-content>
+      </ion-card>
+
+      <ion-card class="stat-card">
+        <ion-card-content>
+          <ion-icon name="calendar" color="warning"></ion-icon>
+          <h2>{{ checklistsSemana }}</h2>
+          <p>7 Dias</p>
+        </ion-card-content>
+      </ion-card>
+    </div>
+
+    <!-- Filtros -->
+    <ion-card>
+      <ion-card-header>
+        <ion-card-title>Filtros</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <!-- Busca por Placa -->
+        <ion-searchbar
+          placeholder="Buscar por placa"
+          [(ngModel)]="filtroPlaca"
+          (ionInput)="buscarPorPlaca($event)"
+          debounce="500"
+        ></ion-searchbar>
+
+        <!-- Filtro de Data -->
+        <ion-item>
+          <ion-label position="stacked">Data Inicial</ion-label>
+          <ion-input
+            type="date"
+            [(ngModel)]="filtroDataInicio"
+            (ionChange)="aplicarFiltros()"
+          ></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Data Final</ion-label>
+          <ion-input
+            type="date"
+            [(ngModel)]="filtroDataFim"
+            (ionChange)="aplicarFiltros()"
+          ></ion-input>
+        </ion-item>
+
+        <ion-button
+          expand="block"
+          fill="outline"
+          color="medium"
+          (click)="limparFiltros()"
+          class="clear-filters-btn"
+        >
+          <ion-icon slot="start" name="close-circle"></ion-icon>
+          Limpar Filtros
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Loading -->
+    <div *ngIf="carregando" class="loading-container">
+      <ion-spinner name="crescent" color="primary"></ion-spinner>
+      <p>Carregando checklists...</p>
+    </div>
+
+    <!-- Erro -->
+    <ion-card *ngIf="erro && !carregando" color="danger">
+      <ion-card-content>
+        <ion-icon name="alert-circle"></ion-icon>
+        {{ erro }}
+      </ion-card-content>
+    </ion-card>
+
+    <!-- Resultados -->
+    <ion-card *ngIf="!carregando && !erro">
+      <ion-card-header>
+        <ion-card-title>
+          Checklists ({{ checklistsFiltrados.length }})
+        </ion-card-title>
+      </ion-card-header>
+    </ion-card>
+
+    <!-- Lista vazia -->
+    <div *ngIf="!carregando && !erro && checklistsFiltrados.length === 0" class="empty-state">
+      <ion-icon name="document-text-outline"></ion-icon>
+      <h3>Nenhum checklist encontrado</h3>
+      <p>Ajuste os filtros ou verifique a conexão com o servidor.</p>
+    </div>
+
+    <!-- Lista de Checklists -->
+    <ion-list *ngIf="!carregando && checklistsFiltrados.length > 0">
+      <ion-item-sliding *ngFor="let checklist of checklistsFiltrados">
+        <ion-item button (click)="verDetalhes(checklist)">
+          <ion-icon name="car-sport" slot="start" color="primary"></ion-icon>
+          <ion-label>
+            <h2><strong>{{ checklist.placa }}</strong></h2>
+            <p>KM: {{ checklist.km_inicial }} | Combustível: {{ checklist.nivel_combustivel }}</p>
+            <p *ngIf="checklist.usuario_nome"><ion-icon name="person"></ion-icon> Inspetor: {{ checklist.usuario_nome }}</p>
+            <p class="data-texto">{{ formatarData(checklist.data_realizacao) }}</p>
+          </ion-label>
+          <ion-badge slot="end" color="primary">ID: {{ checklist.id }}</ion-badge>
+        </ion-item>
+
+        <ion-item-options side="end">
+          <ion-item-option color="primary" (click)="verDetalhes(checklist)">
+            <ion-icon slot="icon-only" name="eye"></ion-icon>
+          </ion-item-option>
+        </ion-item-options>
+      </ion-item-sliding>
+    </ion-list>
+  </div>
+</ion-content>
+
+<!-- Modal de Detalhes -->
+<ion-modal [isOpen]="mostrarModal" (didDismiss)="fecharModal()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="primary">
+        <ion-title>Detalhes do Checklist</ion-title>
+        <ion-buttons slot="end">
+          <ion-button (click)="fecharModal()">
+            <ion-icon name="close"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content *ngIf="checklistDetalhado">
+      <div class="detalhes-container">
+        <!-- Informações Básicas -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Informações do Veículo</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <p><strong>ID:</strong> {{ checklistDetalhado.id }}</p>
+            <p><strong>Placa:</strong> {{ checklistDetalhado.placa }}</p>
+            <p><strong>KM Inicial:</strong> {{ checklistDetalhado.km_inicial }}</p>
+            <p><strong>Combustível:</strong> {{ checklistDetalhado.nivel_combustivel }}</p>
+            <p><strong>Data:</strong> {{ formatarData(checklistDetalhado.data_realizacao) }}</p>
+            <p *ngIf="checklistDetalhado.usuario"><strong>Inspetor:</strong> {{ checklistDetalhado.usuario.nome }}</p>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Tempo de Telas -->
+        <ion-card *ngIf="temposTelas && temposTelas.length > 0">
+          <ion-card-header>
+            <ion-card-title>Tempo de Telas</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list>
+              <ion-item *ngFor="let tempo of temposTelas">
+                <ion-icon name="time-outline" slot="start" color="primary"></ion-icon>
+                <ion-label>
+                  <h3>{{ getNomeTela(tempo.tela) }}</h3>
+                  <p>Tempo: <strong>{{ formatarTempo(tempo.tempo_segundos) }}</strong></p>
+                  <p class="ion-text-wrap" style="font-size: 0.85em; color: var(--ion-color-medium);">
+                    Início: {{ formatarData(tempo.data_hora_inicio) }}<br>
+                    Fim: {{ formatarData(tempo.data_hora_fim) }}
+                  </p>
+                </ion-label>
+              </ion-item>
+            </ion-list>
+            <ion-item lines="none">
+              <ion-label>
+                <h2><strong>Tempo Total:</strong> {{ getTotalTempo() }}</h2>
+              </ion-label>
+            </ion-item>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Foto do Painel e Observação -->
+        <ion-card>
+          <ion-card-header>
+            <ion-card-title>Painel do Veículo</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="foto-item" *ngIf="checklistDetalhado.fotos?.PAINEL">
+              <h4>Foto do Painel</h4>
+              <img [src]="checklistDetalhado.fotos.PAINEL" alt="Painel" (click)="expandirFoto(checklistDetalhado.fotos.PAINEL)" />
+            </div>
+            <ion-item *ngIf="checklistDetalhado.observacao_painel">
+              <ion-label class="ion-text-wrap">
+                <h3>Observações do Painel:</h3>
+                <p>{{ checklistDetalhado.observacao_painel }}</p>
+              </ion-label>
+            </ion-item>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Inspeção do Motor -->
+        <ion-card *ngIf="checklistDetalhado.itens?.MOTOR && checklistDetalhado.itens.MOTOR.length > 0">
+          <ion-card-header>
+            <ion-card-title>Inspeção do Motor</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list>
+              <div *ngFor="let item of checklistDetalhado.itens.MOTOR">
+                <ion-item>
+                  <ion-label>
+                    <h3>{{ item.item }}</h3>
+                    <p><ion-badge [color]="getCorStatus(item.status)">{{ item.status || 'N/A' }}</ion-badge></p>
+                  </ion-label>
+                </ion-item>
+                <div class="foto-item" *ngIf="item.foto">
+                  <img [src]="item.foto" [alt]="item.item" (click)="expandirFoto(item.foto)" />
+                </div>
+              </div>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Inspeção Elétrica -->
+        <ion-card *ngIf="checklistDetalhado.itens?.ELETRICO && checklistDetalhado.itens.ELETRICO.length > 0">
+          <ion-card-header>
+            <ion-card-title>Sistema Elétrico</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list>
+              <div *ngFor="let item of checklistDetalhado.itens.ELETRICO">
+                <ion-item>
+                  <ion-label>
+                    <h3>{{ item.item }}</h3>
+                    <p><ion-badge [color]="getCorStatus(item.status)">{{ item.status || 'N/A' }}</ion-badge></p>
+                  </ion-label>
+                </ion-item>
+                <div class="foto-item" *ngIf="item.foto">
+                  <img [src]="item.foto" [alt]="item.item" (click)="expandirFoto(item.foto)" />
+                </div>
+              </div>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Limpeza -->
+        <ion-card *ngIf="checklistDetalhado.itens?.LIMPEZA && checklistDetalhado.itens.LIMPEZA.length > 0">
+          <ion-card-header>
+            <ion-card-title>Limpeza</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list>
+              <div *ngFor="let item of checklistDetalhado.itens.LIMPEZA">
+                <ion-item>
+                  <ion-label>
+                    <h3>{{ item.item }}</h3>
+                    <p><ion-badge [color]="getCorStatus(item.status)">{{ item.status || 'N/A' }}</ion-badge></p>
+                  </ion-label>
+                </ion-item>
+                <div class="foto-item" *ngIf="item.foto">
+                  <img [src]="item.foto" [alt]="item.item" (click)="expandirFoto(item.foto)" />
+                </div>
+              </div>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Ferramentas -->
+        <ion-card *ngIf="checklistDetalhado.itens?.FERRAMENTA && checklistDetalhado.itens.FERRAMENTA.length > 0">
+          <ion-card-header>
+            <ion-card-title>Ferramentas e Equipamentos</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list>
+              <div *ngFor="let item of checklistDetalhado.itens.FERRAMENTA">
+                <ion-item>
+                  <ion-label>
+                    <h3>{{ item.item }}</h3>
+                    <p><ion-badge [color]="item.status === 'contem' ? 'success' : 'danger'">{{ item.status === 'contem' ? 'Contém' : 'Não Contém' }}</ion-badge></p>
+                  </ion-label>
+                </ion-item>
+                <div class="foto-item" *ngIf="item.foto">
+                  <img [src]="item.foto" [alt]="item.item" (click)="expandirFoto(item.foto)" />
+                </div>
+              </div>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Fotos do Veículo -->
+        <ion-card *ngIf="checklistDetalhado.fotos">
+          <ion-card-header>
+            <ion-card-title>Fotos do Veículo</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <div class="foto-grid">
+              <div class="foto-item" *ngIf="checklistDetalhado.fotos.FRONTAL">
+                <h4>Foto Frontal</h4>
+                <img [src]="checklistDetalhado.fotos.FRONTAL" alt="Frontal" (click)="expandirFoto(checklistDetalhado.fotos.FRONTAL)" />
+              </div>
+              <div class="foto-item" *ngIf="checklistDetalhado.fotos.TRASEIRA">
+                <h4>Foto Traseira</h4>
+                <img [src]="checklistDetalhado.fotos.TRASEIRA" alt="Traseira" (click)="expandirFoto(checklistDetalhado.fotos.TRASEIRA)" />
+              </div>
+              <div class="foto-item" *ngIf="checklistDetalhado.fotos.LATERAL_DIREITA">
+                <h4>Foto Lateral Direita</h4>
+                <img [src]="checklistDetalhado.fotos.LATERAL_DIREITA" alt="Lateral Direita" (click)="expandirFoto(checklistDetalhado.fotos.LATERAL_DIREITA)" />
+              </div>
+              <div class="foto-item" *ngIf="checklistDetalhado.fotos.LATERAL_ESQUERDA">
+                <h4>Foto Lateral Esquerda</h4>
+                <img [src]="checklistDetalhado.fotos.LATERAL_ESQUERDA" alt="Lateral Esquerda" (click)="expandirFoto(checklistDetalhado.fotos.LATERAL_ESQUERDA)" />
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
+
+        <!-- Pneus -->
+        <ion-card *ngIf="checklistDetalhado.itens?.PNEU && checklistDetalhado.itens.PNEU.length > 0">
+          <ion-card-header>
+            <ion-card-title>Pneus</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-list>
+              <div *ngFor="let item of checklistDetalhado.itens.PNEU">
+                <ion-item>
+                  <ion-label>
+                    <h3>{{ item.item }}</h3>
+                    <p><ion-badge [color]="getCorStatus(item.status)">{{ item.status || 'N/A' }}</ion-badge></p>
+                    <p *ngIf="item.pressao"><strong>Pressão:</strong> {{ item.pressao }} PSI</p>
+                  </ion-label>
+                </ion-item>
+                <div class="foto-item" *ngIf="item.foto">
+                  <h4>Foto do Pneu</h4>
+                  <img [src]="item.foto" [alt]="item.item" (click)="expandirFoto(item.foto)" />
+                </div>
+                <div class="foto-item" *ngIf="item.foto_caneta">
+                  <h4>Foto da Caneta</h4>
+                  <img [src]="item.foto_caneta" [alt]="item.item + ' - Caneta'" (click)="expandirFoto(item.foto_caneta)" />
+                </div>
+              </div>
+            </ion-list>
+          </ion-card-content>
+        </ion-card>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<!-- Modal para expansão de foto -->
+<ion-modal [isOpen]="mostrarFotoExpandida" (didDismiss)="fecharFotoExpandida()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar color="dark">
+        <ion-title>Foto - Zoom {{ zoomLevel }}x</ion-title>
+        <ion-buttons slot="start">
+          <ion-button (click)="resetZoom()" [disabled]="zoomLevel === 1">
+            <ion-icon name="contract-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+        <ion-buttons slot="end">
+          <ion-button (click)="zoomOut()" [disabled]="zoomLevel <= 0.5">
+            <ion-icon name="remove-circle-outline"></ion-icon>
+          </ion-button>
+          <ion-button (click)="zoomIn()" [disabled]="zoomLevel >= 5">
+            <ion-icon name="add-circle-outline"></ion-icon>
+          </ion-button>
+          <ion-button (click)="fecharFotoExpandida()">
+            <ion-icon name="close"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+    <ion-content class="foto-expandida-content">
+      <div class="foto-expandida-container">
+        <img
+          [src]="fotoExpandida"
+          alt="Foto Expandida"
+          class="foto-expandida"
+          [style.transform]="'scale(' + zoomLevel + ')'"
+        />
+      </div>
+
+      <!-- Controles de zoom flutuantes -->
+      <div class="zoom-controls">
+        <ion-fab-button size="small" color="light" (click)="zoomOut()" [disabled]="zoomLevel <= 0.5">
+          <ion-icon name="remove"></ion-icon>
+        </ion-fab-button>
+        <ion-chip color="light">
+          <ion-label>{{ zoomLevel }}x</ion-label>
+        </ion-chip>
+        <ion-fab-button size="small" color="light" (click)="zoomIn()" [disabled]="zoomLevel >= 5">
+          <ion-icon name="add"></ion-icon>
+        </ion-fab-button>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

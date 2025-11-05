@@ -1737,9 +1737,532 @@ app.get('/api/quilometragem/estatisticas/:placa', async (req, res) => {
     res.json(result);
 });
 
+// ========== ROTAS DE CHECKLIST ==========
+
+// GET - Listar todos os checklists
+app.get('/api/checklists', async (req, res) => {
+    try {
+        const limite = req.query.limite ? parseInt(req.query.limite) : 100;
+
+        const [checklists] = await pool.query(`
+            SELECT
+                i.id,
+                i.placa,
+                i.data_realizacao,
+                i.km_inicial,
+                i.nivel_combustivel,
+                i.status_geral,
+                COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+            FROM aaa_inspecao_veiculo i
+            LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+            ORDER BY i.data_realizacao DESC
+            LIMIT ?
+        `, [limite]);
+
+        res.json(checklists);
+    } catch (error) {
+        console.error('Erro ao buscar checklists:', error);
+        res.status(500).json({
+            erro: 'Erro ao buscar dados',
+            detalhes: error.message
+        });
+    }
+});
+
+// GET - Buscar checklist completo por ID
+app.get('/api/checklists/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+
+        // Buscar inspeção com dados do usuário
+        const [inspecoes] = await pool.query(`
+            SELECT
+                i.*,
+                COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+            FROM aaa_inspecao_veiculo i
+            LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+            WHERE i.id = ?
+        `, [id]);
+
+        if (inspecoes.length === 0) {
+            return res.status(404).json({ erro: 'Checklist não encontrado' });
+        }
+
+        const inspecao = inspecoes[0];
+
+        // Buscar fotos organizadas por tipo
+        const [fotosArray] = await pool.query(`
+            SELECT tipo, foto FROM aaa_inspecao_foto WHERE inspecao_id = ?
+        `, [id]);
+
+        const fotos = {};
+        fotosArray.forEach(foto => {
+            fotos[foto.tipo] = foto.foto;
+        });
+
+        // Buscar itens organizados por categoria
+        const [itensArray] = await pool.query(`
+            SELECT categoria, item, status, foto, pressao, foto_caneta
+            FROM aaa_inspecao_item
+            WHERE inspecao_id = ?
+        `, [id]);
+
+        // Organizar itens por categoria
+        const itens = {
+            MOTOR: [],
+            ELETRICO: [],
+            LIMPEZA: [],
+            FERRAMENTA: [],
+            PNEU: []
+        };
+
+        itensArray.forEach(item => {
+            itens[item.categoria].push({
+                item: item.item,
+                status: item.status,
+                foto: item.foto,
+                pressao: item.pressao,
+                foto_caneta: item.foto_caneta
+            });
+        });
+
+        // Montar resultado completo
+        const resultado = {
+            id: inspecao.id,
+            placa: inspecao.placa,
+            km_inicial: inspecao.km_inicial,
+            nivel_combustivel: inspecao.nivel_combustivel,
+            observacao_painel: inspecao.observacao_painel,
+            data_realizacao: inspecao.data_realizacao,
+            status_geral: inspecao.status_geral,
+            usuario: {
+                id: inspecao.usuario_id,
+                nome: inspecao.usuario_nome
+            },
+            fotos,
+            itens
+        };
+
+        res.json(resultado);
+    } catch (error) {
+        console.error('Erro ao buscar checklist:', error);
+        res.status(500).json({
+            erro: 'Erro ao buscar dados',
+            detalhes: error.message
+        });
+    }
+});
+
+// GET - Buscar checklists por placa
+app.get('/api/checklists/placa/:placa', async (req, res) => {
+    try {
+        const [checklists] = await pool.query(`
+            SELECT
+                i.*,
+                COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+            FROM aaa_inspecao_veiculo i
+            LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+            WHERE i.placa = ?
+            ORDER BY i.data_realizacao DESC
+        `, [req.params.placa]);
+
+        res.json(checklists);
+    } catch (error) {
+        console.error('Erro ao buscar checklists por placa:', error);
+        res.status(500).json({
+            erro: 'Erro ao buscar dados',
+            detalhes: error.message
+        });
+    }
+});
+
+// GET - Buscar checklists por período
+app.get('/api/checklists/periodo', async (req, res) => {
+    try {
+        const { data_inicio, data_fim } = req.query;
+
+        if (!data_inicio || !data_fim) {
+            return res.status(400).json({ erro: 'Datas não informadas' });
+        }
+
+        const [checklists] = await pool.query(`
+            SELECT
+                i.*,
+                COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+            FROM aaa_inspecao_veiculo i
+            LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+            WHERE i.data_realizacao BETWEEN ? AND ?
+            ORDER BY i.data_realizacao DESC
+        `, [data_inicio, data_fim]);
+
+        res.json(checklists);
+    } catch (error) {
+        console.error('Erro ao buscar checklists por período:', error);
+        res.status(500).json({
+            erro: 'Erro ao buscar dados',
+            detalhes: error.message
+        });
+    }
+});
+
 // ========== ROTAS DE MANUTENÇÃO PREVENTIVA ==========
 const { setupManutencaoRoutes } = require('./manutencao-api');
 setupManutencaoRoutes(app, pool);
+
+// ========== ROTAS COMPATÍVEIS COM ARQUIVOS PHP (para Angular) ==========
+// Estas rotas replicam o comportamento dos arquivos PHP para compatibilidade com o frontend Angular
+
+// GET - veicular_get.php (compatível com os endpoints PHP)
+app.get('/admin/veicular_get.php', async (req, res) => {
+    try {
+        // Headers CORS
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        const acao = req.query.acao || 'todos';
+
+        switch (acao) {
+            case 'id':
+                if (!req.query.id) {
+                    return res.status(400).json({ erro: 'ID não informado' });
+                }
+
+                const [inspecoes] = await pool.query(`
+                    SELECT
+                        i.*,
+                        COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+                    FROM aaa_inspecao_veiculo i
+                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    WHERE i.id = ?
+                `, [req.query.id]);
+
+                if (inspecoes.length === 0) {
+                    return res.status(404).json({ erro: 'Checklist não encontrado' });
+                }
+
+                const inspecao = inspecoes[0];
+
+                // Buscar fotos
+                const [fotosArray] = await pool.query(`
+                    SELECT tipo, foto FROM aaa_inspecao_foto WHERE inspecao_id = ?
+                `, [req.query.id]);
+
+                // Buscar itens
+                const [itensArray] = await pool.query(`
+                    SELECT categoria, item, status, foto FROM aaa_inspecao_item WHERE inspecao_id = ?
+                `, [req.query.id]);
+
+                res.json({
+                    inspecao,
+                    fotos: fotosArray,
+                    itens: itensArray
+                });
+                break;
+
+            case 'placa':
+                if (!req.query.placa) {
+                    return res.status(400).json({ erro: 'Placa não informada' });
+                }
+
+                const [checklistsPlaca] = await pool.query(`
+                    SELECT
+                        i.*,
+                        COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+                    FROM aaa_inspecao_veiculo i
+                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    WHERE i.placa = ?
+                    ORDER BY i.data_realizacao DESC
+                `, [req.query.placa]);
+
+                res.json(checklistsPlaca);
+                break;
+
+            case 'periodo':
+                if (!req.query.data_inicio || !req.query.data_fim) {
+                    return res.status(400).json({ erro: 'Datas não informadas' });
+                }
+
+                const [checklistsPeriodo] = await pool.query(`
+                    SELECT
+                        i.*,
+                        COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+                    FROM aaa_inspecao_veiculo i
+                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    WHERE i.data_realizacao BETWEEN ? AND ?
+                    ORDER BY i.data_realizacao DESC
+                `, [req.query.data_inicio, req.query.data_fim]);
+
+                res.json(checklistsPeriodo);
+                break;
+
+            case 'completo':
+                if (!req.query.id) {
+                    return res.status(400).json({ erro: 'ID não informado' });
+                }
+
+                const [inspecoesCompleto] = await pool.query(`
+                    SELECT
+                        i.*,
+                        COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+                    FROM aaa_inspecao_veiculo i
+                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    WHERE i.id = ?
+                `, [req.query.id]);
+
+                if (inspecoesCompleto.length === 0) {
+                    return res.status(404).json({ erro: 'Checklist não encontrado' });
+                }
+
+                const inspecaoCompleto = inspecoesCompleto[0];
+
+                // Buscar fotos organizadas por tipo
+                const [fotosCompleto] = await pool.query(`
+                    SELECT tipo, foto FROM aaa_inspecao_foto WHERE inspecao_id = ?
+                `, [req.query.id]);
+
+                const fotosObj = {};
+                fotosCompleto.forEach(foto => {
+                    fotosObj[foto.tipo] = foto.foto;
+                });
+
+                // Buscar itens organizados por categoria
+                const [itensCompleto] = await pool.query(`
+                    SELECT categoria, item, status, foto, pressao, foto_caneta
+                    FROM aaa_inspecao_item
+                    WHERE inspecao_id = ?
+                `, [req.query.id]);
+
+                // Organizar itens por categoria
+                const itens = {
+                    MOTOR: [],
+                    ELETRICO: [],
+                    LIMPEZA: [],
+                    FERRAMENTA: [],
+                    PNEU: []
+                };
+
+                itensCompleto.forEach(item => {
+                    itens[item.categoria].push({
+                        item: item.item,
+                        status: item.status,
+                        foto: item.foto,
+                        pressao: item.pressao,
+                        foto_caneta: item.foto_caneta
+                    });
+                });
+
+                // Adicionar itens padrão que não estão no banco (se necessário)
+                const todosItens = {
+                    'MOTOR': ['Água Radiador', 'Água Limpador Parabrisa', 'Fluido de Freio', 'Nível de Óleo', 'Tampa do Radiador', 'Freio de Mão'],
+                    'ELETRICO': ['Seta Esquerda', 'Seta Direita', 'Pisca Alerta', 'Farol'],
+                    'LIMPEZA': ['Limpeza Interna', 'Limpeza Externa'],
+                    'FERRAMENTA': ['Macaco', 'Chave de Roda', 'Chave do Estepe', 'Triângulo']
+                };
+
+                Object.keys(todosItens).forEach(categoria => {
+                    if (categoria !== 'PNEU') {
+                        const itensSalvos = itens[categoria].map(i => i.item);
+                        todosItens[categoria].forEach(itemNome => {
+                            if (!itensSalvos.includes(itemNome)) {
+                                itens[categoria].push({
+                                    item: itemNome,
+                                    status: categoria === 'MOTOR' || categoria === 'ELETRICO' ? 'bom' : 
+                                            categoria === 'LIMPEZA' ? 'otimo' : 'contem',
+                                    foto: ''
+                                });
+                            }
+                        });
+                    }
+                });
+
+                res.json({
+                    id: inspecaoCompleto.id,
+                    placa: inspecaoCompleto.placa,
+                    km_inicial: inspecaoCompleto.km_inicial,
+                    nivel_combustivel: inspecaoCompleto.nivel_combustivel,
+                    observacao_painel: inspecaoCompleto.observacao_painel,
+                    data_realizacao: inspecaoCompleto.data_realizacao,
+                    status_geral: inspecaoCompleto.status_geral,
+                    usuario: {
+                        id: inspecaoCompleto.usuario_id,
+                        nome: inspecaoCompleto.usuario_nome
+                    },
+                    fotos: fotosObj,
+                    itens: itens
+                });
+                break;
+
+            case 'todos':
+            default:
+                const limite = req.query.limite ? parseInt(req.query.limite) : 100;
+
+                const [checklistsTodos] = await pool.query(`
+                    SELECT
+                        i.id,
+                        i.placa,
+                        i.data_realizacao,
+                        i.km_inicial,
+                        i.nivel_combustivel,
+                        i.status_geral,
+                        COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
+                    FROM aaa_inspecao_veiculo i
+                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    ORDER BY i.data_realizacao DESC
+                    LIMIT ?
+                `, [limite]);
+
+                res.json(checklistsTodos);
+                break;
+        }
+    } catch (error) {
+        console.error('Erro em veicular_get.php:', error);
+        res.status(500).json({
+            erro: 'Erro ao buscar dados',
+            detalhes: error.message
+        });
+    }
+});
+
+// GET/POST - veicular_tempotelas.php (compatível com os endpoints PHP)
+app.get('/admin/veicular_tempotelas.php', async (req, res) => {
+    try {
+        // Headers CORS
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        const acao = req.query.acao || 'todos';
+
+        switch (acao) {
+            case 'inspecao':
+                if (!req.query.inspecao_id) {
+                    return res.status(400).json({ erro: 'ID da inspeção não informado' });
+                }
+
+                const [temposInspecao] = await pool.query(`
+                    SELECT * FROM aaa_tempo_telas
+                    WHERE inspecao_id = ?
+                    ORDER BY data_hora_inicio ASC
+                `, [req.query.inspecao_id]);
+
+                res.json(temposInspecao);
+                break;
+
+            case 'usuario':
+                if (!req.query.usuario_id) {
+                    return res.status(400).json({ erro: 'ID do usuário não informado' });
+                }
+
+                const [temposUsuario] = await pool.query(`
+                    SELECT * FROM aaa_tempo_telas
+                    WHERE usuario_id = ?
+                    ORDER BY data_hora_inicio DESC
+                    LIMIT 100
+                `, [req.query.usuario_id]);
+
+                res.json(temposUsuario);
+                break;
+
+            case 'estatisticas':
+                const [estatisticas] = await pool.query(`
+                    SELECT
+                        tela,
+                        COUNT(*) as total_registros,
+                        AVG(tempo_segundos) as tempo_medio_segundos,
+                        MIN(tempo_segundos) as tempo_minimo_segundos,
+                        MAX(tempo_segundos) as tempo_maximo_segundos,
+                        SUM(tempo_segundos) as tempo_total_segundos
+                    FROM aaa_tempo_telas
+                    GROUP BY tela
+                    ORDER BY tempo_medio_segundos DESC
+                `);
+
+                res.json(estatisticas);
+                break;
+
+            case 'todos':
+            default:
+                const limite = req.query.limite ? parseInt(req.query.limite) : 100;
+
+                const [temposTodos] = await pool.query(`
+                    SELECT * FROM aaa_tempo_telas
+                    ORDER BY data_hora_inicio DESC
+                    LIMIT ?
+                `, [limite]);
+
+                res.json(temposTodos);
+                break;
+        }
+    } catch (error) {
+        console.error('Erro em veicular_tempotelas.php:', error);
+        res.status(500).json({
+            erro: 'Erro no banco de dados',
+            mensagem: error.message
+        });
+    }
+});
+
+// POST - veicular_tempotelas.php (salvar tempo de tela)
+app.post('/admin/veicular_tempotelas.php', async (req, res) => {
+    try {
+        // Headers CORS
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+        const dados = req.body;
+
+        if (!dados || !dados.tela || !dados.tempo_segundos) {
+            return res.status(400).json({
+                erro: 'Dados incompletos. É necessário informar: tela, tempo_segundos, data_hora_inicio, data_hora_fim'
+            });
+        }
+
+        const [result] = await pool.query(`
+            INSERT INTO aaa_tempo_telas
+            (inspecao_id, usuario_id, tela, tempo_segundos, data_hora_inicio, data_hora_fim)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [
+            dados.inspecao_id || null,
+            dados.usuario_id || null,
+            dados.tela,
+            dados.tempo_segundos,
+            dados.data_hora_inicio,
+            dados.data_hora_fim
+        ]);
+
+        res.status(201).json({
+            sucesso: true,
+            id: result.insertId,
+            mensagem: 'Tempo de tela registrado com sucesso'
+        });
+    } catch (error) {
+        console.error('Erro ao salvar tempo de tela:', error);
+        res.status(500).json({
+            erro: 'Erro no banco de dados',
+            mensagem: error.message
+        });
+    }
+});
+
+// OPTIONS - Preflight para CORS
+app.options('/admin/veicular_get.php', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.status(200).end();
+});
+
+app.options('/admin/veicular_tempotelas.php', (req, res) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+    res.status(200).end();
+});
 
 // Servir arquivos estáticos DEPOIS de todas as rotas dinâmicas
 app.use(express.static(__dirname));

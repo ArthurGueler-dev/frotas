@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-br">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>FleetFlow - Painel Administrativo</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: block;
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 2% auto;
+            padding: 0;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 1200px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .dark .modal-content {
+            background-color: #1F2937;
+        }
+
+        .foto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .foto-item img {
+            width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .foto-item img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .detail-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+
+        .detail-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            border-left-color: #1E3A8A;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            padding: 1rem;
+            background: rgba(30, 58, 138, 0.05);
+            border-radius: 0.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .info-item:hover {
+            background: rgba(30, 58, 138, 0.1);
+        }
+
+        .info-item strong {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #6B7280;
+        }
+
+        .info-item p, .info-item span {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #111418;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.1) 0%, rgba(30, 58, 138, 0.05) 100%);
+            border-radius: 0.75rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #1E3A8A;
+        }
+
+        .item-card {
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .item-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: #1E3A8A;
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .item-card:hover {
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .item-card:hover::before {
+            transform: scaleY(1);
+        }
+
+        .status-badge {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.8;
+            }
+        }
+
+        .foto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        .foto-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 0.75rem;
+            background: #F9FAFB;
+            padding: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .foto-item:hover {
+            background: #F3F4F6;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        .modal-content {
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .foto-expandida-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 500px;
+            overflow: auto;
+            background-color: #000;
+        }
+
+        .foto-expandida {
+            max-width: 100%;
+            height: auto;
+            transition: transform 0.3s;
+        }
+
+        .zoom-controls {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .stat-card .material-symbols-outlined {
+            font-size: 3rem;
+        }
+
+        .stat-card h2 {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-white">
+<div class="relative flex h-auto min-h-screen w-full flex-col">
+    <div class="flex h-full grow flex-row">
+        <!-- Sidebar -->
+        <aside class="flex flex-col gap-y-6 p-4 bg-white dark:bg-background-dark border-r border-gray-200 dark:border-gray-700 w-64">
+            <div class="flex items-center gap-2 px-2">
+                <span class="material-symbols-outlined text-primary text-3xl">directions_car</span>
+                <h1 class="text-xl font-bold text-[#111418] dark:text-white">FleetFlow</h1>
+            </div>
+            <div class="flex flex-col justify-between h-full">
+                <nav class="flex flex-col gap-2">
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="dashboard.html">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <p class="text-sm font-medium">Dashboard</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="veiculos.html">
+                        <span class="material-symbols-outlined">directions_car</span>
+                        <p class="text-sm font-medium">Veículos</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="motoristas.html">
+                        <span class="material-symbols-outlined">people</span>
+                        <p class="text-sm font-medium">Motoristas</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="manutencao.html">
+                        <span class="material-symbols-outlined">build</span>
+                        <p class="text-sm font-medium">Manutenção</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="lancar-os.html">
+                        <span class="material-symbols-outlined">add_box</span>
+                        <p class="text-sm font-medium">Lançar OS</p>
+                    </a>
+                    <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="rotas.html">
+                        <span class="material-symbols-outlined">route</span>
+                        <p class="text-sm font-medium">Rotas</p>
+                    </a>
+
+                    <!-- Seção Manutenção Preventiva -->
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Manutenção Preventiva</p>
+                        <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="dashboard-manutencoes.html">
+                            <span class="material-symbols-outlined">notification_important</span>
+                            <p class="text-sm font-medium">Alertas</p>
+                        </a>
+                        <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="modelos.html">
+                            <span class="material-symbols-outlined">directions_car</span>
+                            <p class="text-sm font-medium">Modelos</p>
+                        </a>
+                        <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="planos-manutencao.html">
+                            <span class="material-symbols-outlined">calendar_month</span>
+                            <p class="text-sm font-medium">Planos</p>
+                        </a>
+                    </div>
+
+                    <!-- Seção Quilometragem -->
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Quilometragem</p>
+                        <a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="quilometragem.html">
+                            <span class="material-symbols-outlined">speed</span>
+                            <p class="text-sm font-medium">Histórico de KM</p>
+                        </a>
+                    </div>
+
+                    <!-- Seção CheckList -->
+                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <p class="px-3 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">CheckList</p>
+                        <a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary" href="admin-checklist.html">
+                            <span class="material-symbols-outlined">admin_panel_settings</span>
+                            <p class="text-sm font-medium">Painel Admin</p>
+                        </a>
+                    </div>
+                </nav>
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center gap-3 p-2 border-t border-gray-200 dark:border-gray-700">
+                        <img class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" alt="User avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVrVgfjcLzwfLby1sAwIY-nZzVjq7Hgukkn2dVW_u_Gl9JuHxqV9xURUrtHGlbws0mv31g0fIIWHHpBxOQynNiFo2Aca4gP3cnDNxmfKc8DMM112lHLzWzPB8UaW0vm9dX3u9_YoLflbP9cDc6XNMUjuZdCIvYgVZXTedYI3_H86rZ6WsGr-30M_OTLhAzGJ8_3bvwWE6lOqYlwac7BFmcck9HwVnNzaIwku7cRKUvApohtuPbUkygSoKPnbgU167PdxXTrxXNf1M"/>
+                        <div class="flex flex-col">
+                            <h1 class="text-[#111418] dark:text-white text-sm font-medium leading-normal">Ana Silveira</h1>
+                            <p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">ana.s@example.com</p>
+                        </div>
+                    </div>
+                    <button class="flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-red-500/10 text-red-500 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-red-500/20">
+                        <span class="material-symbols-outlined">logout</span>
+                        <span class="truncate">Sair</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 p-6 lg:p-8 bg-background-light dark:bg-gray-900">
+            <div class="max-w-[1400px] mx-auto">
+                <!-- Header -->
+                <div class="flex flex-wrap justify-between gap-4 items-center mb-6">
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Painel Administrativo</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-base font-normal">Gerenciamento de Checklists</p>
+                    </div>
+                    <button onclick="carregarChecklists()" class="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                        <span class="material-symbols-outlined">refresh</span>
+                        <span>Atualizar</span>
+                    </button>
+                </div>
+
+                <!-- Estatísticas -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
+                    <div class="stat-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                        <span class="material-symbols-outlined text-primary">document_scanner</span>
+                        <h2 id="total-checklists" class="text-[#111418] dark:text-white">0</h2>
+                        <p class="text-gray-500 dark:text-gray-400">Total</p>
+                    </div>
+                    <div class="stat-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                        <span class="material-symbols-outlined text-green-500">today</span>
+                        <h2 id="checklists-hoje" class="text-[#111418] dark:text-white">0</h2>
+                        <p class="text-gray-500 dark:text-gray-400">Hoje</p>
+                    </div>
+                    <div class="stat-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                        <span class="material-symbols-outlined text-yellow-500">calendar_month</span>
+                        <h2 id="checklists-semana" class="text-[#111418] dark:text-white">0</h2>
+                        <p class="text-gray-500 dark:text-gray-400">7 Dias</p>
+                    </div>
+                </div>
+
+                <!-- Filtros -->
+                <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+                    <h3 class="text-lg font-semibold text-[#111418] dark:text-white mb-4">Filtros</h3>
+
+                    <!-- Busca por Placa -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar por placa</label>
+                        <input type="text" id="filtro-placa" placeholder="Digite a placa..."
+                               class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                               oninput="aplicarFiltros()">
+                    </div>
+
+                    <!-- Filtros de Data -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Inicial</label>
+                            <input type="date" id="filtro-data-inicio"
+                                   class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                   onchange="aplicarFiltros()">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Final</label>
+                            <input type="date" id="filtro-data-fim"
+                                   class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                   onchange="aplicarFiltros()">
+                        </div>
+                    </div>
+
+                    <button onclick="limparFiltros()" class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                        <span class="material-symbols-outlined">close</span>
+                        <span>Limpar Filtros</span>
+                    </button>
+                </div>
+
+                <!-- Loading -->
+                <div id="loading-container" class="hidden text-center py-12">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                    <p class="mt-4 text-gray-500 dark:text-gray-400">Carregando checklists...</p>
+                </div>
+
+                <!-- Erro -->
+                <div id="erro-container" class="hidden mb-6 rounded-xl border border-red-200 dark:border-red-700 p-6 bg-red-50 dark:bg-red-900/20">
+                    <div class="flex items-center gap-3">
+                        <span class="material-symbols-outlined text-red-500">error</span>
+                        <p id="erro-mensagem" class="text-red-600 dark:text-red-400"></p>
+                    </div>
+                </div>
+
+                <!-- Lista de Checklists -->
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-[#111418] dark:text-white">
+                            Checklists (<span id="total-filtrados">0</span>)
+                        </h3>
+                    </div>
+
+                    <!-- Estado Vazio -->
+                    <div id="empty-state" class="hidden text-center py-12">
+                        <span class="material-symbols-outlined text-gray-400 text-6xl">description</span>
+                        <h3 class="mt-4 text-lg font-semibold text-gray-700 dark:text-gray-300">Nenhum checklist encontrado</h3>
+                        <p class="mt-2 text-gray-500 dark:text-gray-400">Ajuste os filtros ou verifique a conexão com o servidor.</p>
+                    </div>
+
+                    <!-- Lista -->
+                    <div id="checklists-lista" class="divide-y divide-gray-200 dark:divide-gray-700">
+                        <!-- Será preenchido dinamicamente -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Modal de Detalhes -->
+<div id="modal-detalhes" class="modal">
+    <div class="modal-content">
+        <div class="sticky top-0 z-10 flex items-center justify-between p-6 bg-primary text-white rounded-t-xl">
+            <h2 class="text-xl font-bold">Detalhes do Checklist</h2>
+            <button onclick="fecharModal()" class="text-white hover:text-gray-200">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div id="modal-conteudo" class="p-6">
+            <!-- Conteúdo será preenchido dinamicamente -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Foto Expandida -->
+<div id="modal-foto" class="modal">
+    <div class="modal-content bg-black">
+        <div class="sticky top-0 z-10 flex items-center justify-between p-4 bg-gray-900 text-white">
+            <h2 class="text-lg font-semibold">Foto - Zoom <span id="zoom-level">1</span>x</h2>
+            <div class="flex gap-2">
+                <button onclick="resetZoom()" class="p-2 hover:bg-gray-800 rounded">
+                    <span class="material-symbols-outlined">fit_screen</span>
+                </button>
+                <button onclick="fecharFotoExpandida()" class="p-2 hover:bg-gray-800 rounded">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+        <div class="foto-expandida-container">
+            <img id="foto-expandida" class="foto-expandida" src="" alt="Foto Expandida">
+        </div>
+        <div class="zoom-controls">
+            <button onclick="zoomOut()" class="p-2 bg-white hover:bg-gray-100 rounded-full">
+                <span class="material-symbols-outlined">remove</span>
+            </button>
+            <span class="font-semibold"><span id="zoom-display">1</span>x</span>
+            <button onclick="zoomIn()" class="p-2 bg-white hover:bg-gray-100 rounded-full">
+                <span class="material-symbols-outlined">add</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Variáveis globais
+let todosChecklists = [];
+let checklistsFiltrados = [];
+let zoomLevel = 1;
+
+// Carregar checklists ao iniciar
+document.addEventListener('DOMContentLoaded', () => {
+    carregarChecklists();
+});
+
+// Carregar checklists do servidor
+async function carregarChecklists() {
+    const loadingContainer = document.getElementById('loading-container');
+    const erroContainer = document.getElementById('erro-container');
+    const listaContainer = document.getElementById('checklists-lista');
+
+    loadingContainer.classList.remove('hidden');
+    erroContainer.classList.add('hidden');
+    listaContainer.innerHTML = '';
+
+    try {
+        const response = await fetch('https://floripa.in9automacao.com.br/veicular_get.php?acao=todos&limite=1000');
+
+        if (!response.ok) {
+            throw new Error('Erro ao carregar checklists');
+        }
+
+        todosChecklists = await response.json();
+
+        // Verifica se há erro na resposta
+        if (todosChecklists.erro) {
+            throw new Error(todosChecklists.erro);
+        }
+
+        aplicarFiltros();
+        atualizarEstatisticas();
+
+    } catch (error) {
+        console.error('Erro:', error);
+        document.getElementById('erro-mensagem').textContent = error.message;
+        erroContainer.classList.remove('hidden');
+        document.getElementById('empty-state').classList.remove('hidden');
+    } finally {
+        loadingContainer.classList.add('hidden');
+    }
+}
+
+// Aplicar filtros
+function aplicarFiltros() {
+    const filtroPlaca = document.getElementById('filtro-placa').value.toLowerCase();
+    const dataInicio = document.getElementById('filtro-data-inicio').value;
+    const dataFim = document.getElementById('filtro-data-fim').value;
+
+    checklistsFiltrados = todosChecklists.filter(checklist => {
+        // Filtro por placa
+        if (filtroPlaca && !checklist.placa.toLowerCase().includes(filtroPlaca)) {
+            return false;
+        }
+
+        // Filtro por data
+        if (dataInicio || dataFim) {
+            const dataChecklist = new Date(checklist.data_realizacao);
+            if (dataInicio && dataChecklist < new Date(dataInicio)) {
+                return false;
+            }
+            if (dataFim && dataChecklist > new Date(dataFim + 'T23:59:59')) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    renderizarLista();
+}
+
+// Limpar filtros
+function limparFiltros() {
+    document.getElementById('filtro-placa').value = '';
+    document.getElementById('filtro-data-inicio').value = '';
+    document.getElementById('filtro-data-fim').value = '';
+    aplicarFiltros();
+}
+
+// Renderizar lista de checklists
+function renderizarLista() {
+    const listaContainer = document.getElementById('checklists-lista');
+    const emptyState = document.getElementById('empty-state');
+
+    document.getElementById('total-filtrados').textContent = checklistsFiltrados.length;
+
+    if (checklistsFiltrados.length === 0) {
+        listaContainer.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+    }
+
+    emptyState.classList.add('hidden');
+
+    listaContainer.innerHTML = checklistsFiltrados.map(checklist => `
+        <div class="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer" onclick="verDetalhes(${checklist.id})">
+            <div class="flex items-center gap-4">
+                <span class="material-symbols-outlined text-primary text-3xl">directions_car</span>
+                <div class="flex-1">
+                    <h3 class="font-bold text-[#111418] dark:text-white">${checklist.placa}</h3>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        KM: ${checklist.km_inicial} | Combustível: ${checklist.nivel_combustivel}
+                    </p>
+                    ${checklist.usuario_nome ? `<p class="text-sm text-gray-500 dark:text-gray-400">
+                        <span class="material-symbols-outlined text-xs">person</span> Inspetor: ${checklist.usuario_nome}
+                    </p>` : ''}
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">${formatarData(checklist.data_realizacao)}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">ID: ${checklist.id}</span>
+                    <button onclick="event.stopPropagation(); verDetalhes(${checklist.id})" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">
+                        <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Atualizar estatísticas
+function atualizarEstatisticas() {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    const seteDiasAtras = new Date();
+    seteDiasAtras.setDate(seteDiasAtras.getDate() - 7);
+    seteDiasAtras.setHours(0, 0, 0, 0);
+
+    const checklistsHoje = todosChecklists.filter(c => {
+        const data = new Date(c.data_realizacao);
+        data.setHours(0, 0, 0, 0);
+        return data.getTime() === hoje.getTime();
+    }).length;
+
+    const checklistsSemana = todosChecklists.filter(c => {
+        const data = new Date(c.data_realizacao);
+        return data >= seteDiasAtras;
+    }).length;
+
+    document.getElementById('total-checklists').textContent = todosChecklists.length;
+    document.getElementById('checklists-hoje').textContent = checklistsHoje;
+    document.getElementById('checklists-semana').textContent = checklistsSemana;
+}
+
+// Ver detalhes do checklist
+async function verDetalhes(id) {
+    const modal = document.getElementById('modal-detalhes');
+    const conteudo = document.getElementById('modal-conteudo');
+
+    modal.classList.add('active');
+    conteudo.innerHTML = '<div class="text-center py-12"><div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div></div>';
+
+    try {
+        const response = await fetch(`https://floripa.in9automacao.com.br/veicular_get.php?acao=completo&id=${id}`);
+
+        if (!response.ok) {
+            throw new Error('Erro ao carregar detalhes');
+        }
+
+        const checklist = await response.json();
+
+        // Verifica se há erro na resposta
+        if (checklist.erro) {
+            throw new Error(checklist.erro);
+        }
+
+        conteudo.innerHTML = renderizarDetalhes(checklist);
+    } catch (error) {
+        console.error('Erro ao carregar detalhes:', error);
+        conteudo.innerHTML = '<div class="text-center py-12 text-red-500">Erro ao carregar detalhes do checklist: ' + error.message + '</div>';
+    }
+}
+
+// Renderizar detalhes do checklist
+function renderizarDetalhes(checklist) {
+    let html = `
+        <!-- Informações Básicas -->
+        <div class="mb-6 detail-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="section-header dark:bg-gray-700/50">
+                <span class="material-symbols-outlined text-primary text-2xl">directions_car</span>
+                <h3 class="text-xl font-bold text-[#111418] dark:text-white">Informações do Veículo</h3>
+            </div>
+            <div class="info-grid">
+                <div class="info-item dark:bg-gray-700/30">
+                    <strong>ID do Checklist</strong>
+                    <span class="dark:text-white">#${checklist.id}</span>
+                </div>
+                <div class="info-item dark:bg-gray-700/30">
+                    <strong>Placa</strong>
+                    <span class="dark:text-white text-primary font-bold text-lg">${checklist.placa}</span>
+                </div>
+                <div class="info-item dark:bg-gray-700/30">
+                    <strong>KM Inicial</strong>
+                    <span class="dark:text-white">${checklist.km_inicial.toLocaleString('pt-BR')} km</span>
+                </div>
+                <div class="info-item dark:bg-gray-700/30">
+                    <strong>Nível de Combustível</strong>
+                    <span class="dark:text-white">${checklist.nivel_combustivel}</span>
+                </div>
+                <div class="info-item dark:bg-gray-700/30">
+                    <strong>Data da Inspeção</strong>
+                    <span class="dark:text-white">${formatarData(checklist.data_realizacao)}</span>
+                </div>
+                ${checklist.usuario ? `
+                <div class="info-item dark:bg-gray-700/30">
+                    <strong>Inspetor</strong>
+                    <span class="dark:text-white">${checklist.usuario.nome}</span>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+    `;
+
+    // Foto do Painel
+    if (checklist.fotos?.PAINEL) {
+        html += `
+            <div class="mb-6 detail-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="section-header dark:bg-gray-700/50">
+                    <span class="material-symbols-outlined text-primary text-2xl">dashboard</span>
+                    <h3 class="text-xl font-bold text-[#111418] dark:text-white">Painel do Veículo</h3>
+                </div>
+                <div class="foto-item">
+                    <img src="${checklist.fotos.PAINEL}" alt="Painel" onclick="expandirFoto('${checklist.fotos.PAINEL}')">
+                </div>
+                ${checklist.observacao_painel ? `
+                <div class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                    <p class="text-sm font-semibold text-blue-900 dark:text-blue-300 mb-1">Observações:</p>
+                    <p class="text-gray-700 dark:text-gray-300">${checklist.observacao_painel}</p>
+                </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Inspeção do Motor
+    if (checklist.itens?.MOTOR?.length) {
+        html += renderizarSecaoItens('Inspeção do Motor', checklist.itens.MOTOR);
+    }
+
+    // Sistema Elétrico
+    if (checklist.itens?.ELETRICO?.length) {
+        html += renderizarSecaoItens('Sistema Elétrico', checklist.itens.ELETRICO);
+    }
+
+    // Limpeza
+    if (checklist.itens?.LIMPEZA?.length) {
+        html += renderizarSecaoItens('Limpeza', checklist.itens.LIMPEZA);
+    }
+
+    // Ferramentas
+    if (checklist.itens?.FERRAMENTA?.length) {
+        html += renderizarSecaoFerramentas(checklist.itens.FERRAMENTA);
+    }
+
+    // Fotos do Veículo
+    if (checklist.fotos && (checklist.fotos.FRONTAL || checklist.fotos.TRASEIRA || checklist.fotos.LATERAL_DIREITA || checklist.fotos.LATERAL_ESQUERDA)) {
+        html += `
+            <div class="mb-6 detail-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div class="section-header dark:bg-gray-700/50">
+                    <span class="material-symbols-outlined text-primary text-2xl">photo_library</span>
+                    <h3 class="text-xl font-bold text-[#111418] dark:text-white">Fotos do Veículo</h3>
+                </div>
+                <div class="foto-grid">
+                    ${checklist.fotos.FRONTAL ? `<div class="foto-item"><h4 class="font-semibold mb-2 text-gray-700 dark:text-gray-300">Frontal</h4><img src="${checklist.fotos.FRONTAL}" alt="Frontal" onclick="expandirFoto('${checklist.fotos.FRONTAL}')"></div>` : ''}
+                    ${checklist.fotos.TRASEIRA ? `<div class="foto-item"><h4 class="font-semibold mb-2 text-gray-700 dark:text-gray-300">Traseira</h4><img src="${checklist.fotos.TRASEIRA}" alt="Traseira" onclick="expandirFoto('${checklist.fotos.TRASEIRA}')"></div>` : ''}
+                    ${checklist.fotos.LATERAL_DIREITA ? `<div class="foto-item"><h4 class="font-semibold mb-2 text-gray-700 dark:text-gray-300">Lateral Direita</h4><img src="${checklist.fotos.LATERAL_DIREITA}" alt="Lateral Direita" onclick="expandirFoto('${checklist.fotos.LATERAL_DIREITA}')"></div>` : ''}
+                    ${checklist.fotos.LATERAL_ESQUERDA ? `<div class="foto-item"><h4 class="font-semibold mb-2 text-gray-700 dark:text-gray-300">Lateral Esquerda</h4><img src="${checklist.fotos.LATERAL_ESQUERDA}" alt="Lateral Esquerda" onclick="expandirFoto('${checklist.fotos.LATERAL_ESQUERDA}')"></div>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    // Pneus
+    if (checklist.itens?.PNEU?.length) {
+        html += renderizarSecaoPneus(checklist.itens.PNEU);
+    }
+
+    return html;
+}
+
+// Renderizar seção de itens
+function renderizarSecaoItens(titulo, itens) {
+    const icons = {
+        'Inspeção do Motor': 'build',
+        'Sistema Elétrico': 'bolt',
+        'Limpeza': 'cleaning_services'
+    };
+    const icon = icons[titulo] || 'check_circle';
+    
+    return `
+        <div class="mb-6 detail-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="section-header dark:bg-gray-700/50">
+                <span class="material-symbols-outlined text-primary text-2xl">${icon}</span>
+                <h3 class="text-xl font-bold text-[#111418] dark:text-white">${titulo}</h3>
+            </div>
+            <div class="space-y-3">
+                ${itens.map(item => `
+                    <div class="item-card p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">${item.foto ? 'photo_camera' : 'check_circle_outline'}</span>
+                                <h4 class="font-semibold text-[#111418] dark:text-white">${item.item}</h4>
+                            </div>
+                            <span class="status-badge px-4 py-1.5 rounded-full text-xs font-semibold ${getCorStatusClass(item.status)}">${item.status || 'N/A'}</span>
+                        </div>
+                        ${item.foto ? `
+                        <div class="mt-3 rounded-lg overflow-hidden">
+                            <img src="${item.foto}" alt="${item.item}" onclick="expandirFoto('${item.foto}')" class="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
+                        </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Renderizar ferramentas
+function renderizarSecaoFerramentas(itens) {
+    return `
+        <div class="mb-6 detail-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="section-header dark:bg-gray-700/50">
+                <span class="material-symbols-outlined text-primary text-2xl">construction</span>
+                <h3 class="text-xl font-bold text-[#111418] dark:text-white">Ferramentas e Equipamentos</h3>
+            </div>
+            <div class="space-y-3">
+                ${itens.map(item => `
+                    <div class="item-card p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined ${item.status === 'contem' ? 'text-green-600' : 'text-red-600'} text-xl">${item.status === 'contem' ? 'check_circle' : 'cancel'}</span>
+                                <h4 class="font-semibold text-[#111418] dark:text-white">${item.item}</h4>
+                            </div>
+                            <span class="status-badge px-4 py-1.5 rounded-full text-xs font-semibold ${item.status === 'contem' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}">${item.status === 'contem' ? 'Contém' : 'Não Contém'}</span>
+                        </div>
+                        ${item.foto ? `
+                        <div class="mt-3 rounded-lg overflow-hidden">
+                            <img src="${item.foto}" alt="${item.item}" onclick="expandirFoto('${item.foto}')" class="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
+                        </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Renderizar pneus
+function renderizarSecaoPneus(itens) {
+    return `
+        <div class="mb-6 detail-card rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm">
+            <div class="section-header dark:bg-gray-700/50">
+                <span class="material-symbols-outlined text-primary text-2xl">tire_repair</span>
+                <h3 class="text-xl font-bold text-[#111418] dark:text-white">Pneus</h3>
+            </div>
+            <div class="space-y-3">
+                ${itens.map(item => `
+                    <div class="item-card p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-gray-400 text-xl">tire_repair</span>
+                                <h4 class="font-semibold text-[#111418] dark:text-white">${item.item}</h4>
+                            </div>
+                            <span class="status-badge px-4 py-1.5 rounded-full text-xs font-semibold ${getCorStatusClass(item.status)}">${item.status || 'N/A'}</span>
+                        </div>
+                        ${item.pressao ? `
+                        <div class="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+                            <p class="text-sm font-semibold text-blue-900 dark:text-blue-300">Pressão: <span class="text-lg">${item.pressao} PSI</span></p>
+                        </div>
+                        ` : ''}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            ${item.foto ? `
+                            <div class="rounded-lg overflow-hidden">
+                                <h5 class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Foto do Pneu</h5>
+                                <img src="${item.foto}" alt="${item.item}" onclick="expandirFoto('${item.foto}')" class="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
+                            </div>
+                            ` : ''}
+                            ${item.foto_caneta ? `
+                            <div class="rounded-lg overflow-hidden">
+                                <h5 class="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Foto da Caneta</h5>
+                                <img src="${item.foto_caneta}" alt="${item.item} - Caneta" onclick="expandirFoto('${item.foto_caneta}')" class="w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity">
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Get cor do status
+function getCorStatusClass(status) {
+    if (!status) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+    
+    const statusLower = status.toLowerCase();
+    const cores = {
+        'ok': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+        'bom': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+        'ótimo': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+        'otimo': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
+        'atenção': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+        'atencao': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+        'regular': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
+        'problema': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        'ruim': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        'crítico': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
+        'critico': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+    };
+    return cores[statusLower] || 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+}
+
+// Fechar modal
+function fecharModal() {
+    document.getElementById('modal-detalhes').classList.remove('active');
+}
+
+// Expandir foto
+function expandirFoto(url) {
+    const modal = document.getElementById('modal-foto');
+    const img = document.getElementById('foto-expandida');
+
+    img.src = url;
+    zoomLevel = 1;
+    img.style.transform = `scale(${zoomLevel})`;
+    document.getElementById('zoom-level').textContent = zoomLevel;
+    document.getElementById('zoom-display').textContent = zoomLevel;
+
+    modal.classList.add('active');
+}
+
+// Fechar foto expandida
+function fecharFotoExpandida() {
+    document.getElementById('modal-foto').classList.remove('active');
+}
+
+// Zoom in
+function zoomIn() {
+    if (zoomLevel < 5) {
+        zoomLevel += 0.25;
+        aplicarZoom();
+    }
+}
+
+// Zoom out
+function zoomOut() {
+    if (zoomLevel > 0.5) {
+        zoomLevel -= 0.25;
+        aplicarZoom();
+    }
+}
+
+// Reset zoom
+function resetZoom() {
+    zoomLevel = 1;
+    aplicarZoom();
+}
+
+// Aplicar zoom
+function aplicarZoom() {
+    const img = document.getElementById('foto-expandida');
+    img.style.transform = `scale(${zoomLevel})`;
+    document.getElementById('zoom-level').textContent = zoomLevel.toFixed(2);
+    document.getElementById('zoom-display').textContent = zoomLevel.toFixed(2);
+}
+
+// Formatar data
+function formatarData(data) {
+    const d = new Date(data);
+    return d.toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// Fechar modal ao clicar fora
+window.onclick = function(event) {
+    const modalDetalhes = document.getElementById('modal-detalhes');
+    const modalFoto = document.getElementById('modal-foto');
+
+    if (event.target === modalDetalhes) {
+        fecharModal();
+    }
+    if (event.target === modalFoto) {
+        fecharFotoExpandida();
+    }
+}
+</script>
+</body>
+</html>
