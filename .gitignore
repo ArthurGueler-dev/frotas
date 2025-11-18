@@ -70,3 +70,98 @@ nul
 *.db
 *.db-shm
 *.db-wal
+
+# ============================================
+# ARQUIVOS TEMPORÁRIOS E DE DESENVOLVIMENTO
+# ============================================
+
+# Dados e Backups
+data/
+backups/
+
+# Scripts de teste e debug
+test-*.js
+test-*.html
+teste-*.js
+teste-*.html
+debug-*.html
+verificar-*.js
+check-*.js
+executar-*.js
+testar-*.js
+
+# Scripts de migração e cadastro (já foram executados)
+cadastrar-plano-*.js
+cadastrar-planos*.js
+cadastrar-todos-planos*.js
+migrar-*.js
+buscar-planos*.js
+atualizar-modelos*.js
+deletar-*.js
+criar-tabela-*.js
+execute-*.js
+sincronizar-*.js
+
+# Documentação de desenvolvimento (muito específica)
+CORRECAO-*.md
+DIAGNOSTICO-*.md
+ANALISE-*.md
+COMO-CORRIGIR-*.md
+ESTRATEGIAS-*.md
+SINCRONIZACAO-*.md
+SOLUCAO-*.md
+TESTE-*.md
+RESUMO-*.md
+INICIO-*.md
+INSTRUCOES-*.md
+PLANO-*.md
+INTEGRACAO-*.md
+IMPLEMENTACAO-*.md
+
+# PDFs de planos de manutenção
+*.pdf
+Plano_Manutencao_*.pdf
+planos_de_manutenção/
+
+# Arquivos temporários criados
+0
+nul
+
+# Pastas temporárias
+stitch_*/
+tela_*/
+teadsfsa/
+services/telemetria-updater*.js
+
+# Arquivos HTML de teste/debug
+clear-cache*.html
+calculate-*.html
+reload-*.html
+telemetria-*.html
+monitoramento-*.html
+
+# Scripts utilitários temporários
+convert-*.js
+backup-*.js
+cron-*.js
+dashboard-stats-db.js
+dashboard-quilometragem-db.js
+
+# Arquivos BAT
+*.bat
+
+# Configurações locais do Claude
+.claude/settings.local.json
+
+# Arquivos PHP de configuração sensível
+db-config.php
+test-db-connection.php
+
+# Documentação excessiva
+COMO_USAR*.txt
+COMO-USAR-*.txt
+COMO-FUNCIONA-*.md
+DATABASE-DOCUMENTATION.md
+
+# ZIPs de backup
+*.zip

@@ -1,0 +1,1872 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FleetFlow - Painel de Veículos</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937",
+                        "text-light": "#1F2937",
+                        "text-dark": "#F3F4F6",
+                        "success": "#10B981",
+                        "warning": "#F59E0B",
+                        "danger": "#EF4444",
+                        "info": "#3B82F6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24
+        }
+        .tab-button.active {
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+        .kanban-column {
+            min-width: 300px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-text-light dark:text-text-dark">
+<div class="flex h-screen">
+<!-- Sidebar Unificado -->
+<div id="sidebar-container" data-page="veiculos"></div>
+<main class="flex-1 p-8 overflow-y-auto">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h1 class="text-3xl font-black text-gray-800 dark:text-white">Painel de Veículos</h1>
+<p class="text-gray-500 dark:text-gray-400 mt-1">Gerencie o ciclo de vida dos veículos da sua frota.</p>
+</div>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-4 bg-primary text-white text-sm font-bold shadow-md" onclick="document.getElementById('registration-modal').classList.remove('hidden');">
+<span class="material-symbols-outlined mr-2">add</span>
+<span class="truncate">Novo Registro</span>
+</button>
+</div>
+<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+<div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+<button class="tab-button active flex-1 py-3 px-4 text-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary transition-all duration-200" data-tab="active-fleet">
+<span class="material-symbols-outlined align-middle mr-1">directions_car</span>Frota Ativa
+                    </button>
+<button class="tab-button flex-1 py-3 px-4 text-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary transition-all duration-200" data-tab="maintenance">
+<span class="material-symbols-outlined align-middle mr-1">build</span>Manutenção
+                    </button>
+<button class="tab-button flex-1 py-3 px-4 text-center text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary hover:border-primary transition-all duration-200" data-tab="archived">
+<span class="material-symbols-outlined align-middle mr-1">archive</span>Arquivados
+                    </button>
+</div>
+<div class="tab-content active" id="active-fleet">
+<div class="flex gap-3 mb-4">
+<div class="relative flex-1">
+<input id="search-input" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 pl-10 pr-4 text-sm" placeholder="Pesquisar por placa, modelo ou status..."/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+</div>
+<div>
+<select id="base-filter" onchange="filterVehiclesByBase()" class="form-select rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-4 text-sm min-w-[200px]">
+<option value="">Todas as Bases</option>
+<option value="Serra">Serra</option>
+<option value="Vitória">Vitória</option>
+<option value="Vila Velha">Vila Velha</option>
+<option value="Cariacica">Cariacica</option>
+<option value="Cachoeiro">Cachoeiro de Itapemirim</option>
+<option value="Linhares">Linhares</option>
+<option value="Colatina">Colatina</option>
+<option value="São Mateus">São Mateus</option>
+</select>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+<thead class="bg-gray-50 dark:bg-gray-700">
+<tr>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">
+<div class="flex items-center">
+<p>Placa</p>
+<button class="ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 relative" onclick="togglePopover(event, 'plate-filter-popover')">
+<span class="material-symbols-outlined text-base">filter_list</span>
+</button>
+<div class="absolute hidden bg-white dark:bg-gray-700 shadow-lg rounded-md p-2 z-10" id="plate-filter-popover">
+<ul class="text-sm">
+<li class="px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded-md">Ordenar A-Z</li>
+<li class="px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded-md">Ordenar Z-A</li>
+</ul>
+</div>
+</div>
+</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Modelo</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Base</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">
+<div class="flex items-center">
+<p>Ano Modelo</p>
+<button class="ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 relative" onclick="togglePopover(event, 'year-filter-popover')">
+<span class="material-symbols-outlined text-base">filter_list</span>
+</button>
+<div class="absolute hidden bg-white dark:bg-gray-700 shadow-lg rounded-md p-2 z-10" id="year-filter-popover">
+<ul class="text-sm">
+<li class="px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded-md">Mais Novo</li>
+<li class="px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded-md">Mais Antigo</li>
+</ul>
+</div>
+</div></th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">
+<div class="flex items-center">
+<p>Quilometragem</p>
+<button class="ml-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 relative" onclick="togglePopover(event, 'mileage-filter-popover')">
+<span class="material-symbols-outlined text-base">filter_list</span>
+</button>
+<div class="absolute hidden bg-white dark:bg-gray-700 shadow-lg rounded-md p-2 z-10" id="mileage-filter-popover">
+<ul class="text-sm">
+<li class="px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded-md">Menor para Maior</li>
+<li class="px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer rounded-md">Maior para Menor</li>
+</ul>
+</div>
+</div></th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Status</th>
+<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+<tr>
+<td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-4xl mb-2 animate-spin">refresh</span>
+<p>Carregando veículos do Ituran...</p>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="tab-content hidden" id="maintenance">
+<div class="relative mb-4">
+<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 pl-10 pr-4 text-sm" placeholder="Pesquisar manutenção por placa ou tipo..."/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+</div>
+<div class="flex space-x-4 overflow-x-auto pb-4">
+<div class="kanban-column flex-shrink-0 w-80 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
+<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Pendente</h3>
+<div class="space-y-3">
+<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
+<p class="font-bold text-gray-800 dark:text-white">DEF-5678 - Fiat Strada</p>
+<p class="text-sm text-gray-600 dark:text-gray-400">Troca de óleo e filtros</p>
+<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Prioridade: Alta</p>
+<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-warning/20 text-warning mt-2 inline-block">Manutenção</span>
+</div>
+<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
+<p class="font-bold text-gray-800 dark:text-white">QWE-1122 - Ford Ka</p>
+<p class="text-sm text-gray-600 dark:text-gray-400">Revisão de freios</p>
+<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Prioridade: Média</p>
+<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-warning/20 text-warning mt-2 inline-block">Manutenção</span>
+</div>
+</div>
+</div>
+<div class="kanban-column flex-shrink-0 w-80 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
+<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Em Progresso</h3>
+<div class="space-y-3">
+<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
+<p class="font-bold text-gray-800 dark:text-white">RST-3344 - VW Saveiro</p>
+<p class="text-sm text-gray-600 dark:text-gray-400">Reparo de suspensão</p>
+<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Responsável: Mecânico A</p>
+<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-info/20 text-info mt-2 inline-block">Em Progresso</span>
+</div>
+</div>
+</div>
+<div class="kanban-column flex-shrink-0 w-80 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
+<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Concluído</h3>
+<div class="space-y-3">
+<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
+<p class="font-bold text-gray-800 dark:text-white">UVW-5566 - Hyundai HB20</p>
+<p class="text-sm text-gray-600 dark:text-gray-400">Alinhamento e balanceamento</p>
+<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Data: 15/07/2024</p>
+<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-success/20 text-success mt-2 inline-block">Concluído</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="tab-content hidden" id="archived">
+<div class="relative mb-4">
+<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 pl-10 pr-4 text-sm" placeholder="Pesquisar veículos arquivados..."/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+</div>
+<div class="overflow-x-auto">
+<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+<thead class="bg-gray-50 dark:bg-gray-700">
+<tr>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Placa</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Modelo</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Motivo Arquivamento</th>
+<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Data</th>
+<th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">GHI-9012</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Chevrolet Onix</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Venda</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">10/06/2024</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<a class="text-primary hover:text-primary/80 dark:text-info dark:hover:text-info/80 mr-3" href="#">Detalhes</a>
+<a class="text-warning hover:text-warning/80" href="#">Reativar</a>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+<td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">ZXY-6789</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Mercedes Sprinter</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">Sinistro Total</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">01/05/2024</td>
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+<a class="text-primary hover:text-primary/80 dark:text-info dark:hover:text-info/80 mr-3" href="#">Detalhes</a>
+<a class="text-warning hover:text-warning/80" href="#">Reativar</a>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</div>
+<div class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50" id="registration-modal">
+<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto relative">
+<h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6">Registrar Novo Veículo</h2>
+<button class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" onclick="document.getElementById('registration-modal').classList.add('hidden');">
+<span class="material-symbols-outlined">close</span>
+</button>
+<div class="space-y-4">
+<details class="flex flex-col rounded-lg bg-background-light dark:bg-background-dark px-4 group" open="">
+<summary class="flex cursor-pointer items-center justify-between gap-6 py-3 font-semibold text-primary dark:text-white">
+                        Dados Básicos
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Placa</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="ABC-1234"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Contrato</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Contrato-001"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Marca</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Volkswagen"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Modelo</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Gol"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Versão</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 1.6 MSI"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Ano Fabricação</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 2020" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Ano Modelo</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 2021" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Tipo</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option>Passeio</option>
+<option>Caminhão</option>
+<option>Van</option>
+<option>Motocicleta</option>
+<option>Ônibus</option>
+<option>Utilitário</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Template Visual</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option>Caminhão Baú (Lateral)</option>
+<option>Van (Lateral)</option>
+<option>Carro (Lateral)</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Combustível</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option>Flex (Álcool/Gasolina)</option>
+<option>Gasolina</option>
+<option>Etanol</option>
+<option>Diesel</option>
+<option>GNV</option>
+<option>Híbrido</option>
+<option>Elétrico</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Status</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option>Ativo</option>
+<option>Manutenção</option>
+<option>Inativo</option>
+<option>Vendido</option>
+<option>Desativado</option>
+</select>
+</label>
+</div>
+</details>
+<details class="flex flex-col rounded-lg bg-background-light dark:bg-background-dark px-4 group">
+<summary class="flex cursor-pointer items-center justify-between gap-6 py-3 font-semibold text-primary dark:text-white">
+                        Especificações
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Cor Predominante</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Branco"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Categoria</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Compacto"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Potência</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 100 cv" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Cilindradas</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 1.600 cm³" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Número do Motor</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: ABC123DEF456"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Tipo de Carroceria</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Hatch"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Quilometragem</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 50000" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Layout dos Pneus</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option>Carro / Van (2x2)</option>
+<option>Caminhão (2x2x4)</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo Rastreador Mensal (R$)</p>
+<input id="input-rastreador" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="150.00" type="number" step="0.01"/>
+</label>
+</div>
+</details>
+<details class="flex flex-col rounded-lg bg-background-light dark:bg-background-dark px-4 group">
+<summary class="flex cursor-pointer items-center justify-between gap-6 py-3 font-semibold text-primary dark:text-white">
+                        Documentação
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">RENAVAM</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="01234567890"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Exercício</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: 2024" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Chassi</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="9BW ZZZ377 VT 004251"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Vencimento da Documentação</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" type="date"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Status da Documentação</p>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option>Em dia</option>
+<option>Vencida</option>
+<option>Pendente</option>
+</select>
+</label>
+</div>
+</details>
+<details class="flex flex-col rounded-lg bg-background-light dark:bg-background-dark px-4 group">
+<summary class="flex cursor-pointer items-center justify-between gap-6 py-3 font-semibold text-primary dark:text-white">
+                        Proprietário
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Nome do Proprietário</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: João da Silva"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">CPF/CNPJ</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="000.000.000-00"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Local do Proprietário</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: São Paulo - SP"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Lotado/Atribuído</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Equipe de Vendas"/>
+</label>
+</div>
+</details>
+<details class="flex flex-col rounded-lg bg-background-light dark:bg-background-dark px-4 group">
+<summary class="flex cursor-pointer items-center justify-between gap-6 py-3 font-semibold text-primary dark:text-white">
+                        Financeiro
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Valor FIPE (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="45000.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo IPVA (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="1800.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo Seguro (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="1200.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo Licenciamento (R$)</p>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="150.00" type="number"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Depreciação Mensal (R$)</p>
+<input id="input-depreciacao" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="500.00" type="number" step="0.01"/>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Custo Locação Mensal (R$)</p>
+<input id="input-locacao" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="2500.00" type="number" step="0.01"/>
+</label>
+</div>
+</details>
+<details class="flex flex-col rounded-lg bg-background-light dark:bg-background-dark px-4 group">
+<summary class="flex cursor-pointer items-center justify-between gap-6 py-3 font-semibold text-primary dark:text-white">
+                        Localização e Base
+                        <span class="material-symbols-outlined transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Base/Filial</p>
+<select id="input-base" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option value="">Selecione a base</option>
+<option value="Serra">Serra</option>
+<option value="Vitória">Vitória</option>
+<option value="Vila Velha">Vila Velha</option>
+<option value="Cariacica">Cariacica</option>
+<option value="Cachoeiro">Cachoeiro de Itapemirim</option>
+<option value="Linhares">Linhares</option>
+<option value="Colatina">Colatina</option>
+<option value="São Mateus">São Mateus</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-sm font-medium pb-1">Região</p>
+<select id="input-regiao" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option value="">Selecione a região</option>
+<option value="Grande Vitória">Grande Vitória</option>
+<option value="Sul">Sul</option>
+<option value="Norte">Norte</option>
+<option value="Noroeste">Noroeste</option>
+</select>
+</label>
+</div>
+</details>
+</div>
+<div class="flex justify-end gap-4 mt-8">
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-4 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white text-sm font-bold" onclick="document.getElementById('registration-modal').classList.add('hidden');">
+<span class="truncate">Cancelar</span>
+</button>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-11 px-4 bg-primary text-white text-sm font-bold">
+<span class="truncate">Salvar Veículo</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Modal de Detalhes do Veículo com Integração Ituran -->
+<div class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 dark:bg-opacity-70 flex items-center justify-center p-4 z-50" id="vehicle-details-modal">
+<div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto relative">
+<button class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200" onclick="closeVehicleDetails()">
+<span class="material-symbols-outlined">close</span>
+</button>
+<h2 class="text-2xl font-bold text-gray-800 dark:text-white mb-6" id="vehicle-modal-title">Detalhes do Veículo</h2>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+<p class="text-sm text-gray-500 dark:text-gray-400">Quilometragem Atual</p>
+<p class="text-2xl font-bold text-gray-800 dark:text-white mt-1" id="vehicle-km">-</p>
+<p class="text-xs text-gray-500 dark:text-gray-400 mt-1" id="vehicle-km-update">Atualizado há -</p>
+</div>
+<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+<p class="text-sm text-gray-500 dark:text-gray-400">Status do Motor</p>
+<p class="text-lg font-semibold mt-1" id="vehicle-engine-status">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-700">-</span>
+</p>
+<p class="text-xs text-gray-500 dark:text-gray-400 mt-1" id="vehicle-speed">Velocidade: -</p>
+</div>
+<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+<p class="text-sm text-gray-500 dark:text-gray-400">Próxima Manutenção</p>
+<p class="text-2xl font-bold mt-1" id="vehicle-next-maintenance">
+<span class="text-gray-800 dark:text-white">-</span>
+</p>
+<p class="text-xs mt-1" id="vehicle-maintenance-status">-</p>
+</div>
+</div>
+<!-- Alertas de Manutenção -->
+<div class="mb-6" id="maintenance-alerts-container" style="display: none;">
+<h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Alertas de Manutenção</h3>
+<div id="maintenance-alerts"></div>
+</div>
+<!-- Mapa de Localização e Rota -->
+<div class="mb-6">
+<h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">🗺️ Rastreamento e Rota do Veículo</h3>
+<!-- Filtros de Rota -->
+<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg mb-4">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">
+<div>
+<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data Início</label>
+<input type="date" id="route-start-date" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-10 px-3 text-sm">
+</div>
+<div>
+<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Data Fim</label>
+<input type="date" id="route-end-date" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-10 px-3 text-sm">
+</div>
+<div>
+<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Hora Início</label>
+<input type="time" id="route-start-time" value="00:00" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-10 px-3 text-sm">
+</div>
+<div>
+<label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Hora Fim</label>
+<input type="time" id="route-end-time" value="23:59" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-10 px-3 text-sm">
+</div>
+</div>
+<!-- Botões de Atalho -->
+<div class="flex flex-wrap gap-2 mb-3">
+<button onclick="setRouteFilter('today')" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-300 dark:border-gray-500">
+Hoje
+</button>
+<button onclick="setRouteFilter('yesterday')" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-300 dark:border-gray-500">
+Ontem
+</button>
+<button onclick="setRouteFilter('last7days')" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-300 dark:border-gray-500">
+Últimos 7 dias
+</button>
+<button onclick="setRouteFilter('last30days')" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-300 dark:border-gray-500">
+Últimos 30 dias
+</button>
+<button onclick="setRouteFilter('thisWeek')" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-300 dark:border-gray-500">
+Esta Semana
+</button>
+<button onclick="setRouteFilter('lastWeek')" class="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-500 border border-gray-300 dark:border-gray-500">
+Semana Passada
+</button>
+</div>
+<button id="load-route-btn" onclick="loadFilteredRoute()" class="flex items-center gap-2 px-4 py-2 w-full md:w-auto bg-primary text-white rounded-lg hover:bg-primary/90 font-medium">
+<span class="material-symbols-outlined text-sm">route</span>
+<span>Carregar Rota</span>
+</button>
+</div>
+<div class="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden" style="height: 500px;">
+<div class="relative w-full h-full" id="map-container"></div>
+</div>
+<p class="text-sm text-gray-500 dark:text-gray-400 mt-2" id="vehicle-address">Endereço: Carregando...</p>
+<!-- Estatísticas da Rota -->
+<div id="route-stats" class="mt-4 hidden">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+<div class="bg-white dark:bg-gray-700 rounded-lg p-3">
+<p class="text-xs text-gray-500 dark:text-gray-400">Distância Percorrida</p>
+<p class="text-lg font-bold text-primary" id="route-distance">-</p>
+</div>
+<div class="bg-white dark:bg-gray-700 rounded-lg p-3">
+<p class="text-xs text-gray-500 dark:text-gray-400">Tempo em Movimento</p>
+<p class="text-lg font-bold text-secondary" id="route-duration">-</p>
+</div>
+<div class="bg-white dark:bg-gray-700 rounded-lg p-3">
+<p class="text-xs text-gray-500 dark:text-gray-400">Velocidade Média</p>
+<p class="text-lg font-bold text-info" id="route-avg-speed">-</p>
+</div>
+<div class="bg-white dark:bg-gray-700 rounded-lg p-3">
+<p class="text-xs text-gray-500 dark:text-gray-400">Velocidade Máxima</p>
+<p class="text-lg font-bold text-warning" id="route-max-speed">-</p>
+</div>
+<div class="bg-white dark:bg-gray-700 rounded-lg p-3">
+<p class="text-xs text-gray-500 dark:text-gray-400">Pontos de Parada</p>
+<p class="text-lg font-bold text-success" id="route-stops">-</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Dados Técnicos -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+<div>
+<p class="text-sm text-gray-500 dark:text-gray-400">Nível de Combustível</p>
+<p class="text-lg font-semibold text-gray-800 dark:text-white" id="vehicle-fuel">-%</p>
+</div>
+<div>
+<p class="text-sm text-gray-500 dark:text-gray-400">Última Atualização</p>
+<p class="text-lg font-semibold text-gray-800 dark:text-white" id="vehicle-last-sync">-</p>
+</div>
+<div>
+<p class="text-sm text-gray-500 dark:text-gray-400">Latitude</p>
+<p class="text-sm font-mono text-gray-800 dark:text-white" id="vehicle-lat">-</p>
+</div>
+<div>
+<p class="text-sm text-gray-500 dark:text-gray-400">Longitude</p>
+<p class="text-sm font-mono text-gray-800 dark:text-white" id="vehicle-lng">-</p>
+</div>
+</div>
+<!-- Relatório de Quilometragem por Período -->
+<div class="mb-6 border-t border-gray-200 dark:border-gray-700 pt-6">
+<h3 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">📊 Relatório de Quilometragem por Período</h3>
+<div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+<div>
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Início</label>
+<input type="date" id="report-start-date" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+</div>
+<div>
+<label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Data Fim</label>
+<input type="date" id="report-end-date" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+</div>
+<div class="flex items-end">
+<button id="generate-report-btn" onclick="generateKmReport()" class="flex items-center gap-2 px-4 py-2 h-11 w-full bg-primary text-white rounded-lg hover:bg-primary/90 font-medium">
+<span class="material-symbols-outlined text-sm">assessment</span>
+<span>Gerar Relatório</span>
+</button>
+</div>
+</div>
+<div id="km-report-result"></div>
+</div>
+</div>
+<div class="flex justify-end gap-4 mt-8">
+<button class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90" onclick="refreshVehicleData()">
+<span class="material-symbols-outlined text-sm">refresh</span>
+<span>Atualizar Dados</span>
+</button>
+<button class="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500" onclick="closeVehicleDetails()">
+<span>Fechar</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="api-client.js?v=2"></script>
+<script src="ituran-service.js?v=100"></script>
+<script src="vehicle-tracking.js?v=5"></script>
+<script>
+        // Sistema de gerenciamento de dados da frota (compartilhado)
+        class FleetDataManager {
+            constructor() {
+                this.storageKey = 'fleetflow_data';
+                this.initializeData();
+            }
+
+            initializeData() {
+                if (!localStorage.getItem(this.storageKey)) {
+                    const defaultData = {
+                        vehicles: [
+                            { plate: 'ABC-1234', model: 'Volkswagen Gol', year: 2022, mileage: 50000, status: 'Ativo', color: 'Branco' },
+                            { plate: 'JKL-3456', model: 'Renault Kwid', year: 2023, mileage: 25000, status: 'Ativo', color: 'Prata' },
+                            { plate: 'MNO-7890', model: 'Honda Civic', year: 2021, mileage: 70000, status: 'Ativo', color: 'Preto' },
+                            { plate: 'DEF-5678', model: 'Fiat Strada', year: 2020, mileage: 85000, status: 'Manutenção', color: 'Vermelho' },
+                            { plate: 'QWE-1122', model: 'Ford Ka', year: 2022, mileage: 45000, status: 'Manutenção', color: 'Azul' },
+                            { plate: 'RST-3344', model: 'VW Saveiro', year: 2021, mileage: 60000, status: 'Manutenção', color: 'Branco' },
+                            { plate: 'UVW-5566', model: 'Hyundai HB20', year: 2023, mileage: 15000, status: 'Ativo', color: 'Cinza' },
+                            { plate: 'GHI-9012', model: 'Chevrolet Onix', year: 2019, mileage: 120000, status: 'Arquivado', color: 'Prata' },
+                            { plate: 'ZXY-6789', model: 'Mercedes Sprinter', year: 2018, mileage: 150000, status: 'Arquivado', color: 'Branco' }
+                        ],
+                        stats: {
+                            totalVehicles: 150,
+                            inMaintenance: 12,
+                            availableDrivers: 45,
+                            monthlyCost: 120000
+                        }
+                    };
+                    this.saveData(defaultData);
+                }
+            }
+
+            getData() {
+                return JSON.parse(localStorage.getItem(this.storageKey) || '{}');
+            }
+
+            saveData(data) {
+                localStorage.setItem(this.storageKey, JSON.stringify(data));
+            }
+
+            getVehicles() {
+                return this.getData().vehicles || [];
+            }
+
+            addVehicle(vehicle) {
+                const data = this.getData();
+                data.vehicles.push(vehicle);
+                this.saveData(data);
+                this.updateStats();
+            }
+
+            updateStats() {
+                const data = this.getData();
+                const vehicles = data.vehicles;
+                data.stats.totalVehicles = vehicles.filter(v => v.status !== 'Arquivado').length;
+                data.stats.inMaintenance = vehicles.filter(v => v.status === 'Manutenção').length;
+                this.saveData(data);
+            }
+        }
+
+        const fleetManager = new FleetDataManager();
+
+        // Renderizar tabelas com dados do banco de dados
+        async function renderVehicles() {
+            try {
+                // Busca veículos do banco de dados
+                console.log('🔄 Buscando veículos do banco de dados...');
+                const response = await fetch('/api/vehicles');
+                const ituranVehicles = await response.json();
+
+                // Simulação de bases (em produção, viria do backend)
+                const basesMap = {
+                    'ABC-1234': 'Serra',
+                    'JKL-3456': 'Vitória',
+                    'MNO-7890': 'Serra',
+                    'DEF-5678': 'Vila Velha',
+                    'QWE-1122': 'Cachoeiro',
+                    'RST-3344': 'Serra',
+                    'UVW-5566': 'Vitória'
+                };
+
+                // Simulação de custo de rastreador (em produção, viria do backend)
+                const trackerCostMap = {
+                    'ABC-1234': 150,
+                    'JKL-3456': 150,
+                    'MNO-7890': 150,
+                    'DEF-5678': 150,
+                    'QWE-1122': 150,
+                    'RST-3344': 150,
+                    'UVW-5566': 150
+                };
+
+                // Converte dados do Ituran para formato do FleetFlow
+                const vehicles = ituranVehicles.map(v => {
+                    const plate = v.plate || '-';
+                    return {
+                        id: v.id || plate,
+                        plate: plate,
+                        model: v.platformName || v.model || plate || 'Veículo Desconhecido', // Usa PlatformName primeiro
+                        brand: v.brand || 'Veículo',
+                        year: v.year || new Date().getFullYear(),
+                        mileage: v.odometer || 0,
+                        base: basesMap[plate] || 'Serra', // Padrão Serra se não encontrar
+                        trackerCost: trackerCostMap[plate] || 150, // Custo do rastreador
+                        status: v.status === 'active' ? 'Ativo' :
+                                v.status === 'maintenance' ? 'Manutenção' :
+                                v.status === 'inactive' ? 'Inativo' : 'Ativo'
+                    };
+                });
+
+                // Veículos já vêm com os dados do banco
+                const vehiclesWithMileage = vehicles;
+
+                // Frota Ativa
+                const activeTable = document.querySelector('#active-fleet tbody');
+                const activeVehicles = vehiclesWithMileage.filter(v => v.status === 'Ativo');
+
+                if (activeVehicles.length === 0) {
+                    activeTable.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                <span class="material-symbols-outlined text-4xl mb-2">directions_car_filled</span>
+                                <p>Nenhum veículo ativo encontrado no Ituran</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    activeTable.innerHTML = activeVehicles.map(v => `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700" data-base="${v.base}">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${v.plate}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${v.model}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-primary/10 text-primary">${v.base}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${v.year}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${v.mileage.toLocaleString('pt-BR')} km</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success/20 text-success">Ativo</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button class="text-primary hover:text-primary/80 dark:text-info dark:hover:text-info/80 mr-3 cursor-pointer underline vehicle-details-btn" data-plate="${v.plate}" data-name="${v.model} - ${v.plate}">Detalhes</button>
+                                <a class="text-warning hover:text-warning/80 cursor-pointer" href="editar.html?id=${v.id}">Editar</a>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    // Adiciona event listeners aos botões de detalhes
+                    document.querySelectorAll('.vehicle-details-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const plate = e.target.dataset.plate;
+                            const name = e.target.dataset.name;
+                            console.log(`🔍 Clicou em Detalhes: ${plate}`);
+                            openVehicleDetails(plate, name);
+                        });
+                    });
+                }
+
+                // Em Manutenção
+                const maintenanceVehicles = vehiclesWithMileage.filter(v => v.status === 'Manutenção');
+                if (maintenanceVehicles.length > 0) {
+                    console.log(`📋 ${maintenanceVehicles.length} veículos em manutenção encontrados`);
+                }
+
+                // Arquivados/Inativos
+                const archivedTable = document.querySelector('#archived tbody');
+                const archivedVehicles = vehiclesWithMileage.filter(v => v.status === 'Inativo' || v.status === 'Arquivado');
+
+                if (archivedVehicles.length === 0) {
+                    archivedTable.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                <span class="material-symbols-outlined text-4xl mb-2">archive</span>
+                                <p>Nenhum veículo arquivado</p>
+                            </td>
+                        </tr>
+                    `;
+                } else {
+                    archivedTable.innerHTML = archivedVehicles.map(v => `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${v.plate}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">${v.model}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">-</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">-</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button class="text-primary hover:text-primary/80 dark:text-info dark:hover:text-info/80 mr-3 cursor-pointer underline vehicle-details-btn" data-plate="${v.plate}" data-name="${v.model} - ${v.plate}">Detalhes</button>
+                                <a class="text-warning hover:text-warning/80 cursor-pointer">Reativar</a>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    // Adiciona event listeners aos botões de detalhes (arquivados)
+                    document.querySelectorAll('.vehicle-details-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const plate = e.target.dataset.plate;
+                            const name = e.target.dataset.name;
+                            console.log(`🔍 Clicou em Detalhes: ${plate}`);
+                            openVehicleDetails(plate, name);
+                        });
+                    });
+                }
+
+                console.log(`✅ ${vehicles.length} veículos carregados do Ituran com sucesso!`);
+            } catch (error) {
+                console.error('❌ Erro ao carregar veículos do Ituran:', error);
+
+                // Mostra mensagem de erro nas tabelas
+                const errorMessage = `
+                    <tr>
+                        <td colspan="7" class="px-6 py-8 text-center">
+                            <span class="material-symbols-outlined text-4xl text-danger mb-2">error</span>
+                            <p class="text-danger font-semibold">Erro ao conectar com Ituran</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">${error.message}</p>
+                            <button onclick="renderVehicles()" class="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-sm">Tentar Novamente</button>
+                        </td>
+                    </tr>
+                `;
+                document.querySelector('#active-fleet tbody').innerHTML = errorMessage;
+            }
+        }
+
+        // Função para abrir detalhes do veículo em TEMPO REAL
+        async function openVehicleDetails(plate, vehicleName) {
+            try {
+                console.log(`🔍 PASSO 0: Função openVehicleDetails chamada para ${plate}`);
+
+                // Cria modal se não existir
+                console.log('PASSO 0.1: Procurando modal existente...');
+                let modal = document.getElementById('vehicle-details-modal');
+
+                // Verifica se o modal existe E se seu conteúdo está intacto
+                const needsRecreation = !modal || !document.getElementById('modal-title') || !document.getElementById('modal-content');
+
+                if (needsRecreation) {
+                    if (!modal) {
+                        console.log('PASSO 0.2: Modal não existe, criando...');
+                        modal = document.createElement('div');
+                        modal.id = 'vehicle-details-modal';
+                        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden';
+                        document.body.appendChild(modal);
+                    } else {
+                        console.log('PASSO 0.2: Modal existe mas conteúdo corrompido, recriando innerHTML...');
+                    }
+
+                    console.log('PASSO 0.3: Criando/recriando innerHTML do modal...');
+                    modal.innerHTML = `
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[95vh] overflow-y-auto" onclick="event.stopPropagation()">
+                            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center sticky top-0 bg-white dark:bg-gray-800">
+                                <h2 class="text-2xl font-bold" id="modal-title">Detalhes do Veículo</h2>
+                                <button onclick="closeVehicleDetails()" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                                    <span class="material-symbols-outlined">close</span>
+                                </button>
+                            </div>
+                            <div id="modal-content" class="p-6">
+                                <div class="flex items-center justify-center py-12">
+                                    <div class="text-center">
+                                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                                        <p class="text-gray-600 dark:text-gray-400">Carregando dados em tempo real...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    console.log('PASSO 0.4: Adicionando event listener de clique...');
+                    // Remove event listeners antigos e adiciona novo
+                    const newModal = modal.cloneNode(true);
+                    modal.parentNode.replaceChild(newModal, modal);
+                    modal = newModal;
+
+                    // Fecha o modal ao clicar no fundo escuro
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            closeVehicleDetails();
+                        }
+                    });
+
+                    console.log('✅ PASSO 0.5: Modal criado/recriado com sucesso!');
+                } else {
+                    console.log('✅ PASSO 0.2: Modal já existe e está OK, reutilizando...');
+                }
+
+                // Mostra modal com loading
+                console.log('PASSO 1: Removendo classe hidden do modal');
+                modal.classList.remove('hidden');
+
+                console.log('PASSO 2: Atualizando título do modal');
+                document.getElementById('modal-title').textContent = vehicleName;
+
+                // Mostra loading
+                console.log('PASSO 3: Mostrando loading');
+                document.getElementById('modal-content').innerHTML = `
+                    <div class="flex items-center justify-center py-12">
+                        <div class="text-center">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+                            <p class="text-gray-600 dark:text-gray-400">Carregando dados em tempo real...</p>
+                        </div>
+                    </div>
+                `;
+
+                console.log('PASSO 4: Entrando no bloco de busca de dados');
+            } catch (modalError) {
+                console.error('❌ ERRO FATAL ao criar/abrir modal (PASSO 0-3):', modalError);
+                console.error('   Stack:', modalError.stack);
+                alert(`Erro ao abrir modal: ${modalError.message}`);
+                return;
+            }
+
+            try {
+                // Busca dados em TEMPO REAL
+                console.log(`🔴 PASSO 5: Chamando getVehicleRealtimeData("${plate}")...`);
+                console.log('   ituranService existe?', typeof ituranService !== 'undefined');
+                console.log('   getVehicleRealtimeData existe?', typeof ituranService.getVehicleRealtimeData === 'function');
+
+                const data = await ituranService.getVehicleRealtimeData(plate);
+                console.log('✅ PASSO 6: Dados recebidos:', data);
+
+                // Renderiza dados
+                document.getElementById('modal-content').innerHTML = `
+                    <!-- HISTÓRICO E TRAJETO - ACIMA DO MAPA -->
+                    <div class="mb-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold mb-2 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-blue-600">route</span>
+                            📍 Histórico de Trajeto e Quilometragem
+                        </h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            ℹ️ <strong>Info:</strong> Períodos longos serão divididos automaticamente. A linha azul mostrará o caminho percorrido.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Data/Hora Início</label>
+                                <input type="datetime-local" id="trajeto-inicio-${plate}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Data/Hora Fim</label>
+                                <input type="datetime-local" id="trajeto-fim-${plate}" class="w-full px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600" />
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="loadVehicleHistory('${plate}')" class="w-full bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined">map</span>
+                                    Ver Trajeto
+                                </button>
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="calculateKmBetweenDates('${plate}')" class="w-full bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 font-semibold flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined">speed</span>
+                                    Calcular KM
+                                </button>
+                            </div>
+                        </div>
+                        <div id="trajeto-result-${plate}" class="mt-4 hidden">
+                            <div class="bg-white dark:bg-gray-800 rounded-lg p-4">
+                                <h4 class="font-bold mb-2">Resultado:</h4>
+                                <div id="trajeto-content-${plate}"></div>
+                                <div id="history-map-${plate}" style="height: 500px; border-radius: 0.5rem; overflow: hidden; margin-top: 16px;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MAPA EM TEMPO REAL -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-red-600">map</span>
+                            🔴 Mapa em Tempo Real
+                        </h3>
+                        <div id="vehicle-map" style="height: 400px; border-radius: 0.5rem; overflow: hidden;"></div>
+                    </div>
+
+                    <!-- Posição -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-green-600">location_on</span>
+                            Posição Atual
+                        </h3>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Endereço:</span>
+                                <span class="font-semibold text-green-600">${data.position.address}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Última Atualização:</span>
+                                <span class="font-semibold">${data.position.age}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-400">Coordenadas:</span>
+                                <span class="font-mono text-sm">${data.position.latitude.toFixed(6)}, ${data.position.longitude.toFixed(6)}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Movimento -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-blue-600">speed</span>
+                            Movimento
+                        </h3>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Velocidade</p>
+                                <p class="text-3xl font-bold text-blue-600">${data.movement.speed}</p>
+                                <p class="text-xs text-gray-500">km/h</p>
+                            </div>
+                            <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Direção</p>
+                                <p class="text-3xl font-bold text-purple-600">${data.movement.heading}°</p>
+                                <p class="text-xs text-gray-500">graus</p>
+                            </div>
+                            <div class="bg-${data.movement.isMoving ? 'green' : 'gray'}-50 dark:bg-${data.movement.isMoving ? 'green' : 'gray'}-900/20 rounded-lg p-4 text-center">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Status</p>
+                                <p class="text-lg font-bold text-${data.movement.isMoving ? 'green' : 'gray'}-600">${data.movement.status}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Veículo -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-orange-600">settings</span>
+                            Informações do Veículo
+                        </h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Odômetro</p>
+                                <p class="text-2xl font-bold text-orange-600">${data.vehicle.odometer.toLocaleString('pt-BR')} km</p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Motor</p>
+                                <p class="text-2xl font-bold ${data.vehicle.engineStatus === 'ligado' ? 'text-green-600' : 'text-red-600'}">
+                                    ${data.vehicle.engineStatus === 'ligado' ? '🟢' : '🔴'} ${data.vehicle.engineStatus}
+                                </p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Ignição</p>
+                                <p class="text-xl font-bold ${data.vehicle.ignitionStatus === 'ligada' ? 'text-green-600' : 'text-gray-600'}">
+                                    ${data.vehicle.ignitionStatus}
+                                </p>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Motorista</p>
+                                <p class="text-xl font-bold">${data.vehicle.driverName}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status Detalhado -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center gap-2">
+                            <span class="material-symbols-outlined text-gray-600">info</span>
+                            Status Detalhado
+                        </h3>
+                        <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-2">
+                            ${data.statuses.map(status => `
+                                <div class="flex items-center gap-2">
+                                    <span class="text-blue-500">•</span>
+                                    <span class="text-sm">${status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Botão Atualizar -->
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="openVehicleDetails('${plate}', '${vehicleName}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                            <span class="material-symbols-outlined">refresh</span>
+                            Atualizar Dados
+                        </button>
+                    </div>
+                `;
+
+                // 🗺️ INICIALIZA O MAPA EM TEMPO REAL
+                console.log('🗺️ PASSO 7: Inicializando mapa...');
+                setTimeout(() => {
+                    const mapElement = document.getElementById('vehicle-map');
+
+                    if (!mapElement) {
+                        console.error('❌ Elemento do mapa não encontrado!');
+                        return;
+                    }
+
+                    // Cria o mapa centralizado na posição do veículo
+                    const map = L.map('vehicle-map').setView([data.position.latitude, data.position.longitude], 16);
+
+                    // Adiciona camada de tiles (mapa base)
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19,
+                    }).addTo(map);
+
+                    // Cria ícone customizado do veículo
+                    const carColor = data.movement.isMoving ? '#10B981' : '#EF4444';
+                    const carIcon = L.divIcon({
+                        className: 'custom-car-icon',
+                        html: '<div style="background-color: ' + carColor + '; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3); font-size: 24px; transform: rotate(' + data.movement.heading + 'deg);">🚗</div>',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20],
+                    });
+
+                    // Adiciona marcador do veículo
+                    const marker = L.marker([data.position.latitude, data.position.longitude], {
+                        icon: carIcon
+                    }).addTo(map);
+
+                    // Popup com informações
+                    const popupContent = '<div style="min-width: 200px;">' +
+                        '<h3 style="font-weight: bold; margin-bottom: 8px;">' + plate + '</h3>' +
+                        '<p><strong>Endereço:</strong> ' + data.position.address + '</p>' +
+                        '<p><strong>Velocidade:</strong> ' + data.movement.speed + ' km/h</p>' +
+                        '<p><strong>Motor:</strong> ' + data.vehicle.engineStatus + '</p>' +
+                        '<p><strong>Status:</strong> ' + data.movement.status + '</p>' +
+                        '<p style="font-size: 0.8em; color: #666; margin-top: 8px;">' + data.position.age + '</p>' +
+                        '</div>';
+                    marker.bindPopup(popupContent).openPopup();
+
+                    // Adiciona círculo de precisão
+                    L.circle([data.position.latitude, data.position.longitude], {
+                        color: data.movement.isMoving ? '#10B981' : '#EF4444',
+                        fillColor: data.movement.isMoving ? '#10B981' : '#EF4444',
+                        fillOpacity: 0.1,
+                        radius: 50
+                    }).addTo(map);
+
+                    console.log('✅ PASSO 7: Mapa inicializado com sucesso!');
+                }, 100); // Pequeno delay para garantir que o DOM está pronto
+
+            } catch (error) {
+                console.error('❌ ERRO ao carregar detalhes do veículo (PASSO 5-6):', error);
+                console.error('   Mensagem:', error.message);
+                console.error('   Stack:', error.stack);
+                console.error('   Placa:', plate);
+
+                document.getElementById('modal-content').innerHTML = `
+                    <div class="text-center py-12">
+                        <span class="material-symbols-outlined text-6xl text-red-500 mb-4">error</span>
+                        <p class="text-red-600 font-semibold mb-2">Erro ao carregar dados</p>
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">${error.message}</p>
+                        <button onclick="openVehicleDetails('${plate}', '${vehicleName}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                            Tentar Novamente
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Função para fechar detalhes do veículo
+        function closeVehicleDetails() {
+            const modal = document.getElementById('vehicle-details-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
+
+        // Função para carregar histórico de trajeto do veículo
+        async function loadVehicleHistory(plate) {
+            console.log(`📍 Carregando histórico de trajeto para ${plate}...`);
+
+            const inicioInput = document.getElementById(`trajeto-inicio-${plate}`);
+            const fimInput = document.getElementById(`trajeto-fim-${plate}`);
+            const resultDiv = document.getElementById(`trajeto-result-${plate}`);
+            const contentDiv = document.getElementById(`trajeto-content-${plate}`);
+
+            if (!inicioInput.value || !fimInput.value) {
+                alert('Por favor, preencha as datas de início e fim!');
+                return;
+            }
+
+            // Mostra loading
+            resultDiv.classList.remove('hidden');
+            contentDiv.innerHTML = '<p class="text-center py-4">⏳ Carregando histórico...</p>';
+
+            try {
+                const inicio = new Date(inicioInput.value).toISOString();
+                const fim = new Date(fimInput.value).toISOString();
+
+                console.log(`📅 Período: ${inicio} até ${fim}`);
+
+                // Busca relatório completo
+                const report = await ituranService.getFullReport(plate, inicio, fim);
+
+                if (!report.success || !report.records || report.records.length === 0) {
+                    contentDiv.innerHTML = '<p class="text-red-600">❌ Nenhum registro encontrado para este período.</p>';
+                    return;
+                }
+
+                console.log(`✅ ${report.records.length} pontos encontrados`);
+
+                // Calcula KM percorridos
+                const kmInicio = report.records[0].odometer;
+                const kmFim = report.records[report.records.length - 1].odometer;
+                const kmPercorridos = kmFim - kmInicio;
+
+                // Mostra estatísticas
+                contentDiv.innerHTML = `
+                    <div class="grid grid-cols-3 gap-4 mb-3">
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-blue-600">${report.records.length}</p>
+                            <p class="text-sm text-gray-600">Pontos registrados</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-green-600">${kmPercorridos.toFixed(1)} km</p>
+                            <p class="text-sm text-gray-600">Percorridos</p>
+                        </div>
+                        <div class="text-center">
+                            <p class="text-2xl font-bold text-orange-600">${Math.max(...report.records.map(r => r.speed))} km/h</p>
+                            <p class="text-sm text-gray-600">Velocidade máxima</p>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-gray-700 p-3 rounded-lg">
+                        <p class="text-xs text-gray-700 dark:text-gray-300">
+                            <strong>📍 Legenda do trajeto:</strong>
+                            <span style="color: #10B981;">●</span> Verde = Início |
+                            <span style="color: #EAB308;">●</span> Amarelo = Meio |
+                            <span style="color: #EF4444;">●</span> Vermelho = Final |
+                            <span style="color: #1E40AF;">⬤</span> Marcadores a cada 30min
+                        </p>
+                    </div>
+                `;
+
+                // Cria mapa de histórico
+                const historyMapDiv = document.getElementById(`history-map-${plate}`);
+                historyMapDiv.innerHTML = ''; // Limpa mapa anterior
+                historyMapDiv.style.display = 'block'; // Garante que está visível
+
+                // Aguarda um pouco para garantir que o DOM está pronto
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+                const historyMap = L.map(`history-map-${plate}`, {
+                    center: [report.records[0].latitude, report.records[0].longitude],
+                    zoom: 13,
+                    zoomControl: true
+                });
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap',
+                    maxZoom: 19,
+                }).addTo(historyMap);
+
+                // NOVA ABORDAGEM: Quebrar trajeto em segmentos ao invés de remover pontos
+                function segmentTrajectory(records) {
+                    if (records.length < 2) return [records];
+
+                    console.log(`🔍 Analisando ${records.length} pontos para segmentação...`);
+
+                    // Função auxiliar para calcular distância
+                    function calcDistance(lat1, lon1, lat2, lon2) {
+                        const R = 6371;
+                        const dLat = (lat2 - lat1) * Math.PI / 180;
+                        const dLon = (lon2 - lon1) * Math.PI / 180;
+                        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                                Math.sin(dLon/2) * Math.sin(dLon/2);
+                        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                        return R * c;
+                    }
+
+                    const segments = [];
+                    let currentSegment = [records[0]];
+                    let breaksCount = 0;
+
+                    for (let i = 1; i < records.length; i++) {
+                        const prev = records[i - 1];
+                        const curr = records[i];
+
+                        const distance = calcDistance(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
+                        const timeDiffMin = (new Date(curr.timestamp) - new Date(prev.timestamp)) / (1000 * 60);
+
+                        // Detecta saltos suspeitos que devem QUEBRAR o trajeto
+                        let shouldBreak = false;
+                        let reason = '';
+
+                        // Critérios para quebrar (mais permissivos que antes):
+                        if (distance > 15) {
+                            shouldBreak = true;
+                            reason = `salto grande (${distance.toFixed(1)}km)`;
+                        } else if (timeDiffMin > 0) {
+                            const speedKmh = (distance / timeDiffMin) * 60;
+
+                            // Quebra se velocidade impossível (>180km/h)
+                            if (speedKmh > 180) {
+                                shouldBreak = true;
+                                reason = `velocidade impossível (${speedKmh.toFixed(0)}km/h)`;
+                            }
+                            // Quebra se salto grande em tempo curto (>5km em <2min)
+                            else if (distance > 5 && timeDiffMin < 2) {
+                                shouldBreak = true;
+                                reason = `${distance.toFixed(1)}km em ${timeDiffMin.toFixed(1)}min`;
+                            }
+                        }
+
+                        if (shouldBreak) {
+                            // Finaliza segmento atual se tiver pelo menos 2 pontos
+                            if (currentSegment.length >= 2) {
+                                segments.push(currentSegment);
+                            }
+                            // Inicia novo segmento
+                            currentSegment = [curr];
+                            breaksCount++;
+
+                            if (breaksCount <= 10) {
+                                const timeStr = new Date(curr.timestamp).toLocaleTimeString('pt-BR');
+                                console.log(`✂️ Quebra ${breaksCount} no ponto ${i} (${timeStr}): ${reason}`);
+                            }
+                        } else {
+                            // Adiciona ao segmento atual
+                            currentSegment.push(curr);
+                        }
+                    }
+
+                    // Adiciona último segmento se tiver pontos
+                    if (currentSegment.length >= 2) {
+                        segments.push(currentSegment);
+                    }
+
+                    console.log(`✅ Trajeto dividido em ${segments.length} segmentos (${breaksCount} quebras)`);
+                    segments.forEach((seg, idx) => {
+                        console.log(`   Segmento ${idx + 1}: ${seg.length} pontos`);
+                    });
+
+                    return segments;
+                }
+
+                const trajectorySegments = segmentTrajectory(report.records);
+
+                // Desenha cada segmento com GRADIENTE DE CORES (verde → amarelo → vermelho)
+                let totalSegmentPoints = 0;
+                trajectorySegments.forEach((segment, segIdx) => {
+                    totalSegmentPoints += segment.length;
+                });
+
+                console.log(`🎨 Desenhando ${trajectorySegments.length} segmentos (${totalSegmentPoints} pontos totais)...`);
+
+                let globalIndex = 0;
+                trajectorySegments.forEach((trajectorySegment, segIdx) => {
+                    console.log(`   Desenhando segmento ${segIdx + 1}/${trajectorySegments.length} (${trajectorySegment.length} pontos)...`);
+
+                    for (let i = 0; i < trajectorySegment.length - 1; i++) {
+                        const progress = globalIndex / (totalSegmentPoints - 1);
+                        const currentRecord = trajectorySegment[i];
+                        const nextRecord = trajectorySegment[i + 1];
+
+                    // Gradiente: Verde (0) → Amarelo (0.5) → Vermelho (1)
+                    let color;
+                    if (progress < 0.5) {
+                        // Verde para Amarelo
+                        const local = progress * 2; // 0 to 1
+                        const r = Math.round(16 + (234 - 16) * local);
+                        const g = Math.round(185 + (179 - 185) * local);
+                        const b = Math.round(129 + (0 - 129) * local);
+                        color = `rgb(${r}, ${g}, ${b})`;
+                    } else {
+                        // Amarelo para Vermelho
+                        const local = (progress - 0.5) * 2; // 0 to 1
+                        const r = Math.round(234 + (239 - 234) * local);
+                        const g = Math.round(179 - 179 * local);
+                        const b = 0;
+                        color = `rgb(${r}, ${g}, ${b})`;
+                    }
+
+                    // Calcula informações do segmento
+                    const startTime = new Date(currentRecord.timestamp);
+                    const endTime = new Date(nextRecord.timestamp);
+                    const timeDiff = (endTime - startTime) / 60000; // minutos
+
+                    // Calcula distância usando Haversine
+                    const R = 6371; // Raio da Terra em km
+                    const dLat = (nextRecord.latitude - currentRecord.latitude) * Math.PI / 180;
+                    const dLon = (nextRecord.longitude - currentRecord.longitude) * Math.PI / 180;
+                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                            Math.cos(currentRecord.latitude * Math.PI / 180) * Math.cos(nextRecord.latitude * Math.PI / 180) *
+                            Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    const distance = (R * c * 1000).toFixed(0); // metros
+
+                    const avgSpeed = Math.round((currentRecord.speed + nextRecord.speed) / 2);
+
+                    // Cria popup com informações detalhadas
+                    const popupContent = `
+                        <div style="min-width: 200px;">
+                            <strong style="color: ${color};">📍 Seg.${segIdx + 1} Trecho ${i + 1}/${trajectorySegment.length - 1}</strong><br>
+                            <hr style="margin: 5px 0;">
+                            <strong>🕐 Início:</strong> ${startTime.toLocaleString('pt-BR')}<br>
+                            <strong>🏁 Fim:</strong> ${endTime.toLocaleString('pt-BR')}<br>
+                            <strong>⏱️ Duração:</strong> ${timeDiff.toFixed(0)} minutos<br>
+                            <hr style="margin: 5px 0;">
+                            <strong>📏 Distância:</strong> ${distance}m<br>
+                            <strong>🚗 Velocidade média:</strong> ${avgSpeed} km/h<br>
+                            <strong>📊 Vel. inicial:</strong> ${currentRecord.speed} km/h<br>
+                            <strong>📊 Vel. final:</strong> ${nextRecord.speed} km/h<br>
+                            <hr style="margin: 5px 0;">
+                            <strong>📍 Odômetro inicial:</strong> ${currentRecord.odometer} km<br>
+                            <strong>📍 Odômetro final:</strong> ${nextRecord.odometer} km
+                        </div>
+                    `;
+
+                    const segment = L.polyline([
+                        [currentRecord.latitude, currentRecord.longitude],
+                        [nextRecord.latitude, nextRecord.longitude]
+                    ], {
+                        color: color,
+                        weight: 5,
+                        opacity: 0.9,
+                        lineJoin: 'round',
+                        lineCap: 'round'
+                    }).addTo(historyMap)
+                      .bindPopup(popupContent)
+                      .bindTooltip(`🕐 ${startTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})} | ${avgSpeed} km/h | ${distance}m`, {
+                          permanent: false,
+                          direction: 'top'
+                      });
+
+                    // Destaca linha ao passar o mouse
+                    segment.on('mouseover', function(e) {
+                        this.setStyle({
+                            weight: 8,
+                            opacity: 1
+                        });
+                    });
+
+                    segment.on('mouseout', function(e) {
+                        this.setStyle({
+                            weight: 5,
+                            opacity: 0.9
+                        });
+                    });
+
+                        globalIndex++;
+                    }
+                });
+
+                console.log(`✅ Trajeto desenhado: ${trajectorySegments.length} segmentos com ${totalSegmentPoints} pontos`);
+
+                // Adiciona marcadores de tempo a cada 30 minutos
+                let lastMarkerTime = null;
+                trajectorySegments.forEach(trajectorySegment => {
+                    trajectorySegment.forEach((record, idx) => {
+                    const currentTime = new Date(record.timestamp);
+
+                    if (!lastMarkerTime || (currentTime - lastMarkerTime) >= 30 * 60 * 1000) {
+                        const timeStr = currentTime.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+
+                        L.circleMarker([record.latitude, record.longitude], {
+                            radius: 4,
+                            fillColor: '#fff',
+                            color: '#1E40AF',
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 1
+                        }).addTo(historyMap).bindPopup(`
+                            <strong>🕐 ${timeStr}</strong><br>
+                            ${currentTime.toLocaleDateString('pt-BR')}<br>
+                            Velocidade: ${record.speed} km/h<br>
+                            Odômetro: ${record.odometer} km
+                        `);
+
+                        lastMarkerTime = currentTime;
+                    }
+                    });
+                });
+
+                // Ajusta zoom para mostrar todo o trajeto
+                const allPoints = trajectorySegments.flat();
+                const bounds = L.latLngBounds(allPoints.map(r => [r.latitude, r.longitude]));
+                historyMap.fitBounds(bounds, {
+                    padding: [50, 50]
+                });
+
+                // Marcador de início (VERDE com emoji de carro)
+                L.marker([report.records[0].latitude, report.records[0].longitude], {
+                    icon: L.divIcon({
+                        className: 'start-marker',
+                        html: '<div style="background-color: #10B981; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 20px;">🚗</div>',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20],
+                    })
+                }).addTo(historyMap).bindPopup(`<strong>🟢 INÍCIO DO TRAJETO</strong><br>${new Date(report.records[0].timestamp).toLocaleString('pt-BR')}<br>Velocidade: ${report.records[0].speed} km/h`);
+
+                // Marcador de fim (VERMELHO com bandeira)
+                const lastRecord = report.records[report.records.length - 1];
+                L.marker([lastRecord.latitude, lastRecord.longitude], {
+                    icon: L.divIcon({
+                        className: 'end-marker',
+                        html: '<div style="background-color: #EF4444; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 4px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.5); font-size: 20px;">🏁</div>',
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 20],
+                    })
+                }).addTo(historyMap).bindPopup(`<strong>🔴 FIM DO TRAJETO</strong><br>${new Date(lastRecord.timestamp).toLocaleString('pt-BR')}<br>Velocidade: ${lastRecord.speed} km/h`);
+
+                // Aguarda renderização e força invalidação do tamanho do mapa
+                await new Promise(resolve => setTimeout(resolve, 500));
+                historyMap.invalidateSize();
+
+                console.log('✅ Mapa de histórico criado com sucesso!');
+                console.log(`   Trajeto interativo: ${trajectorySegments.length} segmentos, ${totalSegmentPoints} pontos`);
+
+            } catch (error) {
+                console.error('❌ Erro ao carregar histórico:', error);
+                contentDiv.innerHTML = `<p class="text-red-600">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        // Função para calcular KM percorridos entre datas
+        async function calculateKmBetweenDates(plate) {
+            console.log(`📊 Calculando KM para ${plate}...`);
+
+            const inicioInput = document.getElementById(`trajeto-inicio-${plate}`);
+            const fimInput = document.getElementById(`trajeto-fim-${plate}`);
+            const resultDiv = document.getElementById(`trajeto-result-${plate}`);
+            const contentDiv = document.getElementById(`trajeto-content-${plate}`);
+
+            if (!inicioInput.value || !fimInput.value) {
+                alert('Por favor, preencha as datas de início e fim!');
+                return;
+            }
+
+            // Mostra loading
+            resultDiv.classList.remove('hidden');
+            contentDiv.innerHTML = '<p class="text-center py-4">⏳ Calculando quilometragem...</p>';
+
+            try {
+                const inicio = new Date(inicioInput.value).toISOString();
+                const fim = new Date(fimInput.value).toISOString();
+
+                console.log(`📅 Período: ${inicio} até ${fim}`);
+
+                // Busca relatório de KM
+                const report = await ituranService.getKilometerReport(plate, inicio, fim);
+
+                if (!report.success) {
+                    contentDiv.innerHTML = '<p class="text-red-600">❌ Erro ao buscar relatório de quilometragem.</p>';
+                    return;
+                }
+
+                console.log(`✅ KM Calculado: ${report.kmDriven} km`);
+
+                // Mostra resultado
+                contentDiv.innerHTML = `
+                    <div class="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-6">
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Quilometragem Total</p>
+                            <p class="text-5xl font-bold text-green-600">${report.kmDriven.toFixed(1)} km</p>
+                        </div>
+                        <div class="grid grid-cols-3 gap-4 mt-6">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-600">${report.startOdometer.toLocaleString('pt-BR')}</p>
+                                <p class="text-xs text-gray-600">Odômetro Inicial</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-purple-600">${report.endOdometer.toLocaleString('pt-BR')}</p>
+                                <p class="text-xs text-gray-600">Odômetro Final</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-orange-600">${((report.endOdometer - report.startOdometer) / ((new Date(fim) - new Date(inicio)) / (1000 * 60 * 60 * 24))).toFixed(1)}</p>
+                                <p class="text-xs text-gray-600">Média KM/dia</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600 dark:text-gray-400">Início:</span>
+                                <span class="font-semibold">${new Date(inicio).toLocaleString('pt-BR')}</span>
+                            </div>
+                            <div class="flex justify-between text-sm mt-2">
+                                <span class="text-gray-600 dark:text-gray-400">Fim:</span>
+                                <span class="font-semibold">${new Date(fim).toLocaleString('pt-BR')}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                // Esconde o mapa de histórico se estava visível
+                const historyMapDiv = document.getElementById(`history-map-${plate}`);
+                if (historyMapDiv) {
+                    historyMapDiv.style.display = 'none';
+                }
+
+            } catch (error) {
+                console.error('❌ Erro ao calcular KM:', error);
+                contentDiv.innerHTML = `<p class="text-red-600">❌ Erro: ${error.message}</p>`;
+            }
+        }
+
+        // Expõe funções globalmente para serem acessadas pelos botões
+        window.openVehicleDetails = openVehicleDetails;
+        window.closeVehicleDetails = closeVehicleDetails;
+        window.loadVehicleHistory = loadVehicleHistory;
+        window.calculateKmBetweenDates = calculateKmBetweenDates;
+
+        // Função de busca/filtro de veículos
+        function searchVehicles() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase().trim();
+
+            // Busca em todas as tabelas de veículos
+            const tables = ['#active-fleet tbody', '#maintenance-list tbody', '#archived tbody'];
+
+            tables.forEach(selector => {
+                const tbody = document.querySelector(selector);
+                if (!tbody) return;
+
+                const rows = tbody.querySelectorAll('tr');
+                let visibleCount = 0;
+
+                rows.forEach(row => {
+                    // Pula linhas de mensagem (sem veículos, erros, etc)
+                    if (row.querySelector('td[colspan]')) {
+                        return;
+                    }
+
+                    const plate = row.querySelector('td:nth-child(1)')?.textContent.toLowerCase() || '';
+                    const model = row.querySelector('td:nth-child(2)')?.textContent.toLowerCase() || '';
+                    const status = row.querySelector('td:nth-child(6) span')?.textContent.toLowerCase() || '';
+
+                    const matches = plate.includes(searchTerm) ||
+                                  model.includes(searchTerm) ||
+                                  status.includes(searchTerm);
+
+                    if (matches || searchTerm === '') {
+                        row.style.display = '';
+                        visibleCount++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Mostra mensagem se nenhum veículo for encontrado
+                if (visibleCount === 0 && searchTerm !== '') {
+                    const noResultsRow = tbody.querySelector('.no-results-row');
+                    if (!noResultsRow) {
+                        const colspan = selector.includes('active') ? '7' : '5';
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr class="no-results-row">
+                                <td colspan="${colspan}" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                                    <span class="material-symbols-outlined text-4xl mb-2">search_off</span>
+                                    <p>Nenhum veículo encontrado para "${searchTerm}"</p>
+                                </td>
+                            </tr>
+                        `);
+                    }
+                } else {
+                    // Remove mensagem de "nenhum resultado"
+                    const noResultsRow = tbody.querySelector('.no-results-row');
+                    if (noResultsRow) {
+                        noResultsRow.remove();
+                    }
+                }
+            });
+
+            console.log(`🔍 Busca: "${searchTerm}"`);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Renderizar veículos
+            renderVehicles();
+
+            // Verifica se há parâmetro ?plate= na URL para abrir modal automaticamente
+            const urlParams = new URLSearchParams(window.location.search);
+            const plateParam = urlParams.get('plate');
+            if (plateParam) {
+                console.log(`🔍 Parâmetro plate detectado na URL: ${plateParam}`);
+                // Aguarda 2 segundos para garantir que a página carregou completamente
+                setTimeout(() => {
+                    console.log(`✅ Abrindo detalhes do veículo ${plateParam}...`);
+                    openVehicleDetails(plateParam);
+                    // Remove o parâmetro da URL sem recarregar a página
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 2000);
+            }
+
+            // Adiciona busca em tempo real
+            const searchInput = document.getElementById('search-input');
+            if (searchInput) {
+                searchInput.addEventListener('input', searchVehicles);
+                console.log('✅ Busca de veículos ativada');
+            }
+
+            // Tabs
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    tabContents.forEach(content => content.classList.add('hidden'));
+                    button.classList.add('active');
+                    document.getElementById(button.dataset.tab).classList.remove('hidden');
+                });
+            });
+
+            // Popover functionality
+            window.togglePopover = (event, popoverId) => {
+                const popover = document.getElementById(popoverId);
+                const buttonRect = event.target.closest('button').getBoundingClientRect();
+                popover.style.top = `${buttonRect.bottom + 5}px`;
+                popover.style.left = `${buttonRect.left}px`;
+                popover.classList.toggle('hidden');
+                event.stopPropagation();
+                document.addEventListener('click', function closeOnClickOutside(e) {
+                    if (!popover.contains(e.target) && e.target !== event.target) {
+                        popover.classList.add('hidden');
+                        document.removeEventListener('click', closeOnClickOutside);
+                    }
+                });
+            };
+
+            // Filtro por base
+            window.filterVehiclesByBase = () => {
+                const selectedBase = document.getElementById('base-filter').value;
+                const rows = document.querySelectorAll('#active-fleet tbody tr');
+
+                rows.forEach(row => {
+                    if (!row.dataset.base) return; // Ignora linhas de mensagem
+
+                    if (selectedBase === '' || row.dataset.base === selectedBase) {
+                        row.style.display = '';
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+
+                // Conta veículos visíveis
+                const visibleRows = Array.from(rows).filter(row => row.style.display !== 'none' && row.dataset.base);
+                console.log(`📊 Filtro por base: ${selectedBase || 'Todas'} - ${visibleRows.length} veículos encontrados`);
+            };
+
+            // Formulário de cadastro de veículo com API
+            const saveButton = document.querySelector('#registration-modal button[class*="bg-primary"]');
+            saveButton.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const modal = document.getElementById('registration-modal');
+                const plate = modal.querySelector('input[placeholder="ABC-1234"]').value;
+                const brand = modal.querySelector('input[placeholder="Ex: Volkswagen"]').value;
+                const model = modal.querySelector('input[placeholder="Ex: Gol"]').value;
+                const year = parseInt(modal.querySelector('input[placeholder="Ex: 2021"]').value) || 2024;
+                const mileage = parseInt(modal.querySelector('input[placeholder="Ex: 50000"]').value) || 0;
+                const status = modal.querySelector('select[class*="form-select"]').value;
+                const color = modal.querySelector('input[placeholder="Ex: Branco"]').value || 'Branco';
+
+                // Novos campos
+                const base = document.getElementById('input-base').value;
+                const depreciation = parseFloat(document.getElementById('input-depreciacao').value) || 0;
+                const rentalCost = parseFloat(document.getElementById('input-locacao').value) || 0;
+                const trackerCost = parseFloat(document.getElementById('input-rastreador').value) || 0;
+
+                if (plate && model) {
+                    const vehicleData = {
+                        plate,
+                        brand: brand || 'Desconhecido',
+                        model,
+                        year,
+                        mileage,
+                        status,
+                        color,
+                        fuel: 'Flex',
+                        type: 'Passeio',
+                        base: base || 'Serra',
+                        depreciation,
+                        rentalCost,
+                        trackerCost
+                    };
+
+                    const result = await FleetAPI.createVehicle(vehicleData);
+
+                    if (result) {
+                        renderVehicles();
+                        modal.classList.add('hidden');
+
+                        // Limpar formulário
+                        modal.querySelectorAll('input').forEach(input => input.value = '');
+                        document.getElementById('input-base').value = '';
+
+                        alert('✅ Veículo cadastrado com sucesso!');
+                    } else {
+                        alert('❌ Erro ao cadastrar veículo. Tente novamente.');
+                    }
+                } else {
+                    alert('⚠️ Por favor, preencha a placa e o modelo do veículo.');
+                }
+            });
+        });
+    </script>
+
+
+<!-- Sidebar Unificado -->
+<script src="sidebar.js"></script>
+
+</body></html>

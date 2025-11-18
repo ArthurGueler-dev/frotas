@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cadastro de Modelos - Gestor de Frotas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#1173d4",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-white">
+<div class="relative flex h-auto min-h-screen w-full flex-col">
+<div class="flex h-full grow flex-row">
+<!-- Sidebar Container -->
+<div id="sidebar-container" data-page="modelos"></div>
+<main class="flex-1 p-6 lg:p-8 overflow-y-auto bg-background-light dark:bg-gray-900">
+<div class="max-w-[1400px] mx-auto">
+<!-- PageHeading -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+<h1 class="text-gray-900 dark:text-white text-3xl font-bold leading-tight tracking-tight">Cadastro de Modelos</h1>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-wide shadow-sm hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50">
+<span class="material-symbols-outlined">add</span>
+<span class="truncate">Novo Modelo</span>
+</button>
+</div>
+<!-- SearchBar -->
+<div class="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+<label class="flex flex-col min-w-40 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-12">
+<div class="text-gray-500 dark:text-gray-400 flex bg-gray-100 dark:bg-gray-700 items-center justify-center pl-4 rounded-l-lg border-y border-l border-gray-300 dark:border-gray-600">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-lg text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 h-full placeholder:text-gray-500 dark:placeholder:text-gray-400 px-4 text-base font-normal leading-normal" placeholder="Buscar por marca, modelo..." value=""/>
+</div>
+</label>
+</div>
+<!-- Table -->
+<div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-x-auto">
+<table class="w-full text-left">
+<thead class="border-b border-gray-200 dark:border-gray-700">
+<tr class="bg-gray-50 dark:bg-gray-800/50">
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">ID</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Marca</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Modelo</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Ano</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tipo</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Motor</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Qtd. Veículos</th>
+<th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Plano Cadastrado</th>
+<th class="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Ações</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+<tr>
+<td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+Carregando modelos...
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div id="pagination" class="flex items-center justify-center p-4 mt-4">
+<!-- Paginação será inserida via JavaScript -->
+</div>
+</div>
+</main>
+</div>
+</div>
+<!-- Modal for "Novo/Editar Modelo" -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden" id="model-modal">
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg m-4 transform transition-all">
+<div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+<h3 class="text-lg font-semibold text-gray-900 dark:text-white" id="modal-title">Novo Modelo</h3>
+<button class="text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg p-1.5 inline-flex items-center justify-center" data-modal-hide="model-modal" type="button">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<form class="p-6 space-y-4">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="marca">Marca *</label>
+<select class="form-select w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white" id="marca" required>
+<option value="">Selecione...</option>
+<option>Chevrolet</option>
+<option>Fiat</option>
+<option>Honda</option>
+<option>Hyundai</option>
+<option>International</option>
+<option>Mercedes-Benz</option>
+<option>Mitsubishi</option>
+<option>Renault</option>
+<option>Toyota</option>
+<option>Volkswagen</option>
+<option>Outra</option>
+</select>
+</div>
+<div>
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="modelo">Modelo *</label>
+<input class="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white" id="modelo" required="" type="text"/>
+</div>
+<div>
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="ano">Ano *</label>
+<input class="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white" id="ano" placeholder="Ex: 23/24 ou 2023" required type="text"/>
+<small class="text-gray-500 dark:text-gray-400 text-xs">Use o formato: 23/24 ou 2023</small>
+</div>
+<div>
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="tipo">Tipo de Veículo *</label>
+<select class="form-select w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white" id="tipo" required>
+<option value="">Selecione...</option>
+<option>Caminhão</option>
+<option>Caminhonete</option>
+<option>Passeio</option>
+<option>SUV</option>
+<option>Utilitário</option>
+<option>Van</option>
+</select>
+</div>
+<div class="col-span-1 md:col-span-2">
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="motor">Motor</label>
+<input class="form-input w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white" id="motor" placeholder="Ex: 1.4 Flex, 2.8 Diesel, etc." type="text"/>
+</div>
+<div class="col-span-1 md:col-span-2">
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="observacoes">Observações</label>
+<textarea class="form-textarea w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:ring-primary focus:border-primary text-gray-900 dark:text-white" id="observacoes" rows="3"></textarea>
+</div>
+</div>
+<div class="flex items-center justify-end pt-4 border-t border-gray-200 dark:border-gray-700 space-x-2">
+<button id="btn-cancelar-modal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-500 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600" type="button">Cancelar</button>
+<button class="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 focus:ring-4 focus:outline-none focus:ring-primary/50" type="submit">Salvar</button>
+</div>
+</form>
+</div>
+</div>
+
+<script>
+// Estado da aplicação
+let modelos = [];
+let modelosFiltrados = [];
+let modeloEditando = null;
+let paginaAtual = 1;
+const itensPorPagina = 10;
+const modal = document.getElementById('model-modal');
+
+// Detectar ambiente e definir URL da API
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isLocalhost ? '/api/modelos' : '/cpanel-api/modelos.php';
+
+console.log('🌐 Ambiente:', isLocalhost ? 'Localhost (Node.js)' : 'Produção (PHP)');
+console.log('🔗 API URL:', API_BASE_URL);
+
+// Carregar ao iniciar
+document.addEventListener('DOMContentLoaded', () => {
+    carregarModelos();
+    configurarEventos();
+});
+
+// Configurar eventos
+function configurarEventos() {
+    // Botão Novo Modelo
+    const btnNovo = document.querySelector('button[class*="bg-primary"]');
+    if (btnNovo && btnNovo.textContent.includes('Novo')) {
+        btnNovo.addEventListener('click', () => {
+            modeloEditando = null;
+            abrirModal();
+        });
+    }
+
+    // Busca
+    const inputBusca = document.querySelector('input[placeholder*="Buscar"]');
+    if (inputBusca) {
+        inputBusca.addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            modelosFiltrados = modelos.filter(m =>
+                m.marca.toLowerCase().includes(termo) ||
+                m.modelo.toLowerCase().includes(termo) ||
+                m.ano.includes(termo)
+            );
+            paginaAtual = 1;
+            atualizarTabela();
+        });
+    }
+
+    // Botão cancelar do modal
+    const btnCancelar = document.getElementById('btn-cancelar-modal');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', fecharModal);
+    }
+
+    // Botão X do modal
+    const btnFechar = modal?.querySelector('[data-modal-hide]');
+    if (btnFechar) {
+        btnFechar.addEventListener('click', fecharModal);
+    }
+
+    // Fechar modal ao clicar fora
+    modal?.addEventListener('click', (e) => {
+        if (e.target === modal) fecharModal();
+    });
+
+    // Enviar formulário
+    const form = modal?.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            salvarModelo();
+        });
+    }
+}
+
+// Carregar modelos da API
+async function carregarModelos() {
+    try {
+        const response = await fetch(API_BASE_URL);
+        const modelosCarregados = await response.json();
+
+        // Remover duplicatas baseado em marca + modelo + ano
+        const modelosUnicos = {};
+        modelosCarregados.forEach(modelo => {
+            const chave = `${modelo.marca}_${modelo.modelo}_${modelo.ano}`.toLowerCase();
+            // Manter apenas o primeiro modelo de cada combinação única
+            if (!modelosUnicos[chave]) {
+                modelosUnicos[chave] = modelo;
+            }
+        });
+
+        modelos = Object.values(modelosUnicos);
+        modelosFiltrados = modelos;
+        paginaAtual = 1;
+        atualizarTabela();
+
+        const totalOriginal = modelosCarregados.length;
+        const totalUnico = modelos.length;
+        const duplicatas = totalOriginal - totalUnico;
+
+        console.log('✅ Modelos carregados:', totalOriginal);
+        if (duplicatas > 0) {
+            console.log(`⚠️ ${duplicatas} modelo(s) duplicado(s) removido(s)`);
+            console.log(`📊 Total de modelos únicos: ${totalUnico}`);
+        }
+    } catch (error) {
+        console.error('❌ Erro ao carregar modelos:', error);
+        alert('Erro ao carregar modelos');
+    }
+}
+
+// Atualizar tabela com paginação
+function atualizarTabela() {
+    const tbody = document.querySelector('tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (modelosFiltrados.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    Nenhum modelo encontrado
+                </td>
+            </tr>
+        `;
+        renderizarPaginacao(0);
+        return;
+    }
+
+    // Calcular índices para paginação
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    const modelosPagina = modelosFiltrados.slice(inicio, fim);
+
+    // Renderizar linhas da página atual
+    modelosPagina.forEach((modelo, index) => {
+        const numeroGlobal = inicio + index + 1;
+        const tr = criarLinhaModelo(modelo, numeroGlobal);
+        tbody.appendChild(tr);
+    });
+
+    // Renderizar paginação
+    renderizarPaginacao(modelosFiltrados.length);
+}
+
+// Renderizar controles de paginação
+function renderizarPaginacao(totalItens) {
+    const paginationDiv = document.getElementById('pagination');
+    if (!paginationDiv) return;
+
+    if (totalItens === 0) {
+        paginationDiv.innerHTML = '';
+        return;
+    }
+
+    const totalPaginas = Math.ceil(totalItens / itensPorPagina);
+
+    if (totalPaginas <= 1) {
+        paginationDiv.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+
+    // Botão anterior
+    html += `
+        <button onclick="irParaPagina(${paginaAtual - 1})"
+                class="flex size-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${paginaAtual === 1 ? 'opacity-50 cursor-not-allowed' : ''}"
+                ${paginaAtual === 1 ? 'disabled' : ''}>
+            <span class="material-symbols-outlined text-lg">chevron_left</span>
+        </button>
+    `;
+
+    // Números das páginas
+    const range = 2; // Quantas páginas mostrar antes e depois da atual
+    let inicio = Math.max(1, paginaAtual - range);
+    let fim = Math.min(totalPaginas, paginaAtual + range);
+
+    // Primeira página
+    if (inicio > 1) {
+        html += `
+            <button onclick="irParaPagina(1)"
+                    class="text-sm font-normal leading-normal flex size-10 items-center justify-center text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                1
+            </button>
+        `;
+        if (inicio > 2) {
+            html += `<span class="text-sm font-normal leading-normal flex size-10 items-center justify-center text-gray-700 dark:text-gray-300 rounded-full">...</span>`;
+        }
+    }
+
+    // Páginas do intervalo
+    for (let i = inicio; i <= fim; i++) {
+        const isActive = i === paginaAtual;
+        html += `
+            <button onclick="irParaPagina(${i})"
+                    class="text-sm ${isActive ? 'font-bold' : 'font-normal'} leading-normal flex size-10 items-center justify-center ${isActive ? 'text-white bg-primary' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'} rounded-full">
+                ${i}
+            </button>
+        `;
+    }
+
+    // Última página
+    if (fim < totalPaginas) {
+        if (fim < totalPaginas - 1) {
+            html += `<span class="text-sm font-normal leading-normal flex size-10 items-center justify-center text-gray-700 dark:text-gray-300 rounded-full">...</span>`;
+        }
+        html += `
+            <button onclick="irParaPagina(${totalPaginas})"
+                    class="text-sm font-normal leading-normal flex size-10 items-center justify-center text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700">
+                ${totalPaginas}
+            </button>
+        `;
+    }
+
+    // Botão próximo
+    html += `
+        <button onclick="irParaPagina(${paginaAtual + 1})"
+                class="flex size-10 items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${paginaAtual === totalPaginas ? 'opacity-50 cursor-not-allowed' : ''}"
+                ${paginaAtual === totalPaginas ? 'disabled' : ''}>
+            <span class="material-symbols-outlined text-lg">chevron_right</span>
+        </button>
+    `;
+
+    paginationDiv.innerHTML = html;
+}
+
+// Ir para uma página específica
+function irParaPagina(pagina) {
+    const totalPaginas = Math.ceil(modelosFiltrados.length / itensPorPagina);
+    if (pagina < 1 || pagina > totalPaginas) return;
+
+    paginaAtual = pagina;
+    atualizarTabela();
+
+    // Scroll suave para o topo da tabela
+    document.querySelector('table')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Criar linha da tabela
+function criarLinhaModelo(modelo, numero) {
+    const tr = document.createElement('tr');
+
+    const temPlano = Math.random() > 0.5; // TODO: verificar se tem plano na API
+    const badgePlano = temPlano
+        ? '<span class="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300"><span class="size-1.5 rounded-full bg-green-500"></span>Sim</span>'
+        : '<span class="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-300"><span class="size-1.5 rounded-full bg-red-500"></span>Não</span>';
+
+    tr.innerHTML = `
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${String(numero).padStart(3, '0')}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${modelo.marca}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">${modelo.modelo}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${modelo.ano}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${modelo.tipo}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${modelo.motor || '-'}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">${modelo.qtdVeiculos || 0}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm">${badgePlano}</td>
+        <td class="px-4 py-3 whitespace-nowrap text-sm text-right">
+            <div class="flex justify-end gap-2">
+                <button class="p-1 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary" title="Editar" onclick="editarModelo('${modelo.id}')">
+                    <span class="material-symbols-outlined text-base">edit</span>
+                </button>
+                <button class="p-1 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary" title="Ver Plano" onclick="window.location.href='/planos-manutencao?modeloId=${modelo.id}'">
+                    <span class="material-symbols-outlined text-base">visibility</span>
+                </button>
+                <button class="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-500" title="Excluir" onclick="excluirModelo('${modelo.id}')">
+                    <span class="material-symbols-outlined text-base">delete</span>
+                </button>
+            </div>
+        </td>
+    `;
+
+    return tr;
+}
+
+// Abrir modal
+function abrirModal() {
+    if (!modal) return;
+
+    const titulo = modal.querySelector('#modal-title');
+    if (titulo) {
+        titulo.textContent = modeloEditando ? 'Editar Modelo' : 'Novo Modelo';
+    }
+
+    if (modeloEditando) {
+        // Preencher campos com dados do modelo
+        document.getElementById('marca').value = modeloEditando.marca;
+        document.getElementById('modelo').value = modeloEditando.modelo;
+        document.getElementById('ano').value = modeloEditando.ano;
+        document.getElementById('tipo').value = modeloEditando.tipo;
+        document.getElementById('motor').value = modeloEditando.motor || '';
+        document.getElementById('observacoes').value = modeloEditando.observacoes || '';
+    } else {
+        // Limpar campos
+        modal.querySelector('form').reset();
+    }
+
+    modal.classList.remove('hidden');
+}
+
+// Fechar modal
+function fecharModal() {
+    if (modal) {
+        modal.classList.add('hidden');
+        modeloEditando = null;
+    }
+}
+
+// Salvar modelo
+async function salvarModelo() {
+    const dados = {
+        marca: document.getElementById('marca').value,
+        modelo: document.getElementById('modelo').value,
+        ano: document.getElementById('ano').value,
+        tipo: document.getElementById('tipo').value,
+        motor: document.getElementById('motor').value,
+        observacoes: document.getElementById('observacoes').value
+    };
+
+    try {
+        let url = API_BASE_URL;
+        const method = modeloEditando ? 'PUT' : 'POST';
+
+        // Se estiver editando, adicionar ID
+        if (modeloEditando) {
+            url = isLocalhost
+                ? `${API_BASE_URL}/${modeloEditando.id}`
+                : `${API_BASE_URL}?id=${modeloEditando.id}`;
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        if (response.ok) {
+            alert(modeloEditando ? 'Modelo atualizado!' : 'Modelo criado!');
+            fecharModal();
+            carregarModelos();
+        } else {
+            const error = await response.json();
+            alert('Erro: ' + (error.error || 'Erro ao salvar modelo'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        alert('Erro ao salvar modelo');
+    }
+}
+
+// Editar modelo (chamado pelo onclick)
+function editarModelo(id) {
+    modeloEditando = modelos.find(m => m.id === id);
+    if (modeloEditando) {
+        abrirModal();
+    }
+}
+
+// Excluir modelo (chamado pelo onclick)
+async function excluirModelo(id) {
+    const modelo = modelos.find(m => m.id === id);
+    if (!modelo) return;
+
+    if (!confirm(`Deseja realmente excluir o modelo ${modelo.marca} ${modelo.modelo}?`)) {
+        return;
+    }
+
+    try {
+        const url = isLocalhost
+            ? `${API_BASE_URL}/${id}`
+            : `${API_BASE_URL}?id=${id}`;
+
+        const response = await fetch(url, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('Modelo excluído!');
+            carregarModelos();
+        } else {
+            const error = await response.json();
+            alert('Erro: ' + (error.error || 'Erro ao excluir modelo'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        alert('Erro ao excluir modelo');
+    }
+}
+</script>
+
+<!-- Carregar Sidebar Unificado -->
+<script src="sidebar.js"></script>
+
+</body></html>

@@ -50,59 +50,59 @@ class OSItemsManager {
     createNewRowHTML() {
         return `
             <tr class="bg-white dark:bg-gray-900/50 border-b dark:border-gray-700 item-row">
-                <td class="px-4 py-3">
-                    <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-type" onchange="osManager.onTypeChange(this)">
+                <td class="px-2 py-3">
+                    <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-xs item-type" onchange="osManager.onTypeChange(this)">
                         <option value="">Selecione...</option>
                         <option value="service">Serviço</option>
                         <option value="product">Produto</option>
                     </select>
                 </td>
-                <td class="px-4 py-3">
+                <td class="px-2 py-3">
                     <div class="relative">
                         <input type="text"
-                               class="form-input w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 rounded h-9 text-sm item-description focus:ring-2 focus:ring-primary/50 focus:outline-none"
+                               class="form-input w-full bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 rounded h-10 text-xs item-description focus:ring-2 focus:ring-primary/50 focus:outline-none"
                                placeholder="Selecione o tipo primeiro..."
                                disabled
                                autocomplete="off"
-                               style="padding-right: 40px;"/>
-                        <button type="button" class="absolute right-2 top-1/2 -translate-y-1/2 text-primary item-dropdown-btn" style="pointer-events: auto;">
-                            <span class="material-symbols-outlined text-xl">arrow_drop_down</span>
+                               style="padding-right: 30px;"/>
+                        <button type="button" class="absolute right-1 top-1/2 -translate-y-1/2 text-primary item-dropdown-btn" style="pointer-events: auto;">
+                            <span class="material-symbols-outlined text-lg">arrow_drop_down</span>
                         </button>
                         <div class="absolute w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto hidden item-dropdown" style="z-index: 999;">
                             <!-- Opções aparecerão aqui -->
                         </div>
                     </div>
                 </td>
-                <td class="px-4 py-3">
-                    <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-category" disabled>
+                <td class="px-2 py-3">
+                    <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-xs item-category" disabled>
                         <option value="">Aguardando...</option>
                     </select>
                 </td>
-                <td class="px-4 py-3">
+                <td class="px-2 py-3">
                     <input type="number"
-                           class="form-input w-20 text-center bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-qty"
+                           class="form-input w-16 text-center bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-xs item-qty"
                            value="1"
                            min="1"
                            onchange="osManager.calculateRowTotal(this)"/>
                 </td>
-                <td class="px-4 py-3">
+                <td class="px-2 py-3">
                     <input type="text"
-                           class="form-input w-28 text-right bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-value"
+                           class="form-input w-24 text-right bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-xs item-value"
                            placeholder="0,00"
                            onchange="osManager.calculateRowTotal(this)"
                            onblur="osManager.formatCurrency(this)"/>
                 </td>
-                <td class="px-4 py-3 text-right font-medium item-total">R$ 0,00</td>
-                <td class="px-4 py-3">
-                    <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-occurrence">
+                <td class="px-2 py-3 text-right font-medium text-xs item-total">R$ 0,00</td>
+                <td class="px-2 py-3">
+                    <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-xs item-occurrence">
                         <option value="">Selecione...</option>
                         <option value="preventivo">Preventivo</option>
                         <option value="corretivo">Corretivo</option>
                     </select>
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-2 py-3 text-center">
                     <button type="button" class="text-red-500 hover:text-red-700" onclick="osManager.removeRow(this)">
-                        <span class="material-symbols-outlined text-lg">delete</span>
+                        <span class="material-symbols-outlined text-base">delete</span>
                     </button>
                 </td>
             </tr>

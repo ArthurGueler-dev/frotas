@@ -168,42 +168,68 @@ app.get('/api/stats', async (req, res) => {
 // GET - Listar todos os veículos (do banco de dados)
 app.get('/api/vehicles', async (req, res) => {
     try {
+        console.log('🔍 Buscando veículos do banco de dados...');
         const [vehicles] = await pool.query(`
             SELECT
-                Id as id,
-                LicensePlate as plate,
-                VehicleName as model,
-                VehicleYear as year,
-                DriverId as driverId,
-                LastSpeed as speed,
-                LastAddress as location,
-                EngineStatus as engineStatus,
-                IgnitionStatus as status
-            FROM Vehicles
-            ORDER BY LicensePlate
+                v.Id as id,
+                v.LicensePlate as plate,
+                v.VehicleName as model,
+                v.VehicleYear as year,
+                v.DriverId as driverId,
+                v.LastSpeed as speed,
+                v.LastAddress as location,
+                v.EngineStatus as engineStatus,
+                v.IgnitionStatus as ignitionStatus,
+                v.Renavam as renavam,
+                v.ChassisNumber as chassisNumber,
+                v.EnginePower as enginePower,
+                v.EngineDisplacement as engineDisplacement,
+                v.is_munck as isMunck
+            FROM Vehicles v
+            ORDER BY v.LicensePlate
         `);
 
+        console.log(`✅ ${vehicles.length} veículos encontrados no banco`);
+
         // Formatar dados para o frontend
-        const formattedVehicles = vehicles.map(v => ({
-            id: v.id,
-            plate: v.plate,
-            model: v.model || 'N/A',
-            brand: 'N/A',
-            year: v.year || 'N/A',
-            mileage: 0,
-            status: v.status || 'Desconhecido',
-            color: 'N/A',
-            fuel: 'N/A',
-            type: 'N/A',
-            base: 'N/A',
-            location: v.location || 'Localização desconhecida',
-            speed: v.speed || 0,
-            driverId: v.driverId
-        }));
+        const formattedVehicles = vehicles.map(v => {
+            // Determinar status baseado no ignitionStatus
+            let status = 'Ativo';
+            if (v.ignitionStatus === 'ON') {
+                status = 'Ativo';
+            } else if (v.ignitionStatus === 'OFF') {
+                status = 'Ativo';
+            }
+
+            return {
+                id: v.id,
+                plate: v.plate,
+                model: v.model || 'N/A',
+                brand: 'N/A', // Pode ser extraído do VehicleName se necessário
+                year: v.year || 'N/A',
+                mileage: 0, // Não temos odômetro na tabela atual
+                status: status,
+                color: 'N/A',
+                fuel: 'N/A',
+                type: v.isMunck ? 'Munck' : 'N/A',
+                base: 'Serra', // Valor padrão
+                location: v.location || 'Localização desconhecida',
+                speed: v.speed || 0,
+                driverId: v.driverId,
+                renavam: v.renavam,
+                chassisNumber: v.chassisNumber,
+                enginePower: v.enginePower,
+                engineDisplacement: v.engineDisplacement,
+                engineStatus: v.engineStatus,
+                ignitionStatus: v.ignitionStatus
+            };
+        });
 
         res.json(formattedVehicles);
     } catch (error) {
-        console.error('Erro ao buscar veículos:', error);
+        console.error('❌ ERRO ao buscar veículos do banco:', error.message);
+        console.error('Stack:', error.stack);
+        console.log('⚠️ Usando dados mockados como fallback');
         res.json(database.vehicles); // Fallback para dados mockados
     }
 });
@@ -497,6 +523,729 @@ app.get('/api/alerts', async (req, res) => {
     } catch (error) {
         console.error('Erro ao buscar alertas:', error);
         res.json([]); // Retorna array vazio em caso de erro
+    }
+});
+
+// ==================== SERVIÇOS (CATÁLOGO) ====================
+
+// GET - Listar todos os serviços do catálogo
+app.get('/api/services', async (req, res) => {
+    try {
+        const { tipo, ativo, ocorrencia } = req.query;
+
+        let query = 'SELECT * FROM servicos WHERE 1=1';
+        const params = [];
+
+        if (tipo) {
+            query += ' AND tipo = ?';
+            params.push(tipo);
+        }
+
+        if (ativo !== undefined) {
+            query += ' AND ativo = ?';
+            params.push(ativo === 'true' ? 1 : 0);
+        }
+
+        if (ocorrencia) {
+            query += ' AND ocorrencia_padrao = ?';
+            params.push(ocorrencia);
+        }
+
+        query += ' ORDER BY codigo ASC';
+
+        const [services] = await pool.query(query, params);
+
+        res.json(services);
+    } catch (error) {
+        console.error('Erro ao buscar serviços:', error);
+        res.status(500).json({ error: 'Erro ao buscar serviços' });
+    }
+});
+
+// GET - Buscar serviço específico
+app.get('/api/services/:id', async (req, res) => {
+    try {
+        const [service] = await pool.query(
+            'SELECT * FROM servicos WHERE id = ?',
+            [req.params.id]
+        );
+
+        if (service.length === 0) {
+            return res.status(404).json({ error: 'Serviço não encontrado' });
+        }
+
+        res.json(service[0]);
+    } catch (error) {
+        console.error('Erro ao buscar serviço:', error);
+        res.status(500).json({ error: 'Erro ao buscar serviço' });
+    }
+});
+
+// POST - Criar novo serviço
+app.post('/api/services', async (req, res) => {
+    try {
+        const { codigo, nome, tipo, valor_padrao, ocorrencia_padrao } = req.body;
+
+        const [result] = await pool.query(`
+            INSERT INTO servicos (codigo, nome, tipo, valor_padrao, ocorrencia_padrao, ativo, criado_em)
+            VALUES (?, ?, ?, ?, ?, 1, NOW())
+        `, [codigo, nome, tipo, valor_padrao, ocorrencia_padrao]);
+
+        res.status(201).json({
+            id: result.insertId,
+            codigo,
+            nome,
+            tipo,
+            valor_padrao,
+            ocorrencia_padrao
+        });
+    } catch (error) {
+        console.error('Erro ao criar serviço:', error);
+        res.status(500).json({ error: 'Erro ao criar serviço' });
+    }
+});
+
+// PUT - Atualizar serviço
+app.put('/api/services/:id', async (req, res) => {
+    try {
+        const { codigo, nome, tipo, valor_padrao, ocorrencia_padrao, ativo } = req.body;
+
+        await pool.query(`
+            UPDATE servicos
+            SET codigo = ?, nome = ?, tipo = ?, valor_padrao = ?,
+                ocorrencia_padrao = ?, ativo = ?, atualizado_em = NOW()
+            WHERE id = ?
+        `, [codigo, nome, tipo, valor_padrao, ocorrencia_padrao, ativo, req.params.id]);
+
+        res.json({ message: 'Serviço atualizado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar serviço:', error);
+        res.status(500).json({ error: 'Erro ao atualizar serviço' });
+    }
+});
+
+// DELETE - Remover serviço (soft delete)
+app.delete('/api/services/:id', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE servicos SET ativo = 0 WHERE id = ?',
+            [req.params.id]
+        );
+
+        res.json({ message: 'Serviço desativado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao desativar serviço:', error);
+        res.status(500).json({ error: 'Erro ao desativar serviço' });
+    }
+});
+
+// ==================== PLANOS DE MANUTENÇÃO ====================
+
+// GET - Listar todos os planos de manutenção
+app.get('/api/maintenance-plans', async (req, res) => {
+    try {
+        const { ativo } = req.query;
+
+        let query = `
+            SELECT
+                p.*,
+                COUNT(DISTINCT vp.vehicle_id) as total_veiculos,
+                COUNT(DISTINCT ps.id) as total_servicos
+            FROM FF_MaintenancePlans p
+            LEFT JOIN FF_VehicleMaintenancePlans vp ON vp.plano_id = p.id AND vp.ativo = 1
+            LEFT JOIN FF_MaintenancePlanServices ps ON ps.plano_id = p.id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        if (ativo !== undefined) {
+            query += ' AND p.ativo = ?';
+            params.push(ativo === 'true' ? 1 : 0);
+        }
+
+        query += ' GROUP BY p.id ORDER BY p.nome_plano ASC';
+
+        const [plans] = await pool.query(query, params);
+
+        res.json(plans);
+    } catch (error) {
+        console.error('Erro ao buscar planos:', error);
+        res.status(500).json({ error: 'Erro ao buscar planos de manutenção' });
+    }
+});
+
+// GET - Buscar plano específico com serviços
+app.get('/api/maintenance-plans/:id', async (req, res) => {
+    try {
+        const [plan] = await pool.query(
+            'SELECT * FROM FF_MaintenancePlans WHERE id = ?',
+            [req.params.id]
+        );
+
+        if (plan.length === 0) {
+            return res.status(404).json({ error: 'Plano não encontrado' });
+        }
+
+        // Buscar serviços do plano
+        const [services] = await pool.query(`
+            SELECT ps.*, s.codigo, s.nome, s.tipo
+            FROM FF_MaintenancePlanServices ps
+            LEFT JOIN servicos s ON s.id = ps.servico_id
+            WHERE ps.plano_id = ?
+        `, [req.params.id]);
+
+        res.json({
+            ...plan[0],
+            servicos: services
+        });
+    } catch (error) {
+        console.error('Erro ao buscar plano:', error);
+        res.status(500).json({ error: 'Erro ao buscar plano' });
+    }
+});
+
+// POST - Criar novo plano de manutenção
+app.post('/api/maintenance-plans', async (req, res) => {
+    try {
+        const {
+            nome_plano,
+            descricao,
+            tipo_gatilho,
+            intervalo_km,
+            intervalo_dias,
+            alertar_antecipacao_km,
+            alertar_antecipacao_dias,
+            servicos // Array de serviços [{servico_id, custo_estimado}]
+        } = req.body;
+
+        // Criar plano
+        const [result] = await pool.query(`
+            INSERT INTO FF_MaintenancePlans
+                (nome_plano, descricao, tipo_gatilho, intervalo_km, intervalo_dias,
+                 alertar_antecipacao_km, alertar_antecipacao_dias)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [nome_plano, descricao, tipo_gatilho, intervalo_km, intervalo_dias,
+            alertar_antecipacao_km, alertar_antecipacao_dias]);
+
+        const planoId = result.insertId;
+
+        // Adicionar serviços ao plano
+        if (servicos && servicos.length > 0) {
+            for (const servico of servicos) {
+                await pool.query(`
+                    INSERT INTO FF_MaintenancePlanServices
+                        (plano_id, servico_id, custo_estimado)
+                    VALUES (?, ?, ?)
+                `, [planoId, servico.servico_id, servico.custo_estimado]);
+            }
+        }
+
+        res.status(201).json({
+            id: planoId,
+            nome_plano,
+            message: 'Plano criado com sucesso'
+        });
+    } catch (error) {
+        console.error('Erro ao criar plano:', error);
+        res.status(500).json({ error: 'Erro ao criar plano de manutenção' });
+    }
+});
+
+// PUT - Atualizar plano
+app.put('/api/maintenance-plans/:id', async (req, res) => {
+    try {
+        const {
+            nome_plano,
+            descricao,
+            tipo_gatilho,
+            intervalo_km,
+            intervalo_dias,
+            alertar_antecipacao_km,
+            alertar_antecipacao_dias,
+            ativo
+        } = req.body;
+
+        await pool.query(`
+            UPDATE FF_MaintenancePlans
+            SET nome_plano = ?, descricao = ?, tipo_gatilho = ?,
+                intervalo_km = ?, intervalo_dias = ?,
+                alertar_antecipacao_km = ?, alertar_antecipacao_dias = ?,
+                ativo = ?, atualizado_em = NOW()
+            WHERE id = ?
+        `, [nome_plano, descricao, tipo_gatilho, intervalo_km, intervalo_dias,
+            alertar_antecipacao_km, alertar_antecipacao_dias, ativo, req.params.id]);
+
+        res.json({ message: 'Plano atualizado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao atualizar plano:', error);
+        res.status(500).json({ error: 'Erro ao atualizar plano' });
+    }
+});
+
+// DELETE - Desativar plano
+app.delete('/api/maintenance-plans/:id', async (req, res) => {
+    try {
+        await pool.query(
+            'UPDATE FF_MaintenancePlans SET ativo = 0 WHERE id = ?',
+            [req.params.id]
+        );
+
+        res.json({ message: 'Plano desativado com sucesso' });
+    } catch (error) {
+        console.error('Erro ao desativar plano:', error);
+        res.status(500).json({ error: 'Erro ao desativar plano' });
+    }
+});
+
+// ==================== ASSOCIAÇÃO VEÍCULO-PLANO ====================
+
+// GET - Listar planos de um veículo
+app.get('/api/vehicles/:id/maintenance-plans', async (req, res) => {
+    try {
+        const [plans] = await pool.query(`
+            SELECT
+                vp.*,
+                p.nome_plano,
+                p.tipo_gatilho,
+                p.intervalo_km,
+                p.intervalo_dias,
+                p.alertar_antecipacao_km,
+                p.alertar_antecipacao_dias
+            FROM FF_VehicleMaintenancePlans vp
+            JOIN FF_MaintenancePlans p ON p.id = vp.plano_id
+            WHERE vp.vehicle_id = ? AND vp.ativo = 1
+            ORDER BY p.nome_plano ASC
+        `, [req.params.id]);
+
+        res.json(plans);
+    } catch (error) {
+        console.error('Erro ao buscar planos do veículo:', error);
+        res.status(500).json({ error: 'Erro ao buscar planos do veículo' });
+    }
+});
+
+// POST - Associar plano a veículo
+app.post('/api/vehicles/:id/maintenance-plans', async (req, res) => {
+    try {
+        const vehicleId = req.params.id;
+        const { plano_id, km_inicial, data_inicial } = req.body;
+
+        // Buscar informações do veículo
+        const [vehicle] = await pool.query(
+            'SELECT LicensePlate FROM Vehicles WHERE Id = ?',
+            [vehicleId]
+        );
+
+        if (vehicle.length === 0) {
+            return res.status(404).json({ error: 'Veículo não encontrado' });
+        }
+
+        // Buscar km atual do veículo (se não especificado, buscar da telemetria)
+        let kmAtual = km_inicial;
+
+        if (!kmAtual) {
+            // Buscar km atual da telemetria (último valor não-zero)
+            const [telemetria] = await pool.query(`
+                SELECT km_final
+                FROM Telemetria_Diaria
+                WHERE LicensePlate = ? AND km_final > 0
+                ORDER BY data DESC
+                LIMIT 1
+            `, [vehicle[0].LicensePlate]);
+
+            kmAtual = telemetria.length > 0 && telemetria[0].km_final ? telemetria[0].km_final : 0;
+        }
+
+        const dataAtual = data_inicial || new Date().toISOString().split('T')[0];
+
+        // Buscar informações do plano
+        const [plan] = await pool.query(
+            'SELECT * FROM FF_MaintenancePlans WHERE id = ?',
+            [plano_id]
+        );
+
+        if (plan.length === 0) {
+            return res.status(404).json({ error: 'Plano não encontrado' });
+        }
+
+        // Calcular próxima execução
+        let proximaExecucaoKm = null;
+        let proximaExecucaoData = null;
+
+        if (plan[0].tipo_gatilho.includes('Quilometragem')) {
+            proximaExecucaoKm = kmAtual + plan[0].intervalo_km;
+        }
+
+        if (plan[0].tipo_gatilho.includes('Tempo')) {
+            const data = new Date(dataAtual);
+            data.setDate(data.getDate() + plan[0].intervalo_dias);
+            proximaExecucaoData = data.toISOString().split('T')[0];
+        }
+
+        // Criar associação
+        const [result] = await pool.query(`
+            INSERT INTO FF_VehicleMaintenancePlans
+                (vehicle_id, plano_id, km_inicial, data_inicial,
+                 proxima_execucao_km, proxima_execucao_data)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [vehicleId, plano_id, kmAtual, dataAtual, proximaExecucaoKm, proximaExecucaoData]);
+
+        res.status(201).json({
+            id: result.insertId,
+            message: 'Plano associado ao veículo com sucesso',
+            proxima_execucao_km: proximaExecucaoKm,
+            proxima_execucao_data: proximaExecucaoData
+        });
+    } catch (error) {
+        console.error('Erro ao associar plano:', error);
+        res.status(500).json({ error: 'Erro ao associar plano ao veículo' });
+    }
+});
+
+// DELETE - Desassociar plano de veículo
+app.delete('/api/vehicles/:id/maintenance-plans/:planId', async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE FF_VehicleMaintenancePlans
+            SET ativo = 0
+            WHERE vehicle_id = ? AND plano_id = ?
+        `, [req.params.id, req.params.planId]);
+
+        res.json({ message: 'Plano desassociado do veículo com sucesso' });
+    } catch (error) {
+        console.error('Erro ao desassociar plano:', error);
+        res.status(500).json({ error: 'Erro ao desassociar plano' });
+    }
+});
+
+// POST - Registrar execução de manutenção (atualiza próxima data)
+app.post('/api/vehicles/:id/maintenance-plans/:planId/complete', async (req, res) => {
+    try {
+        const { km_execucao, data_execucao } = req.body;
+
+        // Buscar associação e plano
+        const [association] = await pool.query(`
+            SELECT vp.*, p.*
+            FROM FF_VehicleMaintenancePlans vp
+            JOIN FF_MaintenancePlans p ON p.id = vp.plano_id
+            WHERE vp.vehicle_id = ? AND vp.plano_id = ?
+        `, [req.params.id, req.params.planId]);
+
+        if (association.length === 0) {
+            return res.status(404).json({ error: 'Associação não encontrada' });
+        }
+
+        const assoc = association[0];
+
+        // Calcular próxima execução
+        let proximaExecucaoKm = null;
+        let proximaExecucaoData = null;
+
+        if (assoc.tipo_gatilho.includes('Quilometragem')) {
+            proximaExecucaoKm = km_execucao + assoc.intervalo_km;
+        }
+
+        if (assoc.tipo_gatilho.includes('Tempo')) {
+            const data = new Date(data_execucao);
+            data.setDate(data.getDate() + assoc.intervalo_dias);
+            proximaExecucaoData = data.toISOString().split('T')[0];
+        }
+
+        // Atualizar associação
+        await pool.query(`
+            UPDATE FF_VehicleMaintenancePlans
+            SET ultima_execucao_km = ?,
+                ultima_execucao_data = ?,
+                proxima_execucao_km = ?,
+                proxima_execucao_data = ?,
+                atualizado_em = NOW()
+            WHERE vehicle_id = ? AND plano_id = ?
+        `, [km_execucao, data_execucao, proximaExecucaoKm, proximaExecucaoData,
+            req.params.id, req.params.planId]);
+
+        res.json({
+            message: 'Manutenção registrada com sucesso',
+            proxima_execucao_km: proximaExecucaoKm,
+            proxima_execucao_data: proximaExecucaoData
+        });
+    } catch (error) {
+        console.error('Erro ao registrar execução:', error);
+        res.status(500).json({ error: 'Erro ao registrar execução de manutenção' });
+    }
+});
+
+// ==================== ALERTAS DE MANUTENÇÃO ====================
+
+// GET - Listar alertas de manutenção ativos
+app.get('/api/maintenance-alerts', async (req, res) => {
+    try {
+        const { status, prioridade, vehicle_id } = req.query;
+
+        let query = `
+            SELECT
+                a.*,
+                v.LicensePlate,
+                v.VehicleName,
+                p.nome_plano
+            FROM FF_MaintenanceAlerts a
+            JOIN Vehicles v ON v.Id = a.vehicle_id
+            JOIN FF_MaintenancePlans p ON p.id = a.plano_id
+            WHERE 1=1
+        `;
+
+        const params = [];
+
+        if (status) {
+            query += ' AND a.status = ?';
+            params.push(status);
+        } else {
+            query += ' AND a.status = "Ativo"';
+        }
+
+        if (prioridade) {
+            query += ' AND a.prioridade = ?';
+            params.push(prioridade);
+        }
+
+        if (vehicle_id) {
+            query += ' AND a.vehicle_id = ?';
+            params.push(vehicle_id);
+        }
+
+        query += ' ORDER BY a.prioridade DESC, a.criado_em DESC';
+
+        const [alerts] = await pool.query(query, params);
+
+        res.json(alerts);
+    } catch (error) {
+        console.error('Erro ao buscar alertas:', error);
+        res.status(500).json({ error: 'Erro ao buscar alertas de manutenção' });
+    }
+});
+
+// PUT - Marcar alerta como visualizado
+app.put('/api/maintenance-alerts/:id/viewed', async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE FF_MaintenanceAlerts
+            SET status = 'Visualizado', visualizado_em = NOW()
+            WHERE id = ?
+        `, [req.params.id]);
+
+        res.json({ message: 'Alerta marcado como visualizado' });
+    } catch (error) {
+        console.error('Erro ao atualizar alerta:', error);
+        res.status(500).json({ error: 'Erro ao atualizar alerta' });
+    }
+});
+
+// PUT - Resolver alerta
+app.put('/api/maintenance-alerts/:id/resolve', async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE FF_MaintenanceAlerts
+            SET status = 'Resolvido', resolvido_em = NOW()
+            WHERE id = ?
+        `, [req.params.id]);
+
+        res.json({ message: 'Alerta resolvido' });
+    } catch (error) {
+        console.error('Erro ao resolver alerta:', error);
+        res.status(500).json({ error: 'Erro ao resolver alerta' });
+    }
+});
+
+// POST - Executar verificação manual de alertas (para testes)
+app.post('/api/maintenance-alerts/check-now', async (req, res) => {
+    try {
+        console.log('🔔 Executando verificação manual de alertas...');
+
+        // Buscar todos os veículos com planos ativos
+        const [vehiclePlans] = await pool.query(`
+            SELECT
+                vp.*,
+                v.LicensePlate,
+                v.VehicleName,
+                p.nome_plano,
+                p.tipo_gatilho,
+                p.intervalo_km,
+                p.intervalo_dias,
+                p.alertar_antecipacao_km,
+                p.alertar_antecipacao_dias
+            FROM FF_VehicleMaintenancePlans vp
+            JOIN Vehicles v ON v.Id = vp.vehicle_id
+            JOIN FF_MaintenancePlans p ON p.id = vp.plano_id
+            WHERE vp.ativo = 1 AND p.ativo = 1
+        `);
+
+        let alertasGerados = 0;
+        const detalhes = [];
+
+        for (const vp of vehiclePlans) {
+            // Buscar km atual do veículo (último valor não-zero)
+            const [telemetria] = await pool.query(`
+                SELECT km_final
+                FROM Telemetria_Diaria
+                WHERE LicensePlate = ? AND km_final > 0
+                ORDER BY data DESC
+                LIMIT 1
+            `, [vp.LicensePlate]);
+
+            const kmAtual = telemetria.length > 0 ? telemetria[0].km_final : 0;
+            const dataAtual = new Date();
+
+            let precisaAlerta = false;
+            let tipoAlerta = null;
+            let mensagem = '';
+            let prioridade = 'Média';
+
+            // Verificar alerta por quilometragem
+            if (vp.tipo_gatilho.includes('Quilometragem') && vp.proxima_execucao_km) {
+                const kmAlerta = vp.proxima_execucao_km - (vp.alertar_antecipacao_km || 0);
+
+                if (kmAtual >= vp.proxima_execucao_km) {
+                    precisaAlerta = true;
+                    tipoAlerta = 'Quilometragem';
+                    prioridade = 'Crítica';
+                    mensagem = `${vp.nome_plano} VENCIDA! Veículo ${vp.LicensePlate} atingiu ${kmAtual} km (programado: ${vp.proxima_execucao_km} km)`;
+                } else if (kmAtual >= kmAlerta) {
+                    precisaAlerta = true;
+                    tipoAlerta = 'Quilometragem';
+                    prioridade = 'Alta';
+                    const kmRestantes = vp.proxima_execucao_km - kmAtual;
+                    mensagem = `${vp.nome_plano} próxima! Veículo ${vp.LicensePlate} faltam ${kmRestantes} km`;
+                }
+            }
+
+            // Verificar alerta por data
+            if (vp.tipo_gatilho.includes('Tempo') && vp.proxima_execucao_data) {
+                const dataProxima = new Date(vp.proxima_execucao_data);
+                const diasAntecipacao = vp.alertar_antecipacao_dias || 0;
+                const dataAlerta = new Date(dataProxima);
+                dataAlerta.setDate(dataAlerta.getDate() - diasAntecipacao);
+
+                if (dataAtual >= dataProxima) {
+                    precisaAlerta = true;
+                    tipoAlerta = tipoAlerta ? 'Ambos' : 'Data';
+                    prioridade = 'Crítica';
+                    mensagem = `${vp.nome_plano} VENCIDA! Veículo ${vp.LicensePlate} - Data programada: ${vp.proxima_execucao_data}`;
+                } else if (dataAtual >= dataAlerta) {
+                    if (!precisaAlerta) {
+                        precisaAlerta = true;
+                        tipoAlerta = 'Data';
+                        prioridade = 'Alta';
+                        const diasRestantes = Math.ceil((dataProxima - dataAtual) / (1000 * 60 * 60 * 24));
+                        mensagem = `${vp.nome_plano} próxima! Veículo ${vp.LicensePlate} em ${diasRestantes} dias`;
+                    }
+                }
+            }
+
+            if (precisaAlerta) {
+                const [alertaExistente] = await pool.query(`
+                    SELECT id FROM FF_MaintenanceAlerts
+                    WHERE vehicle_id = ? AND plano_id = ? AND status = 'Ativo'
+                    LIMIT 1
+                `, [vp.vehicle_id, vp.plano_id]);
+
+                if (alertaExistente.length === 0) {
+                    await pool.query(`
+                        INSERT INTO FF_MaintenanceAlerts
+                            (vehicle_id, plano_id, vehicle_maintenance_plan_id,
+                             tipo_alerta, mensagem, km_atual, km_programado,
+                             data_programada, prioridade, status)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Ativo')
+                    `, [
+                        vp.vehicle_id, vp.plano_id, vp.id, tipoAlerta, mensagem,
+                        kmAtual, vp.proxima_execucao_km, vp.proxima_execucao_data, prioridade
+                    ]);
+
+                    alertasGerados++;
+                }
+
+                detalhes.push({
+                    veiculo: vp.LicensePlate,
+                    plano: vp.nome_plano,
+                    km_atual: kmAtual,
+                    km_programado: vp.proxima_execucao_km,
+                    data_programada: vp.proxima_execucao_data,
+                    mensagem,
+                    prioridade,
+                    novo_alerta: alertaExistente.length === 0
+                });
+            }
+        }
+
+        res.json({
+            message: 'Verificação concluída',
+            total_planos_verificados: vehiclePlans.length,
+            alertas_gerados: alertasGerados,
+            detalhes
+        });
+
+    } catch (error) {
+        console.error('Erro ao verificar alertas:', error);
+        res.status(500).json({ error: 'Erro ao verificar alertas' });
+    }
+});
+
+// ==================== ITENS DE ORDEM DE SERVIÇO ====================
+
+// GET - Buscar itens de uma OS
+app.get('/api/workorders/:id/items', async (req, res) => {
+    try {
+        const [items] = await pool.query(`
+            SELECT
+                oi.*,
+                s.codigo as servico_codigo,
+                s.nome as servico_nome
+            FROM ordemservico_itens oi
+            LEFT JOIN servicos s ON s.id = oi.servico_id
+            WHERE oi.ordemservico_id = ?
+            ORDER BY oi.id ASC
+        `, [req.params.id]);
+
+        res.json(items);
+    } catch (error) {
+        console.error('Erro ao buscar itens:', error);
+        res.status(500).json({ error: 'Erro ao buscar itens da OS' });
+    }
+});
+
+// POST - Adicionar item à OS
+app.post('/api/workorders/:id/items', async (req, res) => {
+    try {
+        const { servico_id, descricao, tipo, quantidade, valor_unitario } = req.body;
+        const valor_total = quantidade * valor_unitario;
+
+        const [result] = await pool.query(`
+            INSERT INTO ordemservico_itens
+                (ordemservico_id, servico_id, descricao, tipo, quantidade, valor_unitario, valor_total)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [req.params.id, servico_id, descricao, tipo, quantidade, valor_unitario, valor_total]);
+
+        res.status(201).json({
+            id: result.insertId,
+            message: 'Item adicionado à OS com sucesso'
+        });
+    } catch (error) {
+        console.error('Erro ao adicionar item:', error);
+        res.status(500).json({ error: 'Erro ao adicionar item à OS' });
+    }
+});
+
+// DELETE - Remover item da OS
+app.delete('/api/workorders/:osId/items/:itemId', async (req, res) => {
+    try {
+        await pool.query(
+            'DELETE FROM ordemservico_itens WHERE id = ? AND ordemservico_id = ?',
+            [req.params.itemId, req.params.osId]
+        );
+
+        res.json({ message: 'Item removido da OS com sucesso' });
+    } catch (error) {
+        console.error('Erro ao remover item:', error);
+        res.status(500).json({ error: 'Erro ao remover item da OS' });
     }
 });
 
@@ -2264,11 +3013,409 @@ app.options('/admin/veicular_tempotelas.php', (req, res) => {
     res.status(200).end();
 });
 
+// ==========================================
+// API DE MODELOS DE VEÍCULOS
+// ==========================================
+
+// GET - Listar todos os modelos
+app.get('/api/modelos', async (req, res) => {
+    try {
+        console.log('🔍 Buscando modelos de veículos...');
+
+        const [modelos] = await pool.query(`
+            SELECT
+                MIN(m.id) as id,
+                m.marca,
+                m.modelo,
+                m.ano,
+                m.tipo,
+                m.motor,
+                m.observacoes,
+                MIN(m.created_at) as created_at,
+                MAX(m.updated_at) as updated_at,
+                (SELECT COUNT(*) FROM Vehicles v WHERE v.VehicleName LIKE CONCAT('%', m.modelo, '%')) as qtdVeiculos
+            FROM FF_VehicleModels m
+            GROUP BY m.marca, m.modelo, m.ano, m.tipo, m.motor, m.observacoes
+            ORDER BY m.marca, m.modelo, m.ano
+        `);
+
+        console.log(`✅ ${modelos.length} modelos únicos encontrados`);
+        res.json(modelos);
+    } catch (error) {
+        console.error('❌ Erro ao buscar modelos:', error);
+        res.status(500).json({ error: 'Erro ao buscar modelos' });
+    }
+});
+
+// GET - Buscar modelo por ID
+app.get('/api/modelos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`🔍 Buscando modelo ID ${id}...`);
+
+        const [modelos] = await pool.query(`
+            SELECT
+                m.id,
+                m.marca,
+                m.modelo,
+                m.ano,
+                m.tipo,
+                m.motor,
+                m.observacoes,
+                m.created_at,
+                m.updated_at,
+                (SELECT COUNT(*) FROM Vehicles v WHERE v.VehicleName LIKE CONCAT('%', m.modelo, '%')) as qtdVeiculos
+            FROM FF_VehicleModels m
+            WHERE m.id = ?
+        `, [id]);
+
+        if (modelos.length === 0) {
+            return res.status(404).json({ error: 'Modelo não encontrado' });
+        }
+
+        console.log('✅ Modelo encontrado');
+        res.json(modelos[0]);
+    } catch (error) {
+        console.error('❌ Erro ao buscar modelo:', error);
+        res.status(500).json({ error: 'Erro ao buscar modelo' });
+    }
+});
+
+// POST - Criar novo modelo
+app.post('/api/modelos', async (req, res) => {
+    try {
+        const { marca, modelo, ano, tipo, motor, observacoes } = req.body;
+
+        console.log('➕ Criando novo modelo:', { marca, modelo, ano, tipo });
+
+        // Validação básica
+        if (!marca || !modelo || !ano || !tipo) {
+            return res.status(400).json({ error: 'Marca, modelo, ano e tipo são obrigatórios' });
+        }
+
+        const [result] = await pool.query(`
+            INSERT INTO FF_VehicleModels (marca, modelo, ano, tipo, motor, observacoes)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, [marca, modelo, ano, tipo, motor || null, observacoes || null]);
+
+        console.log(`✅ Modelo criado com ID ${result.insertId}`);
+
+        // Buscar o modelo criado para retornar
+        const [novoModelo] = await pool.query(`
+            SELECT * FROM FF_VehicleModels WHERE id = ?
+        `, [result.insertId]);
+
+        res.status(201).json(novoModelo[0]);
+    } catch (error) {
+        console.error('❌ Erro ao criar modelo:', error);
+
+        // Verificar se é erro de duplicação
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ error: 'Já existe um modelo com essa combinação de marca, modelo e ano' });
+        }
+
+        res.status(500).json({ error: 'Erro ao criar modelo' });
+    }
+});
+
+// PUT - Atualizar modelo existente
+app.put('/api/modelos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { marca, modelo, ano, tipo, motor, observacoes } = req.body;
+
+        console.log(`✏️ Atualizando modelo ID ${id}...`);
+
+        // Validação básica
+        if (!marca || !modelo || !ano || !tipo) {
+            return res.status(400).json({ error: 'Marca, modelo, ano e tipo são obrigatórios' });
+        }
+
+        // Verificar se o modelo existe
+        const [modeloExiste] = await pool.query('SELECT id FROM FF_VehicleModels WHERE id = ?', [id]);
+        if (modeloExiste.length === 0) {
+            return res.status(404).json({ error: 'Modelo não encontrado' });
+        }
+
+        await pool.query(`
+            UPDATE FF_VehicleModels
+            SET marca = ?, modelo = ?, ano = ?, tipo = ?, motor = ?, observacoes = ?
+            WHERE id = ?
+        `, [marca, modelo, ano, tipo, motor || null, observacoes || null, id]);
+
+        console.log('✅ Modelo atualizado com sucesso');
+
+        // Buscar o modelo atualizado para retornar
+        const [modeloAtualizado] = await pool.query(`
+            SELECT * FROM FF_VehicleModels WHERE id = ?
+        `, [id]);
+
+        res.json(modeloAtualizado[0]);
+    } catch (error) {
+        console.error('❌ Erro ao atualizar modelo:', error);
+
+        // Verificar se é erro de duplicação
+        if (error.code === 'ER_DUP_ENTRY') {
+            return res.status(409).json({ error: 'Já existe um modelo com essa combinação de marca, modelo e ano' });
+        }
+
+        res.status(500).json({ error: 'Erro ao atualizar modelo' });
+    }
+});
+
+// DELETE - Excluir modelo
+app.delete('/api/modelos/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        console.log(`🗑️ Excluindo modelo ID ${id}...`);
+
+        // Verificar se o modelo existe
+        const [modeloExiste] = await pool.query('SELECT id, marca, modelo FROM FF_VehicleModels WHERE id = ?', [id]);
+        if (modeloExiste.length === 0) {
+            return res.status(404).json({ error: 'Modelo não encontrado' });
+        }
+
+        // Verificar se há veículos associados
+        const modelo = modeloExiste[0];
+        const [veiculosAssociados] = await pool.query(
+            'SELECT COUNT(*) as count FROM Vehicles WHERE VehicleName LIKE ?',
+            [`%${modelo.modelo}%`]
+        );
+
+        if (veiculosAssociados[0].count > 0) {
+            return res.status(409).json({
+                error: `Não é possível excluir este modelo pois existem ${veiculosAssociados[0].count} veículo(s) associado(s) a ele`
+            });
+        }
+
+        await pool.query('DELETE FROM FF_VehicleModels WHERE id = ?', [id]);
+
+        console.log('✅ Modelo excluído com sucesso');
+        res.json({ message: 'Modelo excluído com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao excluir modelo:', error);
+        res.status(500).json({ error: 'Erro ao excluir modelo' });
+    }
+});
+
+// ==========================================
+// API DE ITENS DE PLANO DE MANUTENÇÃO
+// ==========================================
+
+// GET - Listar itens de plano por modelo
+app.get('/api/maintenance-plan-items', async (req, res) => {
+    try {
+        const { modelo_id } = req.query;
+
+        if (!modelo_id) {
+            return res.status(400).json({ error: 'modelo_id é obrigatório' });
+        }
+
+        console.log(`🔍 Buscando itens do plano para modelo ${modelo_id}...`);
+
+        // Primeiro buscar o nome do modelo
+        const [modelos] = await pool.query('SELECT marca, modelo FROM FF_VehicleModels WHERE id = ?', [modelo_id]);
+
+        if (modelos.length === 0) {
+            return res.json([]);
+        }
+
+        const modeloNome = `${modelos[0].marca} ${modelos[0].modelo}`;
+        console.log(`📋 Modelo: ${modeloNome}`);
+
+        // Buscar da tabela Planos_Manutenção
+        const [items] = await pool.query(`
+            SELECT
+                id,
+                modelo_carro,
+                descricao_titulo as nome,
+                km_recomendado as intervalo_km,
+                intervalo_tempo,
+                custo_estimado,
+                CASE
+                    WHEN criticidade = 'Crítica' OR criticidade = 'Alta' THEN 'alta'
+                    WHEN criticidade = 'Baixa' THEN 'baixa'
+                    ELSE 'media'
+                END as criticidade,
+                descricao_observacao as descricao
+            FROM Planos_Manutenção
+            WHERE modelo_carro LIKE ?
+            ORDER BY km_recomendado ASC
+        `, [`%${modeloNome}%`]);
+
+        console.log(`✅ ${items.length} itens encontrados`);
+
+        // Converter intervalo_tempo para intervalo_meses para compatibilidade
+        const itemsFormatados = items.map(item => {
+            let intervaloMeses = null;
+            if (item.intervalo_tempo) {
+                const texto = item.intervalo_tempo.toLowerCase();
+                if (texto.includes('ano')) {
+                    const match = texto.match(/(\d+)\s+ano/);
+                    if (match) intervaloMeses = parseInt(match[1]) * 12;
+                } else if (texto.includes('mês') || texto.includes('mes')) {
+                    const match = texto.match(/(\d+)\s+m[eê]s/);
+                    if (match) intervaloMeses = parseInt(match[1]);
+                }
+            }
+            return {
+                ...item,
+                intervalo_meses: intervaloMeses
+            };
+        });
+
+        res.json(itemsFormatados);
+    } catch (error) {
+        console.error('❌ Erro ao buscar itens do plano:', error);
+        res.status(500).json({ error: 'Erro ao buscar itens do plano' });
+    }
+});
+
+// POST - Criar novo item de plano
+app.post('/api/maintenance-plan-items', async (req, res) => {
+    try {
+        const { modelo_id, nome, intervalo_km, intervalo_meses, custo_estimado, criticidade, descricao } = req.body;
+
+        if (!modelo_id || !nome || !custo_estimado || !criticidade) {
+            return res.status(400).json({ error: 'Campos obrigatórios: modelo_id, nome, custo_estimado, criticidade' });
+        }
+
+        console.log('📝 Criando novo item de plano...');
+
+        // Buscar nome do modelo
+        const [modelos] = await pool.query('SELECT marca, modelo FROM FF_VehicleModels WHERE id = ?', [modelo_id]);
+        if (modelos.length === 0) {
+            return res.status(400).json({ error: 'Modelo não encontrado' });
+        }
+
+        const modeloNome = `${modelos[0].marca} ${modelos[0].modelo}`;
+
+        // Converter criticidade
+        let criticidadeEnum = 'Média';
+        if (criticidade === 'alta') criticidadeEnum = 'Alta';
+        else if (criticidade === 'baixa') criticidadeEnum = 'Baixa';
+
+        // Converter intervalo_meses para texto
+        let intervaloTempo = null;
+        if (intervalo_meses) {
+            if (intervalo_meses < 12) {
+                intervaloTempo = `${intervalo_meses} ${intervalo_meses === 1 ? 'mês' : 'meses'}`;
+            } else {
+                const anos = Math.floor(intervalo_meses / 12);
+                intervaloTempo = `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+            }
+        }
+
+        const [result] = await pool.query(`
+            INSERT INTO Planos_Manutenção
+            (modelo_carro, descricao_titulo, km_recomendado, intervalo_tempo, custo_estimado, criticidade, descricao_observacao)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        `, [modeloNome, nome, intervalo_km || null, intervaloTempo, custo_estimado, criticidadeEnum, descricao || null]);
+
+        console.log('✅ Item criado com sucesso');
+        res.status(201).json({
+            id: result.insertId,
+            message: 'Item criado com sucesso'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao criar item:', error);
+        res.status(500).json({ error: 'Erro ao criar item de plano' });
+    }
+});
+
+// PUT - Atualizar item de plano
+app.put('/api/maintenance-plan-items/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nome, intervalo_km, intervalo_meses, custo_estimado, criticidade, descricao } = req.body;
+
+        if (!nome || !custo_estimado || !criticidade) {
+            return res.status(400).json({ error: 'Campos obrigatórios: nome, custo_estimado, criticidade' });
+        }
+
+        console.log(`📝 Atualizando item ${id}...`);
+
+        // Converter criticidade
+        let criticidadeEnum = 'Média';
+        if (criticidade === 'alta') criticidadeEnum = 'Alta';
+        else if (criticidade === 'baixa') criticidadeEnum = 'Baixa';
+
+        // Converter intervalo_meses para texto
+        let intervaloTempo = null;
+        if (intervalo_meses) {
+            if (intervalo_meses < 12) {
+                intervaloTempo = `${intervalo_meses} ${intervalo_meses === 1 ? 'mês' : 'meses'}`;
+            } else {
+                const anos = Math.floor(intervalo_meses / 12);
+                intervaloTempo = `${anos} ${anos === 1 ? 'ano' : 'anos'}`;
+            }
+        }
+
+        await pool.query(`
+            UPDATE Planos_Manutenção
+            SET descricao_titulo = ?, km_recomendado = ?, intervalo_tempo = ?,
+                custo_estimado = ?, criticidade = ?, descricao_observacao = ?
+            WHERE id = ?
+        `, [nome, intervalo_km || null, intervaloTempo, custo_estimado, criticidadeEnum, descricao || null, id]);
+
+        console.log('✅ Item atualizado com sucesso');
+        res.json({ message: 'Item atualizado com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao atualizar item:', error);
+        res.status(500).json({ error: 'Erro ao atualizar item' });
+    }
+});
+
+// DELETE - Excluir item de plano
+app.delete('/api/maintenance-plan-items/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log(`🗑️ Excluindo item ${id}...`);
+
+        await pool.query('DELETE FROM Planos_Manutenção WHERE id = ?', [id]);
+
+        console.log('✅ Item excluído com sucesso');
+        res.json({ message: 'Item excluído com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao excluir item:', error);
+        res.status(500).json({ error: 'Erro ao excluir item' });
+    }
+});
+
 // Servir arquivos estáticos DEPOIS de todas as rotas dinâmicas
 app.use(express.static(__dirname));
 
+// Função para criar tabela de itens de plano de manutenção
+async function ensureMaintenancePlanItemsTable() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS FF_MaintenancePlanItems (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                modelo_id INT NOT NULL,
+                nome VARCHAR(255) NOT NULL,
+                intervalo_km INT NULL,
+                intervalo_meses INT NULL,
+                custo_estimado DECIMAL(10, 2) NOT NULL,
+                criticidade ENUM('baixa', 'media', 'alta') NOT NULL DEFAULT 'media',
+                descricao TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (modelo_id) REFERENCES FF_VehicleModels(id) ON DELETE CASCADE,
+                INDEX idx_modelo (modelo_id),
+                INDEX idx_criticidade (criticidade)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        console.log('✅ Tabela FF_MaintenancePlanItems verificada/criada');
+    } catch (error) {
+        console.error('❌ Erro ao criar tabela FF_MaintenancePlanItems:', error);
+    }
+}
+
 // Iniciar servidor
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
+    // Criar tabela se não existir
+    await ensureMaintenancePlanItemsTable();
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
@@ -2295,6 +3442,136 @@ app.listen(PORT, () => {
 ╚═══════════════════════════════════════════════════════════╝
     `);
 
+    // ========== FUNÇÃO DE VERIFICAÇÃO DE ALERTAS DE MANUTENÇÃO ==========
+    async function verificarAlertasManutencao() {
+        try {
+            console.log('🔍 Buscando veículos com planos de manutenção ativos...');
+
+            // Buscar todos os veículos com planos ativos
+            const [vehiclePlans] = await pool.query(`
+                SELECT
+                    vp.*,
+                    v.LicensePlate,
+                    v.VehicleName,
+                    p.nome_plano,
+                    p.tipo_gatilho,
+                    p.intervalo_km,
+                    p.intervalo_dias,
+                    p.alertar_antecipacao_km,
+                    p.alertar_antecipacao_dias
+                FROM FF_VehicleMaintenancePlans vp
+                JOIN Vehicles v ON v.Id = vp.vehicle_id
+                JOIN FF_MaintenancePlans p ON p.id = vp.plano_id
+                WHERE vp.ativo = 1 AND p.ativo = 1
+            `);
+
+            console.log(`📊 Encontrados ${vehiclePlans.length} planos ativos`);
+
+            let alertasGerados = 0;
+
+            for (const vp of vehiclePlans) {
+                // Buscar km atual do veículo (último valor não-zero)
+                const [telemetria] = await pool.query(`
+                    SELECT km_final
+                    FROM Telemetria_Diaria
+                    WHERE LicensePlate = ? AND km_final > 0
+                    ORDER BY data DESC
+                    LIMIT 1
+                `, [vp.LicensePlate]);
+
+                const kmAtual = telemetria.length > 0 ? telemetria[0].km_final : 0;
+                const dataAtual = new Date();
+
+                let precisaAlerta = false;
+                let tipoAlerta = null;
+                let mensagem = '';
+                let prioridade = 'Média';
+
+                // Verificar alerta por quilometragem
+                if (vp.tipo_gatilho.includes('Quilometragem') && vp.proxima_execucao_km) {
+                    const kmAlerta = vp.proxima_execucao_km - (vp.alertar_antecipacao_km || 0);
+
+                    if (kmAtual >= vp.proxima_execucao_km) {
+                        precisaAlerta = true;
+                        tipoAlerta = 'Quilometragem';
+                        prioridade = 'Crítica';
+                        mensagem = `${vp.nome_plano} VENCIDA! Veículo ${vp.LicensePlate} atingiu ${kmAtual} km (programado: ${vp.proxima_execucao_km} km)`;
+                    } else if (kmAtual >= kmAlerta) {
+                        precisaAlerta = true;
+                        tipoAlerta = 'Quilometragem';
+                        prioridade = 'Alta';
+                        const kmRestantes = vp.proxima_execucao_km - kmAtual;
+                        mensagem = `${vp.nome_plano} próxima! Veículo ${vp.LicensePlate} faltam ${kmRestantes} km`;
+                    }
+                }
+
+                // Verificar alerta por data
+                if (vp.tipo_gatilho.includes('Tempo') && vp.proxima_execucao_data) {
+                    const dataProxima = new Date(vp.proxima_execucao_data);
+                    const diasAntecipacao = vp.alertar_antecipacao_dias || 0;
+                    const dataAlerta = new Date(dataProxima);
+                    dataAlerta.setDate(dataAlerta.getDate() - diasAntecipacao);
+
+                    if (dataAtual >= dataProxima) {
+                        precisaAlerta = true;
+                        tipoAlerta = tipoAlerta ? 'Ambos' : 'Data';
+                        prioridade = 'Crítica';
+                        mensagem = `${vp.nome_plano} VENCIDA! Veículo ${vp.LicensePlate} - Data programada: ${vp.proxima_execucao_data}`;
+                    } else if (dataAtual >= dataAlerta) {
+                        if (!precisaAlerta) {
+                            precisaAlerta = true;
+                            tipoAlerta = 'Data';
+                            prioridade = 'Alta';
+                            const diasRestantes = Math.ceil((dataProxima - dataAtual) / (1000 * 60 * 60 * 24));
+                            mensagem = `${vp.nome_plano} próxima! Veículo ${vp.LicensePlate} em ${diasRestantes} dias`;
+                        }
+                    }
+                }
+
+                // Se precisa alerta, verificar se já existe um alerta ativo
+                if (precisaAlerta) {
+                    const [alertaExistente] = await pool.query(`
+                        SELECT id FROM FF_MaintenanceAlerts
+                        WHERE vehicle_id = ?
+                          AND plano_id = ?
+                          AND status = 'Ativo'
+                        LIMIT 1
+                    `, [vp.vehicle_id, vp.plano_id]);
+
+                    // Só criar se não existir alerta ativo
+                    if (alertaExistente.length === 0) {
+                        await pool.query(`
+                            INSERT INTO FF_MaintenanceAlerts
+                                (vehicle_id, plano_id, vehicle_maintenance_plan_id,
+                                 tipo_alerta, mensagem, km_atual, km_programado,
+                                 data_programada, prioridade, status)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Ativo')
+                        `, [
+                            vp.vehicle_id,
+                            vp.plano_id,
+                            vp.id,
+                            tipoAlerta,
+                            mensagem,
+                            kmAtual,
+                            vp.proxima_execucao_km,
+                            vp.proxima_execucao_data,
+                            prioridade
+                        ]);
+
+                        alertasGerados++;
+                        console.log(`   🔔 Alerta gerado: ${mensagem}`);
+                    }
+                }
+            }
+
+            console.log(`✅ Verificação concluída: ${alertasGerados} alertas gerados`);
+
+        } catch (error) {
+            console.error('❌ Erro ao verificar alertas:', error);
+            throw error;
+        }
+    }
+
     // ========== CONFIGURAÇÃO DE CRON JOBS ==========
     // Atualizar quilometragem diária automaticamente todos os dias à meia-noite e meia
     cron.schedule('30 0 * * *', async () => {
@@ -2308,4 +3585,18 @@ app.listen(PORT, () => {
     });
 
     console.log('\n⏰ Cron job configurado: Atualização de quilometragem todos os dias às 00:30h\n');
+
+    // ========== CRON JOB DE VERIFICAÇÃO DE ALERTAS DE MANUTENÇÃO ==========
+    // Verificar alertas de manutenção todos os dias às 06:00
+    cron.schedule('0 6 * * *', async () => {
+        console.log('\n🔔 [CRON] Iniciando verificação de alertas de manutenção...');
+        try {
+            await verificarAlertasManutencao();
+            console.log('✅ [CRON] Verificação de alertas concluída!\n');
+        } catch (error) {
+            console.error('❌ [CRON] Erro na verificação de alertas:', error);
+        }
+    });
+
+    console.log('⏰ Cron job configurado: Verificação de alertas de manutenção todos os dias às 06:00h\n');
 });

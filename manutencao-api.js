@@ -117,7 +117,10 @@ function setupManutencaoRoutes(app, pool) {
     });
 
     // ========== APIs DE MODELOS ==========
+    // NOTA: Endpoints de modelos foram movidos para server.js e usam o banco de dados MySQL
+    // Os endpoints abaixo foram comentados para evitar conflitos
 
+    /*
     // GET - Listar todos os modelos
     app.get('/api/modelos', async (req, res) => {
         try {
@@ -217,6 +220,7 @@ function setupManutencaoRoutes(app, pool) {
             res.status(500).json({ error: 'Erro ao excluir modelo' });
         }
     });
+    */
 
     // ========== APIs DE PLANOS ==========
 

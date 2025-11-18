@@ -1,6 +1,13 @@
 // Dashboard Statistics - Dados REAIS do Ituran
 // Este arquivo carrega e exibe estatísticas REAIS dos veículos usando odômetro
 
+// ============= CONFIGURAÇÃO DE DEBUG =============
+const DEBUG_MODE = false; // MUDE PARA true APENAS PARA DEBUG
+const log = (...args) => { if (DEBUG_MODE) console.log(...args); };
+const warn = (...args) => console.warn(...args); // Sempre mostra warnings
+const error = (...args) => console.error(...args); // Sempre mostra erros
+// =================================================
+
 const ODOMETER_STORAGE_KEY = 'fleetflow_odometer_snapshots';
 const KM_CACHE_KEY = 'fleetflow_km_cache_v2';
 const KM_CACHE_TIMEOUT = 60 * 60 * 1000; // 1 HORA de cache por veículo (evita recalcular muito)
@@ -804,14 +811,23 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
 
         // OTIMIZAÇÃO: Verifica se já tem cache de KM mensal válido
         const cachedMonthTotal = loadMonthCache();
-        const shouldCalculateMonth = cachedMonthTotal === null;
 
-        if (cachedMonthTotal !== null) {
+        // Se NÃO tem dados iniciais (monthTotal = 0) E não tem cache, DEVE calcular
+        // Se tem dados iniciais (monthTotal > 0), usa eles e NÃO recalcula
+        const shouldCalculateMonth = (monthTotal === 0 && cachedMonthTotal === null);
+
+        if (cachedMonthTotal !== null && monthTotal === 0) {
+            // Tem cache e não tem dados parciais: usa o cache
             console.log(`⚡ Usando KM MENSAL do cache: ${cachedMonthTotal} km`);
             monthTotal = cachedMonthTotal;
             updateStatElement('stat-km-month', monthTotal);
+        } else if (monthTotal > 0) {
+            // Tem dados parciais: usa eles (continua acumulando)
+            console.log(`🔄 Continuando cálculo do KM mensal (já tem ${monthTotal} km acumulados)`);
+            updateStatElement('stat-km-month', monthTotal);
         } else {
-            console.log('🔄 Cache mensal expirado. Calculando KM do mês...');
+            // Não tem cache e não tem dados parciais: vai calcular do zero
+            console.log('🔄 Calculando KM do mês do zero...');
         }
 
         // Processa 1 veículo por vez (sequencial, não trava)
@@ -819,7 +835,10 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
         for (let i = startFrom; i < vehicles.length; i++) {
             const vehicle = vehicles[i];
 
-            console.log(`🔄 Processando veículo ${i + 1}/${vehicles.length}: ${vehicle.plate}`);
+            // Log apenas a cada 10 veículos ou no primeiro/último
+            if (i === 0 || i === vehicles.length - 1 || (i + 1) % 10 === 0) {
+                console.log(`🔄 Processando ${i + 1}/${vehicles.length} veículos... (${vehicle.plate})`);
+            }
 
             try {
                 // KM hoje
@@ -867,9 +886,10 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
                 // ATUALIZA INTERFACE A CADA VEÍCULO (tempo real!)
                 updateStatElement('stat-km-today', Math.round(todayTotal));
                 updateStatElement('stat-km-yesterday', Math.round(yesterdayTotal));
-                if (shouldCalculateMonth) {
-                    updateStatElement('stat-km-month', Math.round(monthTotal));
-                }
+
+                // SEMPRE atualiza KM mensal (mesmo se estiver usando cache)
+                updateStatElement('stat-km-month', Math.round(monthTotal));
+
                 updateStatElement('stat-vehicles-moving', vehiclesMoving);
 
                 // SALVA CACHE A CADA VEÍCULO (não perde progresso ao trocar de aba!)
@@ -890,10 +910,11 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
                 const percent = Math.round(((i + 1) / vehicles.length) * 100);
                 updateProgressBar(percent, `${vehicle.plate} (${i + 1}/${vehicles.length})`);
 
-                console.log(`✅ ${vehicle.plate}: Hoje ${kmToday}km, Ontem ${kmYesterday}km, Mês ${kmMonth}km`);
+                // Log detalhado apenas se DEBUG_MODE estiver ativado
+                log(`✅ ${vehicle.plate}: Hoje ${kmToday}km, Ontem ${kmYesterday}km, Mês ${kmMonth}km`);
 
             } catch (error) {
-                console.warn(`⚠️ Erro em ${vehicle.plate}:`, error.message);
+                warn(`⚠️ Erro em ${vehicle.plate}:`, error.message);
             }
 
             // Pausa de 500ms entre veículos (não sobrecarrega API)
@@ -917,13 +938,19 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
 
         // Salva cache mensal separado (válido por 24h)
         if (shouldCalculateMonth) {
-            saveMonthCache(Math.round(monthTotal));
+            const roundedMonthTotal = Math.round(monthTotal);
+            saveMonthCache(roundedMonthTotal);
+            console.log(`💾 Cache mensal salvo: ${roundedMonthTotal} km`);
+        } else {
+            console.log(`ℹ️ Cache mensal NÃO salvo (usando cache existente)`);
         }
 
-        console.log('✅ Cálculo completo!');
-        console.log(`   KM Hoje: ${Math.round(todayTotal)}`);
-        console.log(`   KM Ontem: ${Math.round(yesterdayTotal)}`);
-        console.log(`   KM Mês: ${Math.round(monthTotal)}`);
+        console.log('\n✅ ========== CÁLCULO COMPLETO ==========');
+        console.log(`📊 KM Hoje: ${Math.round(todayTotal).toLocaleString('pt-BR')} km`);
+        console.log(`📊 KM Ontem: ${Math.round(yesterdayTotal).toLocaleString('pt-BR')} km`);
+        console.log(`📊 KM Mês: ${Math.round(monthTotal).toLocaleString('pt-BR')} km`);
+        console.log(`🚗 Veículos em movimento: ${vehiclesMoving}`);
+        console.log('=========================================\n');
 
         // Atualiza ranking dos 10 veículos que mais rodaram
         console.log('🏆 Atualizando ranking de veículos...');
@@ -1002,7 +1029,13 @@ async function updateDashboardStats() {
 
             // KM mensal: tenta cache separado primeiro, depois do cache principal
             const cachedMonth = loadMonthCache();
-            updateStatElement('stat-km-month', cachedMonth !== null ? cachedMonth : (preCalculated.monthTotal || 0));
+            const monthKm = cachedMonth !== null ? cachedMonth : (preCalculated.monthTotal || 0);
+            updateStatElement('stat-km-month', monthKm);
+
+            // Se não tem KM mensal em cache, precisa calcular
+            if (monthKm === 0 && !cachedMonth) {
+                console.log('⚠️ KM mensal não encontrado em nenhum cache. Será recalculado.');
+            }
 
             // Atualiza ranking se existir no cache
             if (preCalculated.vehiclesData) {
@@ -1018,10 +1051,14 @@ async function updateDashboardStats() {
 
                 // CONTINUA o cálculo de onde parou
                 const startFrom = preCalculated.progress || 0;
+
+                // Usa KM mensal do cache separado se disponível, senão usa do cache principal
+                const monthTotalFromCache = cachedMonth !== null ? cachedMonth : (preCalculated.monthTotal || 0);
+
                 const initialData = {
                     todayTotal: preCalculated.todayTotal || 0,
                     yesterdayTotal: preCalculated.yesterdayTotal || 0,
-                    monthTotal: preCalculated.monthTotal || 0,
+                    monthTotal: monthTotalFromCache,
                     vehiclesData: preCalculated.vehiclesData || [],
                     vehiclesMoving: preCalculated.vehiclesData?.filter(v => v.kmToday > 0).length || 0
                 };

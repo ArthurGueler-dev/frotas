@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>FleetFlow - Otimizador de Rotas</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937",
+                        "text-light": "#1F2937",
+                        "text-dark": "#F3F4F6",
+                        "success": "#10B981",
+                        "warning": "#F59E0B",
+                        "danger": "#EF4444",
+                        "info": "#3B82F6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        #map {
+            height: 600px;
+            border-radius: 0.75rem;
+        }
+        .autocomplete-dropdown {
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none;
+        }
+        .autocomplete-dropdown.dark {
+            background: #374151;
+            border-color: #4b5563;
+        }
+        .autocomplete-item {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .autocomplete-item:hover {
+            background: #f3f4f6;
+        }
+        .dark .autocomplete-item {
+            border-color: #4b5563;
+        }
+        .dark .autocomplete-item:hover {
+            background: #4b5563;
+        }
+        .autocomplete-item-name {
+            font-weight: 600;
+            color: #111827;
+        }
+        .dark .autocomplete-item-name {
+            color: #f9fafb;
+        }
+        .autocomplete-item-address {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        .dark .autocomplete-item-address {
+            color: #9ca3af;
+        }
+    </style>
+</head>
+
+<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-white">
+    <div class="relative flex h-auto min-h-screen w-full flex-col">
+        <div class="flex h-full grow flex-row">
+            <!-- Sidebar Container -->
+            <div id="sidebar-container" data-page="rotas"></div>
+
+            <!-- Main Content -->
+            <main class="flex-1 p-6 lg:p-8 bg-background-light dark:bg-gray-900">
+                <div class="flex flex-wrap justify-between gap-4 items-center mb-6">
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Otimizador de Rotas</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-base font-normal">Planeje rotas eficientes para sua frota</p>
+                    </div>
+                    <button id="btnNovaRota" class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                        <span class="material-symbols-outlined">add</span>
+                        <span>Nova Rota</span>
+                    </button>
+                </div>
+
+                <!-- Grid com 2 colunas -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Formulário de Planejamento -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-[#111418] dark:text-white mb-4">Planejar Rota</h2>
+
+                        <form id="formPlanejamento" class="space-y-4">
+                            <!-- Nome da Rota -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nome da Rota</label>
+                                <input type="text" id="nomeRota" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Ex: Entrega Zona Norte" required>
+                            </div>
+
+                            <!-- Veículo -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Veículo</label>
+                                <select id="selectVeiculo" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required>
+                                    <option value="">Selecione um veículo</option>
+                                </select>
+                            </div>
+
+                            <!-- Motorista -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Motorista</label>
+                                <select id="selectMotorista" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" required>
+                                    <option value="">Selecione um motorista</option>
+                                </select>
+                            </div>
+
+                            <!-- Instruções -->
+                            <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-200">
+                                💡 <strong>Dica:</strong> Clique no mapa para selecionar locais ou digite os endereços
+                            </div>
+
+                            <!-- Ponto de Partida -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                    🟢 Ponto de Partida
+                                </label>
+                                <div class="relative">
+                                    <div class="flex gap-2">
+                                        <input type="text" id="pontoPartida" class="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white" placeholder="Digite para buscar (ex: Fio Forte, Shopping...)" required autocomplete="off">
+                                        <button type="button" id="btnSelecionarPartida" class="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 whitespace-nowrap">
+                                            <span class="material-symbols-outlined text-sm">location_on</span>
+                                        </button>
+                                    </div>
+                                    <div id="autocompletePartida" class="autocomplete-dropdown"></div>
+                                </div>
+                                <input type="hidden" id="partidaLat">
+                                <input type="hidden" id="partidaLon">
+                            </div>
+
+                            <!-- DESTINO FINAL -->
+                            <div class="border-2 border-red-500 rounded-lg p-4 bg-red-50 dark:bg-red-900/10">
+                                <label class="block text-lg font-bold text-red-600 dark:text-red-400 mb-3">
+                                    🔴 DESTINO FINAL
+                                </label>
+                                <div class="space-y-3">
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <input type="radio" name="destinoTipo" value="retornar" id="radioRetornar" class="rounded">
+                                        <span class="text-gray-700 dark:text-gray-300 font-medium">Retornar ao ponto de partida</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                        <input type="radio" name="destinoTipo" value="outro" id="radioOutroDestino" class="rounded" checked>
+                                        <span class="text-gray-700 dark:text-gray-300 font-medium">Especificar outro local:</span>
+                                    </label>
+                                    <div id="campoDestino" class="space-y-2">
+                                        <div class="relative">
+                                            <div class="flex gap-2">
+                                                <input type="text" id="destinoFinal" class="flex-1 px-4 py-2 border-2 border-red-300 dark:border-red-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500" placeholder="Digite para buscar ou clique no botão" autocomplete="off">
+                                                <button type="button" id="btnSelecionarDestino" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+                                                    <span class="material-symbols-outlined text-sm">location_on</span>
+                                                </button>
+                                            </div>
+                                            <div id="autocompleteDestino" class="autocomplete-dropdown"></div>
+                                        </div>
+                                        <input type="hidden" id="destinoLat">
+                                        <input type="hidden" id="destinoLon">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Paradas Intermediárias (Opcional) -->
+                            <div class="border border-blue-300 dark:border-blue-600 rounded-lg p-4 bg-blue-50/30 dark:bg-blue-900/10">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        🔵 Paradas Intermediárias (opcional)
+                                    </label>
+                                    <button type="button" id="btnAdicionarParada" class="flex items-center gap-1 text-primary text-sm hover:underline">
+                                        <span class="material-symbols-outlined text-sm">add_circle</span>
+                                        <span>Adicionar Parada</span>
+                                    </button>
+                                </div>
+                                <div id="listaParadas" class="space-y-2">
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 italic">Nenhuma parada intermediária adicionada</p>
+                                </div>
+                            </div>
+
+                            <!-- Botões -->
+                            <div class="flex gap-3">
+                                <button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 font-medium">
+                                    Otimizar Rota
+                                </button>
+                                <button type="button" id="btnLimpar" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 font-medium">
+                                    Limpar
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Informações da Rota Otimizada -->
+                        <div id="infoRotaOtimizada" class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hidden">
+                            <h3 class="font-bold text-blue-900 dark:text-blue-300 mb-2">Rota Otimizada</h3>
+                            <div class="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                                <p><strong>Distância Total:</strong> <span id="distanciaTotal">-</span></p>
+                                <p><strong>Tempo Estimado:</strong> <span id="tempoTotal">-</span></p>
+                                <p><strong>Sequência de Paradas:</strong></p>
+                                <ol id="sequenciaParadas" class="list-decimal list-inside ml-2">
+                                    <!-- Lista de paradas será inserida aqui -->
+                                </ol>
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                                <button id="btnSalvarRota" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                                    Salvar Rota
+                                </button>
+                                <button id="btnEnviarWhatsApp" class="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 font-medium flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-sm">send</span>
+                                    <span>Enviar WhatsApp</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mapa -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                        <h2 class="text-xl font-bold text-[#111418] dark:text-white mb-4">Visualização da Rota</h2>
+                        <div id="map"></div>
+                    </div>
+                </div>
+
+                <!-- Rotas Salvas -->
+                <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                    <h2 class="text-xl font-bold text-[#111418] dark:text-white mb-4">Rotas Salvas</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Nome</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Veículo</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Motorista</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Paradas</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Distância</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabelaRotas" class="divide-y divide-gray-200 dark:divide-gray-700">
+                                <!-- Rotas serão inseridas aqui -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Script Principal -->
+    <script src="rotas.js"></script>
+
+    <!-- Carregar Sidebar Unificado -->
+    <script src="sidebar.js"></script>
+</body>
+</html>

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FleetFlow - Motoristas</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937",
+                        "text-light": "#1F2937",
+                        "text-dark": "#F3F4F6",
+                        "success": "#10B981",
+                        "warning": "#F59E0B",
+                        "danger": "#EF4444",
+                        "info": "#3B82F6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        };
+    </script>
+<script>
+        function toggleDetails(row) {
+            const details = row.nextElementSibling;
+            const icon = row.querySelector('.toggle-icon');
+            if (details.classList.contains('hidden')) {
+                details.classList.remove('hidden');
+                icon.textContent = 'expand_less';
+            } else {
+                details.classList.add('hidden');
+                icon.textContent = 'expand_more';
+            }
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<div class="flex h-full grow">
+<!-- Sidebar Container -->
+<div id="sidebar-container" data-page="motoristas"></div>
+<main class="flex-1 p-8 bg-background-light dark:bg-gray-900">
+<div class="flex justify-between items-center mb-8">
+<h1 class="text-text-light dark:text-text-dark text-4xl font-black leading-tight tracking-tighter">Gestão de Motoristas</h1>
+<a href="motoristas-cadastro.html" class="flex items-center justify-center gap-2 rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold leading-normal tracking-wide shadow-lg hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined">add</span>
+<span class="truncate">Cadastrar Novo Motorista</span>
+</a>
+</div>
+<div class="overflow-hidden rounded-xl border border-border-light dark:border-border-dark bg-white dark:bg-background-dark shadow-sm">
+<div class="p-6 border-b border-border-light dark:border-border-dark">
+<div class="flex items-center justify-between">
+<h2 class="text-xl font-bold text-text-light dark:text-text-dark">Lista de Motoristas</h2>
+<div class="flex items-center gap-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 h-10 placeholder:text-gray-400 pl-10 pr-4 text-sm font-normal" placeholder="Buscar motorista..." type="text"/>
+</div>
+<button class="flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-colors">
+<span class="material-symbols-outlined">filter_list</span>
+Filtrar
+</button>
+</div>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-gray-50 dark:bg-gray-900/50">
+<th class="p-4 text-sm font-semibold text-text-light dark:text-text-dark">Nome</th>
+<th class="p-4 text-sm font-semibold text-text-light dark:text-text-dark">CPF</th>
+<th class="p-4 text-sm font-semibold text-text-light dark:text-text-dark">Número da CNH</th>
+<th class="p-4 text-sm font-semibold text-text-light dark:text-text-dark">Status</th>
+<th class="p-4 text-sm font-semibold text-text-light dark:text-text-dark w-12"></th>
+</tr>
+</thead>
+<tbody class="divide-y divide-border-light dark:divide-border-dark">
+<!-- Motoristas serão carregados dinamicamente via JavaScript -->
+</tbody>
+</table>
+</div>
+<div class="flex items-center justify-between p-4 border-t border-border-light dark:border-border-dark">
+<p id="pagination-info" class="text-sm text-gray-500 dark:text-gray-400">Exibindo 1-7 de 262 motoristas</p>
+<div id="pagination-buttons" class="flex gap-1">
+<button id="btn-prev" class="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">chevron_left</span></button>
+<button class="flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 text-primary font-bold">1</button>
+<button id="btn-next" class="flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">chevron_right</span></button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+<script src="api-client.js"></script>
+<script>
+// Variáveis globais para paginação
+let allDrivers = [];
+let currentPage = 1;
+const driversPerPage = 7;
+
+// Função para renderizar motoristas de uma página específica
+function renderDriversPage(page) {
+    const tbody = document.querySelector('tbody');
+    tbody.innerHTML = '';
+
+    const startIndex = (page - 1) * driversPerPage;
+    const endIndex = startIndex + driversPerPage;
+    const driversToShow = allDrivers.slice(startIndex, endIndex);
+
+    console.log(`📄 Renderizando página ${page} (${startIndex + 1} a ${Math.min(endIndex, allDrivers.length)})`);
+
+    driversToShow.forEach((driver, index) => {
+        const statusClass = driver.status === 'Ativo' ? 'status-green' : 'status-red';
+        const cnhStatusClass = driver.cnhStatus === 'Em Dia' ? 'status-green' : 'status-red';
+
+        const row1 = document.createElement('tr');
+        row1.className = 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50';
+        row1.onclick = function() { toggleDetails(this); };
+        row1.innerHTML = `
+            <td class="p-4 text-sm font-medium text-text-light dark:text-text-dark">${driver.name}</td>
+            <td class="p-4 text-sm text-gray-500 dark:text-gray-400">${driver.cpf}</td>
+            <td class="p-4 text-sm text-gray-500 dark:text-gray-400">${driver.cnhNumber}</td>
+            <td class="p-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-${statusClass}/10 text-${statusClass}">${driver.status}</span>
+            </td>
+            <td class="p-4 text-gray-500 dark:text-gray-400">
+                <span class="material-symbols-outlined toggle-icon">expand_more</span>
+            </td>
+        `;
+
+        const row2 = document.createElement('tr');
+        row2.className = 'hidden';
+        row2.innerHTML = `
+            <td class="p-4 bg-gray-50 dark:bg-gray-900/50" colspan="5">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div><span class="font-semibold">Data de Admissão:</span><span class="text-gray-500 dark:text-gray-400 ml-2">${driver.admissionDate}</span></div>
+                    <div><span class="font-semibold">Data de Nascimento:</span><span class="text-gray-500 dark:text-gray-400 ml-2">${driver.birthDate}</span></div>
+                    <div><span class="font-semibold">Categoria CNH:</span><span class="text-gray-500 dark:text-gray-400 ml-2">${driver.cnhCategory}</span></div>
+                    <div><span class="font-semibold">Vencimento da CNH:</span><span class="text-gray-500 dark:text-gray-400 ml-2">${driver.cnhExpiry}</span></div>
+                    <div class="col-span-2 md:col-span-4"><span class="font-semibold">Status da CNH:</span><span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-${cnhStatusClass}/10 text-${cnhStatusClass} ml-2">${driver.cnhStatus}</span></div>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(row1);
+        tbody.appendChild(row2);
+    });
+}
+
+// Função para atualizar a paginação
+function updatePagination() {
+    const totalPages = Math.ceil(allDrivers.length / driversPerPage);
+    const startIndex = (currentPage - 1) * driversPerPage + 1;
+    const endIndex = Math.min(currentPage * driversPerPage, allDrivers.length);
+
+    // Atualizar texto informativo
+    document.getElementById('pagination-info').textContent =
+        `Exibindo ${startIndex}-${endIndex} de ${allDrivers.length} motoristas`;
+
+    // Limpar botões de paginação
+    const paginationButtons = document.getElementById('pagination-buttons');
+    paginationButtons.innerHTML = '';
+
+    // Botão anterior
+    const btnPrev = document.createElement('button');
+    btnPrev.className = `flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`;
+    btnPrev.innerHTML = '<span class="material-symbols-outlined text-lg">chevron_left</span>';
+    btnPrev.disabled = currentPage === 1;
+    btnPrev.onclick = () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderDriversPage(currentPage);
+            updatePagination();
+        }
+    };
+    paginationButtons.appendChild(btnPrev);
+
+    // Criar botões de página
+    const maxButtons = 5; // Máximo de botões de página a exibir
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+
+    // Ajustar startPage se estivermos no final
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    // Botão primeira página se necessário
+    if (startPage > 1) {
+        const btnFirst = document.createElement('button');
+        btnFirst.className = 'flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400';
+        btnFirst.textContent = '1';
+        btnFirst.onclick = () => {
+            currentPage = 1;
+            renderDriversPage(currentPage);
+            updatePagination();
+        };
+        paginationButtons.appendChild(btnFirst);
+
+        if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'flex items-center justify-center h-8 w-8 text-gray-500 dark:text-gray-400';
+            ellipsis.textContent = '...';
+            paginationButtons.appendChild(ellipsis);
+        }
+    }
+
+    // Botões de página
+    for (let i = startPage; i <= endPage; i++) {
+        const btn = document.createElement('button');
+        btn.className = i === currentPage
+            ? 'flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10 text-primary font-bold'
+            : 'flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400';
+        btn.textContent = i;
+        btn.onclick = () => {
+            currentPage = i;
+            renderDriversPage(currentPage);
+            updatePagination();
+        };
+        paginationButtons.appendChild(btn);
+    }
+
+    // Botão última página se necessário
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.className = 'flex items-center justify-center h-8 w-8 text-gray-500 dark:text-gray-400';
+            ellipsis.textContent = '...';
+            paginationButtons.appendChild(ellipsis);
+        }
+
+        const btnLast = document.createElement('button');
+        btnLast.className = 'flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400';
+        btnLast.textContent = totalPages;
+        btnLast.onclick = () => {
+            currentPage = totalPages;
+            renderDriversPage(currentPage);
+            updatePagination();
+        };
+        paginationButtons.appendChild(btnLast);
+    }
+
+    // Botão próximo
+    const btnNext = document.createElement('button');
+    btnNext.className = `flex items-center justify-center h-8 w-8 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`;
+    btnNext.innerHTML = '<span class="material-symbols-outlined text-lg">chevron_right</span>';
+    btnNext.disabled = currentPage === totalPages;
+    btnNext.onclick = () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderDriversPage(currentPage);
+            updatePagination();
+        }
+    };
+    paginationButtons.appendChild(btnNext);
+}
+
+// Função para carregar e exibir motoristas
+async function loadDrivers() {
+    try {
+        const drivers = await FleetAPI.getDrivers();
+        console.log('🔍 Motoristas recebidos:', drivers);
+        console.log('📊 Total:', drivers ? drivers.length : 0);
+
+        if (!drivers || drivers.length === 0) {
+            console.log('Nenhum motorista encontrado');
+            return;
+        }
+
+        allDrivers = drivers;
+        currentPage = 1;
+
+        renderDriversPage(currentPage);
+        updatePagination();
+
+        console.log('✅ Motoristas carregados com sucesso!');
+    } catch (error) {
+        console.error('❌ Erro ao carregar motoristas:', error);
+    }
+}
+
+// Carregar motoristas quando a página carregar
+document.addEventListener('DOMContentLoaded', () => {
+    loadDrivers();
+});
+</script>
+
+<!-- Carregar Sidebar Unificado -->
+<script src="sidebar.js"></script>
+
+</body></html>
