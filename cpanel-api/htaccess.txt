@@ -1,0 +1,51 @@
+# Proteção de Arquivos Sensíveis
+<Files "config-db.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# CORS - Permitir requisições de qualquer origem
+Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+
+# Prevenir listagem de diretórios
+Options -Indexes
+
+# Proteção contra clickjacking
+Header always set X-Frame-Options "SAMEORIGIN"
+
+# Proteção XSS
+Header always set X-XSS-Protection "1; mode=block"
+
+# Prevenir MIME type sniffing
+Header always set X-Content-Type-Options "nosniff"
+
+# Referrer Policy
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+# PHP Settings
+php_value upload_max_filesize 20M
+php_value post_max_size 20M
+php_value max_execution_time 300
+php_value max_input_time 300
+
+# Compressão GZIP
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>
+
+# Cache de arquivos estáticos
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType application/json "access plus 1 hour"
+</IfModule>
+
+# Redirecionar HTTP para HTTPS (opcional - descomente se necessário)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# INSTRUÇÕES:
+# 1. Renomeie este arquivo de "htaccess.txt" para ".htaccess"
+# 2. Faça upload para a pasta cpanel-api no cPanel

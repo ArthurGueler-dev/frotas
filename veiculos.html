@@ -167,47 +167,38 @@
 </div>
 <div class="tab-content hidden" id="maintenance">
 <div class="relative mb-4">
-<input class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 pl-10 pr-4 text-sm" placeholder="Pesquisar manutenção por placa ou tipo..."/>
+<input id="busca-manutencao" class="form-input w-full rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 pl-10 pr-4 text-sm" placeholder="Pesquisar manutenção por placa ou tipo..."/>
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
 </div>
-<div class="flex space-x-4 overflow-x-auto pb-4">
-<div class="kanban-column flex-shrink-0 w-80 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
-<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Pendente</h3>
-<div class="space-y-3">
-<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
-<p class="font-bold text-gray-800 dark:text-white">DEF-5678 - Fiat Strada</p>
-<p class="text-sm text-gray-600 dark:text-gray-400">Troca de óleo e filtros</p>
-<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Prioridade: Alta</p>
-<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-warning/20 text-warning mt-2 inline-block">Manutenção</span>
-</div>
-<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
-<p class="font-bold text-gray-800 dark:text-white">QWE-1122 - Ford Ka</p>
-<p class="text-sm text-gray-600 dark:text-gray-400">Revisão de freios</p>
-<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Prioridade: Média</p>
-<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-warning/20 text-warning mt-2 inline-block">Manutenção</span>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="kanban-column bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
+<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-warning">schedule</span>
+Pendente
+<span id="count-pendente" class="ml-auto bg-warning/20 text-warning text-xs px-2 py-1 rounded-full">0</span>
+</h3>
+<div id="lista-pendente" class="space-y-3">
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Carregando...</p>
 </div>
 </div>
-</div>
-<div class="kanban-column flex-shrink-0 w-80 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
-<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Em Progresso</h3>
-<div class="space-y-3">
-<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
-<p class="font-bold text-gray-800 dark:text-white">RST-3344 - VW Saveiro</p>
-<p class="text-sm text-gray-600 dark:text-gray-400">Reparo de suspensão</p>
-<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Responsável: Mecânico A</p>
-<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-info/20 text-info mt-2 inline-block">Em Progresso</span>
-</div>
+<div class="kanban-column bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
+<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-info">autorenew</span>
+Em Progresso
+<span id="count-progresso" class="ml-auto bg-info/20 text-info text-xs px-2 py-1 rounded-full">0</span>
+</h3>
+<div id="lista-progresso" class="space-y-3">
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Carregando...</p>
 </div>
 </div>
-<div class="kanban-column flex-shrink-0 w-80 bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
-<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white">Concluído</h3>
-<div class="space-y-3">
-<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow cursor-grab">
-<p class="font-bold text-gray-800 dark:text-white">UVW-5566 - Hyundai HB20</p>
-<p class="text-sm text-gray-600 dark:text-gray-400">Alinhamento e balanceamento</p>
-<p class="text-xs text-gray-500 dark:text-gray-500 mt-2">Data: 15/07/2024</p>
-<span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-success/20 text-success mt-2 inline-block">Concluído</span>
-</div>
+<div class="kanban-column bg-gray-100 dark:bg-gray-700 p-4 rounded-lg shadow-inner">
+<h3 class="font-bold text-lg mb-4 text-gray-800 dark:text-white flex items-center gap-2">
+<span class="material-symbols-outlined text-success">check_circle</span>
+Concluído
+<span id="count-concluido" class="ml-auto bg-success/20 text-success text-xs px-2 py-1 rounded-full">0</span>
+</h3>
+<div id="lista-concluido" class="space-y-3">
+<p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Carregando...</p>
 </div>
 </div>
 </div>
@@ -1862,6 +1853,90 @@ Semana Passada
                     alert('⚠️ Por favor, preencha a placa e o modelo do veículo.');
                 }
             });
+        });
+
+        // Carregar ordens de serviço para aba de manutenção
+        async function carregarOrdensServico() {
+            try {
+                const response = await fetch('/api/ordens-servico');
+                const ordens = await response.json();
+
+                const pendentes = ordens.filter(os => os.status === 'Pendente' || os.status === 'Aberta');
+                const emProgresso = ordens.filter(os => os.status === 'Em Andamento' || os.status === 'Em Progresso');
+                const concluidas = ordens.filter(os => os.status === 'Concluída' || os.status === 'Finalizada');
+
+                document.getElementById('count-pendente').textContent = pendentes.length;
+                document.getElementById('count-progresso').textContent = emProgresso.length;
+                document.getElementById('count-concluido').textContent = concluidas.length;
+
+                renderizarListaOS('lista-pendente', pendentes, 'warning');
+                renderizarListaOS('lista-progresso', emProgresso, 'info');
+                renderizarListaOS('lista-concluido', concluidas, 'success');
+            } catch (error) {
+                console.error('Erro ao carregar ordens de serviço:', error);
+                document.getElementById('lista-pendente').innerHTML = '<p class="text-sm text-red-500 text-center py-4">Erro ao carregar</p>';
+                document.getElementById('lista-progresso').innerHTML = '<p class="text-sm text-red-500 text-center py-4">Erro ao carregar</p>';
+                document.getElementById('lista-concluido').innerHTML = '<p class="text-sm text-red-500 text-center py-4">Erro ao carregar</p>';
+            }
+        }
+
+        function renderizarListaOS(containerId, ordens, corStatus) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            if (ordens.length === 0) {
+                container.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">Nenhuma OS encontrada</p>';
+                return;
+            }
+
+            container.innerHTML = ordens.map(os => {
+                const prioridade = os.prioridade || 'Normal';
+                const corPrioridade = prioridade === 'Alta' || prioridade === 'Urgente' ? 'text-red-500' :
+                                     prioridade === 'Baixa' ? 'text-green-500' : 'text-yellow-500';
+
+                return `
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <p class="font-bold text-gray-800 dark:text-white">${os.placa || 'N/A'} - ${os.tipo_servico || 'Manutenção'}</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">${os.observacoes || ''}</p>
+                        <p class="text-xs ${corPrioridade} mt-2">Prioridade: ${prioridade}</p>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs font-semibold py-1 px-2.5 rounded-full bg-${corStatus}/20 text-${corStatus}">${os.status}</span>
+                            <span class="text-xs text-gray-500">${os.data_abertura ? new Date(os.data_abertura).toLocaleDateString('pt-BR') : ''}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('busca-manutencao')?.addEventListener('input', async (e) => {
+            const termo = e.target.value.toLowerCase();
+            try {
+                const response = await fetch('/api/ordens-servico');
+                const ordens = await response.json();
+
+                const filtradas = ordens.filter(os =>
+                    (os.placa && os.placa.toLowerCase().includes(termo)) ||
+                    (os.tipo_servico && os.tipo_servico.toLowerCase().includes(termo))
+                );
+
+                const pendentes = filtradas.filter(os => os.status === 'Pendente' || os.status === 'Aberta');
+                const emProgresso = filtradas.filter(os => os.status === 'Em Andamento' || os.status === 'Em Progresso');
+                const concluidas = filtradas.filter(os => os.status === 'Concluída' || os.status === 'Finalizada');
+
+                document.getElementById('count-pendente').textContent = pendentes.length;
+                document.getElementById('count-progresso').textContent = emProgresso.length;
+                document.getElementById('count-concluido').textContent = concluidas.length;
+
+                renderizarListaOS('lista-pendente', pendentes, 'warning');
+                renderizarListaOS('lista-progresso', emProgresso, 'info');
+                renderizarListaOS('lista-concluido', concluidas, 'success');
+            } catch (error) {
+                console.error('Erro ao filtrar:', error);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarOrdensServico();
         });
     </script>
 

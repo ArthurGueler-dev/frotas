@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<!-- VERSION: 2025-01-23-WORKING-CODE-FROM-TEST -->
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
+<title>Lançamento de Ordem de Serviço</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="ituran-service.js"></script>
+<script src="os-items-manager.js"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937",
+                        "text-light": "#1F2937",
+                        "text-dark": "#F3F4F6",
+                        "success": "#10B981",
+                        "warning": "#F59E0B",
+                        "danger": "#EF4444",
+                        "info": "#3B82F6",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "0.75rem",
+                        "xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+
+        /* Toast Notification Styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            transform: translateX(120%);
+            animation: slideIn 0.4s ease forwards;
+            min-width: 320px;
+            max-width: 450px;
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+            color: white;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            color: white;
+        }
+
+        .toast.warning {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            color: white;
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            color: white;
+        }
+
+        .toast-icon {
+            font-size: 28px;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            font-size: 15px;
+            margin-bottom: 4px;
+        }
+
+        .toast-message {
+            font-size: 13px;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 4px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+
+        .toast-close:hover {
+            opacity: 1;
+        }
+
+        @keyframes slideIn {
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes slideOut {
+            to {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+        }
+
+        .toast.hide {
+            animation: slideOut 0.3s ease forwards;
+        }
+
+        /* Estilo para o combobox de placa */
+        #vehicle-plate-input:focus {
+            border-color: #1E3A8A;
+            box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+        }
+
+        #vehicle-dropdown {
+            scrollbar-width: thin;
+            scrollbar-color: #CBD5E0 #F7FAFC;
+        }
+
+        #vehicle-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #vehicle-dropdown::-webkit-scrollbar-track {
+            background: #F7FAFC;
+            border-radius: 4px;
+        }
+
+        #vehicle-dropdown::-webkit-scrollbar-thumb {
+            background: #CBD5E0;
+            border-radius: 4px;
+        }
+
+        #vehicle-dropdown::-webkit-scrollbar-thumb:hover {
+            background: #A0AEC0;
+        }
+
+        .vehicle-option {
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.15s;
+            border-bottom: 1px solid #E5E7EB;
+        }
+
+        .vehicle-option:last-child {
+            border-bottom: none;
+        }
+
+        .vehicle-option:hover {
+            background-color: #EFF6FF;
+        }
+
+        .dark .vehicle-option:hover {
+            background-color: #1E3A8A;
+        }
+
+        .vehicle-option.selected {
+            background-color: #DBEAFE;
+        }
+
+        .dark .vehicle-option.selected {
+            background-color: #1E40AF;
+        }
+
+        .vehicle-option-plate {
+            font-weight: 600;
+            color: #1E3A8A;
+        }
+
+        .dark .vehicle-option-plate {
+            color: #60A5FA;
+        }
+
+        .vehicle-option-model {
+            font-size: 0.875rem;
+            color: #6B7280;
+            margin-top: 0.125rem;
+        }
+
+        .dark .vehicle-option-model {
+            color: #9CA3AF;
+        }
+
+        /* Estilo para dropdown de itens */
+        .item-dropdown {
+            scrollbar-width: thin;
+            scrollbar-color: #CBD5E0 #F7FAFC;
+        }
+
+        .item-dropdown::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .item-dropdown::-webkit-scrollbar-track {
+            background: #F7FAFC;
+            border-radius: 4px;
+        }
+
+        .item-dropdown::-webkit-scrollbar-thumb {
+            background: #CBD5E0;
+            border-radius: 4px;
+        }
+
+        .item-dropdown::-webkit-scrollbar-thumb:hover {
+            background: #A0AEC0;
+        }
+
+        .item-description:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Garantir que a tabela não quebre o layout do dropdown */
+        table {
+            table-layout: auto;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-white">
+<div class="relative flex h-auto min-h-screen w-full flex-col">
+<div class="flex h-full grow flex-row">
+<!-- Sidebar Container -->
+<div id="sidebar-container" data-page="lancar-os"></div>
+<main class="flex-1 p-6 lg:p-8 bg-background-light dark:bg-gray-900">
+<div class="max-w-7xl mx-auto">
+<div class="flex flex-wrap justify-between gap-4 mb-8">
+<div class="flex flex-col gap-1">
+<h1 class="text-gray-900 dark:text-white text-3xl font-bold tracking-tight">Lançamento de Ordem de Serviço</h1>
+<p class="text-gray-500 dark:text-gray-400 text-base font-normal">Preencha os dados para criar uma nova Ordem de Serviço.</p>
+</div>
+</div>
+<div class="bg-white dark:bg-gray-900/50 p-6 rounded-xl shadow-sm">
+<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6">Dados da Ordem de Serviço</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+<label class="flex flex-col">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Número da OS</p>
+<input id="os-number-input" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base" readonly="" value="OS-2024-00123"/>
+</label>
+<label class="flex flex-col">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Data e Hora</p>
+<input id="datetime-input" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base" type="datetime-local" value="2024-05-21T14:30"/>
+</label>
+<label class="flex flex-col">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Responsável</p>
+<select id="responsavel-select" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base">
+<option>João Silva</option>
+<option>Maria Oliveira</option>
+</select>
+</label>
+<label class="flex flex-col">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Status</p>
+<select id="status-select" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base">
+<option>Aberta</option>
+<option>Em Andamento</option>
+<option>Aguardando Peças</option>
+<option>Concluída</option>
+<option>Cancelada</option>
+</select>
+</label>
+<label class="flex flex-col relative">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Placa do Veículo</p>
+<div class="relative flex gap-2">
+<div class="relative flex-1">
+<input id="vehicle-plate-input" type="text" class="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 px-4 text-base" placeholder="Digite para buscar..." autocomplete="off" style="text-transform: uppercase;"/>
+<div id="vehicle-dropdown" class="absolute w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto" style="z-index: 9999; display: none;">
+<div class="p-4 text-sm text-gray-500 dark:text-gray-400 text-center">Carregando veículos...</div>
+</div>
+</div>
+<button type="button" id="toggle-dropdown-btn" class="flex items-center justify-center px-4 h-12 bg-primary hover:bg-primary/90 text-white rounded-lg">
+<span class="material-symbols-outlined">arrow_drop_down</span>
+</button>
+</div>
+</label>
+<label class="flex flex-col">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Quilometragem (KM)</p>
+<input id="km-input" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base" placeholder="Ex: 150000" type="number"/>
+</label>
+<label class="flex flex-col md:col-span-2">
+<p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Observações</p>
+<textarea id="observacoes-textarea" class="form-textarea flex w-full min-w-0 flex-1 resize-y overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-4 text-base" placeholder="Descreva o problema ou a solicitação do cliente..."></textarea>
+</label>
+</div>
+<div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+<div class="flex justify-between items-center mb-4">
+<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Itens, Produtos e Serviços</h2>
+<button type="button" onclick="osManager.addNewRow()" class="flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg text-sm font-medium">
+<span class="material-symbols-outlined text-base">add</span>
+                                    Adicionar Item
+                                </button>
+</div>
+<div class="overflow-visible">
+<table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
+<thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-50 dark:bg-gray-800">
+<tr>
+<th class="px-2 py-3" scope="col">Tipo</th>
+<th class="px-2 py-3" scope="col">Descrição</th>
+<th class="px-2 py-3" scope="col">Categoria</th>
+<th class="px-2 py-3 text-center" scope="col">Qtd.</th>
+<th class="px-2 py-3 text-right" scope="col">Valor</th>
+<th class="px-2 py-3 text-right" scope="col">Total</th>
+<th class="px-2 py-3" scope="col">Ocorrência</th>
+<th class="px-2 py-3 text-center" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody id="items-tbody">
+<!-- Os itens serão adicionados aqui dinamicamente -->
+</tbody>
+<tfoot>
+<tr class="font-semibold text-gray-900 dark:text-white">
+<th class="text-right px-4 py-3 text-base" colspan="5" scope="row">Total Geral</th>
+<td class="px-4 py-3 text-right text-base" id="total-geral">R$ 0,00</td>
+<td colspan="2"></td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+<div class="flex justify-end gap-4 mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
+<button id="cancel-btn" class="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600">
+                                Cancelar
+                            </button>
+<button id="save-os-btn" class="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center gap-2">
+<span class="material-symbols-outlined text-base">save</span>
+                                Salvar Ordem de Serviço
+                            </button>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+
+<script>
+// Variáveis globais
+let vehicles = [];
+let osItems = [];
+
+// Função de Toast Notification
+function showToast(type, title, message, duration = 5000) {
+    // Criar container se não existir
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    // Ícones por tipo
+    const icons = {
+        success: 'check_circle',
+        error: 'error',
+        warning: 'warning',
+        info: 'info'
+    };
+
+    // Criar toast
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+        <span class="material-symbols-outlined toast-icon">${icons[type]}</span>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+        <button class="toast-close" onclick="this.parentElement.classList.add('hide'); setTimeout(() => this.parentElement.remove(), 300);">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    // Auto-remover após duração
+    if (duration > 0) {
+        setTimeout(() => {
+            toast.classList.add('hide');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
+
+    return toast;
+}
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Inicializando página de lançamento de OS...');
+
+    try {
+        // Carregar veículos
+        console.log('⏳ Iniciando carregamento de veículos...');
+        await loadVehicles();
+        console.log('✅ Veículos carregados e combobox configurado');
+
+        // Gerar número da OS
+        generateOSNumber();
+
+        // Configurar data/hora atual
+        setCurrentDateTime();
+
+        // Adicionar event listeners
+        setupEventListeners();
+
+        console.log('✅ Página totalmente inicializada!');
+    } catch (error) {
+        console.error('❌ Erro na inicialização:', error);
+    }
+});
+
+async function loadVehicles() {
+    try {
+        console.log('📋 Carregando lista de veículos do arquivo JSON...');
+
+        const response = await fetch('vehicles-data.json');
+        if (!response.ok) {
+            throw new Error('Erro ao carregar arquivo de veículos');
+        }
+
+        vehicles = await response.json();
+        console.log(`✅ ${vehicles.length} veículos carregados`);
+        console.log('🚗 Primeiros 5 veículos:', vehicles.slice(0, 5));
+
+        // Configurar combobox
+        setupVehicleCombobox();
+    } catch (error) {
+        console.error('❌ Erro ao carregar veículos:', error);
+        showToast('error', 'Erro ao Carregar', 'Não foi possível carregar a lista de veículos. Recarregue a página.');
+    }
+}
+
+function setupVehicleCombobox() {
+    const plateInput = document.getElementById('vehicle-plate-input');
+    const dropdown = document.getElementById('vehicle-dropdown');
+    const toggleBtn = document.getElementById('toggle-dropdown-btn');
+
+    if (!plateInput) {
+        console.error('❌ Input não encontrado!');
+        return;
+    }
+    if (!dropdown) {
+        console.error('❌ Dropdown não encontrado!');
+        return;
+    }
+    if (!toggleBtn) {
+        console.error('❌ Botão não encontrado!');
+        return;
+    }
+
+    console.log('✅ Combobox configurado com', vehicles.length, 'veículos');
+    console.log('✅ Todos os elementos encontrados!');
+
+    function renderOptions(filteredVehicles) {
+        console.log('🎨 Renderizando', filteredVehicles.length, 'veículos');
+
+        if (!filteredVehicles || filteredVehicles.length === 0) {
+            dropdown.innerHTML = '<div class="p-4 text-sm text-gray-500 dark:text-gray-400 text-center">Nenhum veículo encontrado</div>';
+            return;
+        }
+
+        dropdown.innerHTML = filteredVehicles.map((v, index) => {
+            const displayModel = `${v.brand} ${v.model} ${v.year}`;
+            return `
+                <div class="vehicle-option" data-plate="${v.plate}">
+                    <div class="vehicle-option-plate">${v.plate}</div>
+                    <div class="vehicle-option-model">${displayModel}</div>
+                </div>
+            `;
+        }).join('');
+
+        // Adicionar event listeners para cada opção
+        dropdown.querySelectorAll('.vehicle-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                const plate = this.getAttribute('data-plate');
+                console.log('✅ Placa selecionada:', plate);
+                plateInput.value = plate;
+                dropdown.style.display = 'none';
+                console.log('✅ Dropdown fechado após seleção');
+            });
+        });
+    }
+
+    // BOTÃO TOGGLE - Código que funciona do teste
+    toggleBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('🖱️ BOTÃO CLICADO!');
+
+        if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+            renderOptions(vehicles);
+            dropdown.style.display = 'block';
+            console.log('✅ Dropdown ABERTO');
+        } else {
+            dropdown.style.display = 'none';
+            console.log('✅ Dropdown FECHADO');
+        }
+    });
+
+    // Filtrar veículos conforme digita
+    plateInput.addEventListener('input', function() {
+        const searchTerm = this.value.trim().toUpperCase();
+        console.log('🔍 Busca:', searchTerm);
+
+        if (searchTerm === '') {
+            renderOptions(vehicles);
+        } else {
+            const filtered = vehicles.filter(v => {
+                return v.plate.toUpperCase().includes(searchTerm) ||
+                       v.model.toUpperCase().includes(searchTerm) ||
+                       v.brand.toUpperCase().includes(searchTerm);
+            });
+            renderOptions(filtered);
+        }
+
+        dropdown.style.display = 'block';
+    });
+
+    // Mostrar dropdown ao focar
+    plateInput.addEventListener('focus', function() {
+        console.log('👆 Campo focado');
+        renderOptions(vehicles);
+        dropdown.style.display = 'block';
+    });
+
+    // Também abrir ao clicar
+    plateInput.addEventListener('click', function() {
+        console.log('🖱️ Campo clicado');
+        renderOptions(vehicles);
+        dropdown.style.display = 'block';
+    });
+
+    // Fechar dropdown ao clicar fora
+    document.addEventListener('click', function(e) {
+        if (!plateInput.contains(e.target) && !dropdown.contains(e.target) && !toggleBtn.contains(e.target)) {
+            dropdown.style.display = 'none';
+            console.log('❌ Dropdown fechado (clique fora)');
+        }
+    });
+
+    // Fechar com ESC
+    plateInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            dropdown.style.display = 'none';
+            console.log('❌ Dropdown fechado (ESC)');
+        }
+    });
+
+    console.log('✅ Combobox totalmente configurado e pronto!');
+    console.log('👉 Clique no botão azul para abrir o dropdown');
+}
+
+function generateOSNumber() {
+    const year = new Date().getFullYear();
+    const lastOS = parseInt(localStorage.getItem('lastOSNumber') || '0');
+    const nextOS = lastOS + 1;
+    const osNumber = `OS-${year}-${String(nextOS).padStart(5, '0')}`;
+
+    const osInput = document.getElementById('os-number-input');
+    if (osInput) {
+        osInput.value = osNumber;
+    }
+}
+
+function setCurrentDateTime() {
+    const now = new Date();
+    const dateTimeStr = now.toISOString().slice(0, 16);
+
+    const dateTimeInput = document.getElementById('datetime-input');
+    if (dateTimeInput) {
+        dateTimeInput.value = dateTimeStr;
+    }
+}
+
+function setupEventListeners() {
+    // Botão "Salvar Ordem de Serviço"
+    const saveBtn = document.getElementById('save-os-btn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveServiceOrder);
+        console.log('✅ Event listener do botão Salvar configurado');
+    } else {
+        console.error('❌ Botão Salvar não encontrado');
+    }
+
+    // Botão "Cancelar"
+    const cancelBtn = document.getElementById('cancel-btn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            if (confirm('Deseja realmente cancelar? Todos os dados serão perdidos.')) {
+                window.location.href = 'manutencao.html';
+            }
+        });
+        console.log('✅ Event listener do botão Cancelar configurado');
+    } else {
+        console.error('❌ Botão Cancelar não encontrado');
+    }
+}
+
+function addNewItemRow() {
+    const tbody = document.querySelector('table tbody');
+    const newRow = document.createElement('tr');
+    newRow.className = 'bg-white dark:bg-gray-900/50 border-b dark:border-gray-700';
+    newRow.innerHTML = `
+        <td class="px-4 py-3"><input class="form-input w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-description" placeholder="Descrição do produto/serviço" type="text"/></td>
+        <td class="px-4 py-3">
+            <select class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-type">
+                <option>Produto</option>
+                <option>Serviço</option>
+            </select>
+        </td>
+        <td class="px-4 py-3"><input class="form-input w-20 text-center bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-qty" type="number" value="1" onchange="updateRowTotal(this)"/></td>
+        <td class="px-4 py-3"><input class="form-input w-28 text-right bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-value" placeholder="0,00" type="text" onchange="updateRowTotal(this)"/></td>
+        <td class="px-4 py-3 text-right font-medium item-total">R$ 0,00</td>
+        <td class="px-4 py-3"><input class="form-input w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-9 text-sm item-occurrence" placeholder="Ocorrência" type="text"/></td>
+        <td class="px-4 py-3 text-center">
+            <button class="text-red-500 hover:text-red-700" onclick="removeRow(this)">
+                <span class="material-symbols-outlined text-lg">delete</span>
+            </button>
+        </td>
+    `;
+
+    // Inserir antes da última linha (que é sempre a linha de input vazia)
+    const lastRow = tbody.querySelector('tr:last-child');
+    tbody.insertBefore(newRow, lastRow);
+}
+
+function removeRow(btn) {
+    const row = btn.closest('tr');
+    row.remove();
+    updateTotalGeral();
+}
+
+function updateRowTotal(input) {
+    const row = input.closest('tr');
+    const qtyInput = row.querySelector('.item-qty');
+    const valueInput = row.querySelector('.item-value');
+    const totalCell = row.querySelector('.item-total');
+
+    const qty = parseFloat(qtyInput.value) || 0;
+    const value = parseFloat(valueInput.value.replace(',', '.')) || 0;
+    const total = qty * value;
+
+    totalCell.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    updateTotalGeral();
+}
+
+function updateTotalGeral() {
+    const rows = document.querySelectorAll('tbody tr:not(:last-child)');
+    let total = 0;
+
+    rows.forEach(row => {
+        const totalText = row.querySelector('.item-total')?.textContent || 'R$ 0,00';
+        const value = parseFloat(totalText.replace('R$', '').replace(',', '.').trim()) || 0;
+        total += value;
+    });
+
+    const totalCell = document.querySelector('tfoot td');
+    if (totalCell) {
+        totalCell.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+    }
+}
+
+async function saveServiceOrder() {
+    try {
+        // Coletar dados do formulário
+        const osNumber = document.getElementById('os-number-input')?.value;
+        const dateTime = document.getElementById('datetime-input')?.value;
+        const responsavel = document.getElementById('responsavel-select')?.value;
+        const status = document.getElementById('status-select')?.value;
+        const plate = document.getElementById('vehicle-plate-input')?.value.trim().toUpperCase();
+        const km = document.getElementById('km-input')?.value;
+        const observacoes = document.getElementById('observacoes-textarea')?.value;
+
+        // Validações
+        if (!plate) {
+            showToast('warning', 'Veículo Obrigatório', 'Por favor, selecione um veículo da lista.');
+            return;
+        }
+
+        // Verificar se a placa existe na lista de veículos
+        const vehicleExists = vehicles.find(v => v.plate === plate);
+        if (!vehicleExists) {
+            showToast('warning', 'Placa Inválida', 'Selecione uma placa válida da lista de veículos.');
+            document.getElementById('vehicle-plate-input').focus();
+            return;
+        }
+
+        // Buscar dados completos do veículo do banco de dados (incluindo ID)
+        let vehicleFromDB = null;
+        try {
+            // Tentar buscar do PHP primeiro
+            const response = await fetch('get-vehicles.php');
+            if (response.ok) {
+                const result = await response.json();
+                const allVehicles = result.data || result;
+
+                // Buscar veículo pela placa (comparação case-insensitive e removendo espaços)
+                vehicleFromDB = allVehicles.find(v =>
+                    v.LicensePlate && v.LicensePlate.trim().toUpperCase() === plate.trim().toUpperCase()
+                );
+
+                if (vehicleFromDB) {
+                    console.log('✅ Veículo encontrado no banco:', vehicleFromDB);
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ Não foi possível buscar dados do banco:', error);
+        }
+
+        // Se não encontrou no banco, permitir continuar sem ID
+        // A API PHP vai buscar pela placa
+        const vehicleId = vehicleFromDB ? vehicleFromDB.Id : null;
+        const driverId = vehicleFromDB ? vehicleFromDB.DriverId : null;
+
+        console.log('✅ Dados do veículo:', { vehicleId, plate, driverId });
+
+        if (!km) {
+            showToast('warning', 'Quilometragem Obrigatória', 'Informe a quilometragem atual do veículo.');
+            return;
+        }
+
+        // Coletar itens usando o gerenciador
+        const items = osManager.getItems();
+
+        if (items.length === 0) {
+            showToast('warning', 'Itens Obrigatórios', 'Adicione pelo menos um serviço ou produto à OS.');
+            return;
+        }
+
+        // Calcular total
+        const totalGeral = items.reduce((sum, item) => sum + (item.qty * item.value), 0);
+
+        // Criar objeto da OS
+        const serviceOrder = {
+            osNumber,
+            dateTime: new Date(dateTime).toISOString(),
+            responsavel,
+            status,
+            plate,
+            km: parseInt(km),
+            observacoes,
+            items,
+            totalGeral,
+            createdAt: new Date().toISOString(),
+            anoMes: new Date().toISOString().slice(0, 7).replace('-', '/'),
+            // Datas de acompanhamento (serão preenchidas na edição)
+            dates: {
+                diagnostico: null,
+                orcamento: null,
+                execucao: null,
+                finalizacao: null
+            }
+        };
+
+        // Dados para enviar (formato das novas APIs PHP)
+        const requestData = {
+            ordem_numero: osNumber,
+            placa_veiculo: plate,
+            km_veiculo: parseInt(km),
+            motorista_id: driverId,
+            responsavel: responsavel || 'Sistema Web',
+            oficina: 'Oficina Principal',
+            status: status || 'Aberta',
+            prioridade: 'Média',
+            ocorrencia: 'Corretiva',
+            tipo_servico: 'Manutenção Geral',
+            defeito_reclamado: observacoes || 'Ordem de serviço',
+            observacoes: observacoes,
+            valor_orcado: totalGeral,
+            criado_por: 'Sistema Web',
+            itens: items.map(item => ({
+                tipo: item.type || 'Serviço',
+                codigo: item.code || null,
+                descricao: item.description,
+                quantidade: item.qty,
+                unidade: 'UN',
+                valor_unitario: item.value,
+                desconto_percentual: 0,
+                desconto_valor: 0,
+                fornecedor: null,
+                observacoes: null
+            }))
+        };
+
+        // Enviar para API Node.js (que agora usa as novas tabelas)
+        console.log('📤 Enviando dados para /api/workorders:', requestData);
+
+        fetch('/api/workorders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        })
+            .then(response => {
+                console.log('📥 Resposta recebida:', response.status);
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        console.error('❌ Erro HTTP:', response.status, text);
+                        throw new Error(`Erro HTTP ${response.status}: ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('✅ Ordem de serviço salva no banco:', data);
+                console.log(`🔧 Veículo ${plate} agora está EM MANUTENÇÃO (status: ${status})`);
+
+                // Também salvar no localStorage como backup
+                const existingOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
+                existingOrders.push(serviceOrder);
+                localStorage.setItem('serviceOrders', JSON.stringify(existingOrders));
+
+                // Atualizar contador de OS
+                const lastOS = parseInt(osNumber.split('-')[2]);
+                localStorage.setItem('lastOSNumber', lastOS.toString());
+
+                // Mostrar toast de sucesso e redirecionar imediatamente
+                showToast('success', 'OS Criada com Sucesso!', `Número: ${osNumber}<br>Veículo ${plate} em manutenção`, 0);
+                window.location.href = 'manutencao.html';
+            })
+            .catch(error => {
+                console.error('❌ Erro ao salvar OS:', error);
+                showToast('error', 'Erro ao Salvar', 'Não foi possível salvar no banco de dados. Tente novamente.');
+            });
+
+    } catch (error) {
+        console.error('❌ Erro ao salvar OS:', error);
+        showToast('error', 'Erro ao Salvar', 'Ocorreu um erro inesperado. Tente novamente.');
+    }
+}
+
+// Adicionar função helper para querySelector com :contains
+Element.prototype.matches = (function(proto) {
+    return proto.matches || proto.matchesSelector || proto.webkitMatchesSelector || proto.mozMatchesSelector || proto.msMatchesSelector || proto.oMatchesSelector;
+})(Element.prototype);
+</script>
+
+<!-- Modal para cadastrar novo item -->
+<div id="new-item-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Cadastrar Novo <span id="modal-type-label">Item</span>
+                </h3>
+                <button onclick="osManager.closeAddNewModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+        </div>
+
+        <form id="new-item-form" class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Nome <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="modal-item-name" required
+                       class="form-input w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-sm"
+                       placeholder="Ex: Troca de óleo, Filtro de ar..."/>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Categoria <span class="text-red-500">*</span>
+                </label>
+                <select id="modal-item-category" required
+                        class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-sm">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Preço Padrão <span class="text-red-500">*</span>
+                </label>
+                <input type="text" id="modal-item-price" required
+                       class="form-input w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-sm"
+                       placeholder="Ex: 150,00"/>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" onclick="osManager.closeAddNewModal()"
+                        class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Cancelar
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90">
+                    Cadastrar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Carregar Sidebar Unificado -->
+<script src="sidebar.js"></script>
+
+</body></html>

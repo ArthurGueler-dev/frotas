@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cadastro de Peças - Gestão de Frotas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                colors: {
+                    "primary": "#1173d4",
+                    "background-light": "#f6f7f8",
+                    "background-dark": "#101922",
+                },
+                fontFamily: {
+                    "display": ["Inter", "sans-serif"]
+                },
+                borderRadius: {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+                },
+            },
+        },
+    }
+</script>
+<style>
+    .material-symbols-outlined {
+        font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+    }
+</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-white">
+<div class="relative flex h-auto min-h-screen w-full flex-col">
+<div class="flex h-full grow flex-row">
+<!-- Sidebar Container -->
+<div id="sidebar-container" data-page="pecas"></div>
+<main class="flex-1 p-6 lg:p-8 overflow-y-auto bg-background-light dark:bg-gray-900">
+<div class="max-w-[1400px] mx-auto">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+<!-- Formulário de Cadastro -->
+<div class="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl border border-gray-200 dark:border-gray-700 sticky top-6">
+<h2 class="text-gray-900 dark:text-white text-xl font-bold tracking-tight mb-6">Cadastrar Nova Peça</h2>
+<form id="form-peca" class="space-y-4">
+<input type="hidden" id="peca-id" />
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-name">Nome da Peça *</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-name" placeholder="Ex: Filtro de Óleo" type="text" required />
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-category">Categoria *</label>
+<select class="form-select mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-category" required onchange="gerarCodigoAutomatico()">
+<option value="">Selecione uma categoria</option>
+<option value="Filtros">Filtros</option>
+<option value="Óleos e Fluidos">Óleos e Fluidos</option>
+<option value="Freios">Freios</option>
+<option value="Suspensão">Suspensão</option>
+<option value="Ignição">Ignição</option>
+<option value="Correias">Correias</option>
+<option value="Iluminação">Iluminação</option>
+<option value="Pneus">Pneus</option>
+<option value="Elétrica">Elétrica</option>
+<option value="Motor">Motor</option>
+<option value="Transmissão">Transmissão</option>
+<option value="Arrefecimento">Arrefecimento</option>
+<option value="Outros">Outros</option>
+</select>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-code">Código (Auto-gerado)</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-code" placeholder="Será gerado automaticamente" type="text" readonly />
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-vida-km">Vida Útil (KM)</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-vida-km" placeholder="Ex: 10000" type="number" />
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-vida-meses">Vida Útil (Meses)</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-vida-meses" placeholder="Ex: 12" type="number" />
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-unit">Unidade</label>
+<select class="form-select mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-unit">
+<option value="UN">UN</option>
+<option value="L">L</option>
+<option value="KG">KG</option>
+<option value="M">M</option>
+<option value="PAR">PAR</option>
+<option value="JG">JG (Jogo)</option>
+</select>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-cost">Custo Unitário (R$) *</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-cost" placeholder="Ex: 85.50" type="number" step="0.01" required />
+</div>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-supplier">Fornecedor Padrão</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-supplier" placeholder="Ex: Fornecedor XYZ" type="text" />
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-description">Descrição</label>
+<textarea class="form-textarea mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-2 text-sm font-normal" id="part-description" placeholder="Detalhes sobre a peça..." rows="3"></textarea>
+</div>
+<div class="flex gap-2 pt-4">
+<button id="btn-cancelar" type="button" class="hidden flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 gap-2 text-sm font-bold tracking-wide hover:bg-gray-300 dark:hover:bg-gray-600">
+<span class="truncate">Cancelar</span>
+</button>
+<button id="btn-salvar" class="flex flex-1 cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white gap-2 text-sm font-bold tracking-wide hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+<span class="truncate">Salvar Peça</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Lista de Peças -->
+<div class="lg:col-span-2">
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+<h1 class="text-gray-900 dark:text-white text-3xl font-black tracking-tighter">Peças Cadastradas</h1>
+<div class="flex items-center gap-4">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+<input id="busca-peca" class="form-input pl-10 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" placeholder="Buscar por nome ou código..." type="search" />
+</div>
+</div>
+</div>
+<div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead class="bg-gray-50 dark:bg-gray-900/50 text-xs uppercase text-gray-700 dark:text-gray-400">
+<tr>
+<th class="px-6 py-3" scope="col">Nome da Peça</th>
+<th class="px-6 py-3" scope="col">Código</th>
+<th class="px-6 py-3" scope="col">Unidade</th>
+<th class="px-6 py-3" scope="col">Custo</th>
+<th class="px-6 py-3" scope="col">Fornecedor</th>
+<th class="px-6 py-3 text-right" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody id="tabela-pecas">
+<tr>
+<td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+Carregando peças...
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="paginacao" class="p-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+<!-- Paginação será inserida via JavaScript -->
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+
+<script>
+// Estado da aplicação
+let pecas = [];
+let pecasFiltradas = [];
+let pecaEditando = null;
+let paginaAtual = 1;
+const itensPorPagina = 10;
+
+// Carregar ao iniciar
+document.addEventListener('DOMContentLoaded', () => {
+    carregarPecas();
+    configurarEventos();
+});
+
+// Configurar eventos
+function configurarEventos() {
+    // Formulário
+    const form = document.getElementById('form-peca');
+    if (form) {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            salvarPeca();
+        });
+    }
+
+    // Busca
+    const inputBusca = document.getElementById('busca-peca');
+    if (inputBusca) {
+        inputBusca.addEventListener('input', (e) => {
+            const termo = e.target.value.toLowerCase();
+            pecasFiltradas = pecas.filter(p =>
+                p.nome.toLowerCase().includes(termo) ||
+                (p.codigo && p.codigo.toLowerCase().includes(termo)) ||
+                (p.fornecedor && p.fornecedor.toLowerCase().includes(termo))
+            );
+            paginaAtual = 1;
+            atualizarTabela();
+        });
+    }
+
+    // Botão cancelar
+    const btnCancelar = document.getElementById('btn-cancelar');
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', cancelarEdicao);
+    }
+}
+
+// Carregar peças da API
+async function carregarPecas() {
+    try {
+        const response = await fetch('/api/pecas');
+        const data = await response.json();
+
+        pecas = Array.isArray(data) ? data : (data.pecas || []);
+        pecasFiltradas = pecas;
+        paginaAtual = 1;
+        atualizarTabela();
+
+        console.log('✅ Peças carregadas:', pecas.length);
+    } catch (error) {
+        console.error('❌ Erro ao carregar peças:', error);
+        document.getElementById('tabela-pecas').innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-red-500">
+                    Erro ao carregar peças. Verifique a conexão.
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Atualizar tabela
+function atualizarTabela() {
+    const tbody = document.getElementById('tabela-pecas');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    if (pecasFiltradas.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                    Nenhuma peça encontrada
+                </td>
+            </tr>
+        `;
+        renderizarPaginacao(0);
+        return;
+    }
+
+    // Calcular índices para paginação
+    const inicio = (paginaAtual - 1) * itensPorPagina;
+    const fim = inicio + itensPorPagina;
+    const pecasPagina = pecasFiltradas.slice(inicio, fim);
+
+    // Renderizar linhas
+    pecasPagina.forEach(peca => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800';
+
+        tr.innerHTML = `
+            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${peca.nome}</td>
+            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${peca.codigo || '-'}</td>
+            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${peca.unidade || 'UN'}</td>
+            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${formatarMoeda(peca.custo_unitario)}</td>
+            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${peca.fornecedor || '-'}</td>
+            <td class="px-6 py-4 text-right">
+                <div class="flex justify-end gap-2">
+                    <button onclick="editarPeca('${peca.id}')" class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400" title="Editar">
+                        <span class="material-symbols-outlined text-lg">edit</span>
+                    </button>
+                    <button onclick="excluirPeca('${peca.id}')" class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400" title="Excluir">
+                        <span class="material-symbols-outlined text-lg">delete</span>
+                    </button>
+                </div>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+
+    renderizarPaginacao(pecasFiltradas.length);
+}
+
+// Renderizar paginação
+function renderizarPaginacao(totalItens) {
+    const paginacaoDiv = document.getElementById('paginacao');
+    if (!paginacaoDiv) return;
+
+    if (totalItens === 0) {
+        paginacaoDiv.innerHTML = '';
+        return;
+    }
+
+    const totalPaginas = Math.ceil(totalItens / itensPorPagina);
+    const inicio = (paginaAtual - 1) * itensPorPagina + 1;
+    const fim = Math.min(paginaAtual * itensPorPagina, totalItens);
+
+    paginacaoDiv.innerHTML = `
+        <div>
+            <p>Exibindo <span class="font-semibold text-gray-900 dark:text-white">${inicio}-${fim}</span> de <span class="font-semibold text-gray-900 dark:text-white">${totalItens}</span> peças</p>
+        </div>
+        <div class="inline-flex items-center gap-2 mt-4 sm:mt-0">
+            <button onclick="irParaPagina(${paginaAtual - 1})" class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 ${paginaAtual === 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${paginaAtual === 1 ? 'disabled' : ''}>
+                <span class="material-symbols-outlined text-base">chevron_left</span>
+            </button>
+            <span>Página ${paginaAtual} de ${totalPaginas}</span>
+            <button onclick="irParaPagina(${paginaAtual + 1})" class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 ${paginaAtual === totalPaginas ? 'opacity-50 cursor-not-allowed' : ''}" ${paginaAtual === totalPaginas ? 'disabled' : ''}>
+                <span class="material-symbols-outlined text-base">chevron_right</span>
+            </button>
+        </div>
+    `;
+}
+
+// Ir para página
+function irParaPagina(pagina) {
+    const totalPaginas = Math.ceil(pecasFiltradas.length / itensPorPagina);
+    if (pagina < 1 || pagina > totalPaginas) return;
+    paginaAtual = pagina;
+    atualizarTabela();
+}
+
+// Formatar moeda
+function formatarMoeda(valor) {
+    const numero = parseFloat(valor) || 0;
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(numero);
+}
+
+// Gerar código automático baseado na categoria
+function gerarCodigoAutomatico() {
+    if (pecaEditando) return; // Não gerar novo código ao editar
+
+    const categoria = document.getElementById('part-category').value;
+    if (!categoria) {
+        document.getElementById('part-code').value = '';
+        return;
+    }
+
+    // Mapeamento de categorias para prefixos
+    const prefixos = {
+        'Filtros': 'FLT',
+        'Óleos e Fluidos': 'OLE',
+        'Freios': 'FRE',
+        'Suspensão': 'SUS',
+        'Ignição': 'IGN',
+        'Correias': 'COR',
+        'Iluminação': 'ILU',
+        'Pneus': 'PNE',
+        'Elétrica': 'ELE',
+        'Motor': 'MOT',
+        'Transmissão': 'TRS',
+        'Arrefecimento': 'ARR',
+        'Outros': 'OUT'
+    };
+
+    const prefixo = prefixos[categoria] || 'GEN';
+
+    // Contar peças da mesma categoria para gerar número sequencial
+    const pecasCategoria = pecas.filter(p => p.categoria === categoria);
+    const sequencial = String(pecasCategoria.length + 1).padStart(3, '0');
+
+    // Gerar código: PREFIXO-SEQUENCIAL
+    const codigo = `${prefixo}-${sequencial}`;
+    document.getElementById('part-code').value = codigo;
+}
+
+// Salvar peça
+async function salvarPeca() {
+    const categoria = document.getElementById('part-category').value;
+
+    const dados = {
+        nome: document.getElementById('part-name').value,
+        codigo: document.getElementById('part-code').value,
+        categoria: categoria,
+        unidade: document.getElementById('part-unit').value,
+        custo_unitario: parseFloat(document.getElementById('part-cost').value) || 0,
+        fornecedor: document.getElementById('part-supplier').value,
+        descricao: document.getElementById('part-description').value,
+        vida_util_km: parseInt(document.getElementById('part-vida-km').value) || null,
+        vida_util_meses: parseInt(document.getElementById('part-vida-meses').value) || null
+    };
+
+    if (!dados.nome || !dados.custo_unitario || !dados.categoria) {
+        alert('Preencha os campos obrigatórios: Nome, Categoria e Custo Unitário');
+        return;
+    }
+
+    try {
+        let url = '/api/pecas';
+        let method = 'POST';
+
+        if (pecaEditando) {
+            url = `/api/pecas/${pecaEditando.id}`;
+            method = 'PUT';
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        if (response.ok) {
+            alert(pecaEditando ? 'Peça atualizada com sucesso!' : 'Peça cadastrada com sucesso!');
+            limparFormulario();
+            carregarPecas();
+        } else {
+            const error = await response.json();
+            alert('Erro: ' + (error.error || 'Erro ao salvar peça'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        alert('Erro ao salvar peça');
+    }
+}
+
+// Editar peça
+function editarPeca(id) {
+    const peca = pecas.find(p => p.id == id);
+    if (!peca) return;
+
+    pecaEditando = peca;
+
+    // Preencher formulário
+    document.getElementById('peca-id').value = peca.id;
+    document.getElementById('part-name').value = peca.nome;
+    document.getElementById('part-category').value = peca.categoria || '';
+    document.getElementById('part-code').value = peca.codigo || '';
+    document.getElementById('part-unit').value = peca.unidade || 'UN';
+    document.getElementById('part-cost').value = peca.custo_unitario || '';
+    document.getElementById('part-supplier').value = peca.fornecedor || '';
+    document.getElementById('part-description').value = peca.descricao || '';
+    document.getElementById('part-vida-km').value = peca.vida_util_km || '';
+    document.getElementById('part-vida-meses').value = peca.vida_util_meses || '';
+
+    // Atualizar botões
+    document.getElementById('btn-salvar').innerHTML = '<span class="material-symbols-outlined text-lg">save</span><span class="truncate">Atualizar Peça</span>';
+    document.getElementById('btn-cancelar').classList.remove('hidden');
+    document.getElementById('btn-cancelar').classList.add('flex');
+
+    // Scroll para o formulário
+    document.getElementById('form-peca').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Cancelar edição
+function cancelarEdicao() {
+    limparFormulario();
+}
+
+// Limpar formulário
+function limparFormulario() {
+    pecaEditando = null;
+    document.getElementById('form-peca').reset();
+    document.getElementById('peca-id').value = '';
+    document.getElementById('part-code').value = '';
+    document.getElementById('part-vida-km').value = '';
+    document.getElementById('part-vida-meses').value = '';
+    document.getElementById('btn-salvar').innerHTML = '<span class="material-symbols-outlined text-lg">add_circle</span><span class="truncate">Salvar Peça</span>';
+    document.getElementById('btn-cancelar').classList.add('hidden');
+    document.getElementById('btn-cancelar').classList.remove('flex');
+}
+
+// Excluir peça
+async function excluirPeca(id) {
+    const peca = pecas.find(p => p.id == id);
+    if (!peca) return;
+
+    if (!confirm(`Deseja realmente excluir a peça "${peca.nome}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/pecas/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('Peça excluída com sucesso!');
+            carregarPecas();
+        } else {
+            const error = await response.json();
+            alert('Erro: ' + (error.error || 'Erro ao excluir peça'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        alert('Erro ao excluir peça');
+    }
+}
+</script>
+
+<!-- Carregar Sidebar Unificado -->
+<script src="sidebar.js"></script>
+
+</body></html>

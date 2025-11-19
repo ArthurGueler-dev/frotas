@@ -65,6 +65,11 @@ function createSidebar(activePage = '') {
                     <span class="material-symbols-outlined">calendar_month</span>
                     <p class="text-sm">Planos</p>
                 </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'pecas' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="pecas.html">
+                    <span class="material-symbols-outlined">settings_input_component</span>
+                    <p class="text-sm">Peças</p>
+                </a>
             </div>
 
             <!-- Seção CheckList -->

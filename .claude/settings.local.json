@@ -66,7 +66,20 @@
       "Bash(git push:*)",
       "Bash(git filter-branch:*)",
       "Bash(find:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(nul)",
+      "Bash(git log:*)",
+      "WebFetch(domain:www.suaoficinaonline.com.br)",
+      "WebFetch(domain:mercadoveiculos.com)",
+      "WebFetch(domain:blog.mercadoveiculos.com)",
+      "WebFetch(domain:www.scribd.com)",
+      "WebFetch(domain:sd652bdd95dd972a2.jimcontent.com)",
+      "Bash(/tmp/toyota.json)",
+      "WebFetch(domain:www.chevrolet.com.br)",
+      "WebFetch(domain:meu.chevrolet.com.br)",
+      "WebFetch(domain:www.honda.com.br)",
+      "Bash(git checkout:*)",
+      "Bash(cmd //c \"taskkill /PID 36316 /F\")"
     ],
     "deny": [],
     "ask": []

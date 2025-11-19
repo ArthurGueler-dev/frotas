@@ -239,7 +239,13 @@ function configurarEventos() {
 async function carregarModelos() {
     try {
         const response = await fetch(API_BASE_URL);
-        const modelosCarregados = await response.json();
+        const data = await response.json();
+
+        // Garantir que temos um array
+        const modelosCarregados = Array.isArray(data) ? data : (data.modelos || []);
+
+        console.log('📦 Dados recebidos:', typeof data, Array.isArray(data));
+        console.log('📊 Total de modelos:', modelosCarregados.length);
 
         // Remover duplicatas baseado em marca + modelo + ano
         const modelosUnicos = {};
@@ -252,6 +258,10 @@ async function carregarModelos() {
         });
 
         modelos = Object.values(modelosUnicos);
+
+        // Buscar informações de planos para cada modelo
+        await buscarPlanosParaModelos();
+
         modelosFiltrados = modelos;
         paginaAtual = 1;
         atualizarTabela();
@@ -268,6 +278,42 @@ async function carregarModelos() {
     } catch (error) {
         console.error('❌ Erro ao carregar modelos:', error);
         alert('Erro ao carregar modelos');
+    }
+}
+
+// Buscar planos de manutenção para os modelos
+async function buscarPlanosParaModelos() {
+    try {
+        // Buscar planos para cada modelo
+        const promises = modelos.map(modelo =>
+            fetch(`/api/maintenance-plan-items?modelo_id=${modelo.id}`)
+                .then(res => res.json())
+                .then(planos => ({
+                    modelo_id: modelo.id,
+                    qtd: Array.isArray(planos) ? planos.length : 0
+                }))
+                .catch(() => ({ modelo_id: modelo.id, qtd: 0 }))
+        );
+
+        const resultados = await Promise.all(promises);
+
+        // Adicionar informação de planos aos modelos
+        resultados.forEach(({ modelo_id, qtd }) => {
+            const modelo = modelos.find(m => m.id === modelo_id);
+            if (modelo) {
+                modelo.temPlano = qtd > 0;
+                modelo.qtdPlanos = qtd;
+            }
+        });
+
+        console.log(`✅ Informações de planos carregadas para ${modelos.length} modelos`);
+    } catch (error) {
+        console.error('⚠️ Erro ao carregar planos:', error);
+        // Não bloqueia - apenas não mostra informação de planos
+        modelos.forEach(modelo => {
+            modelo.temPlano = true; // Assume que tem plano por padrão
+            modelo.qtdPlanos = 0;
+        });
     }
 }
 
@@ -404,9 +450,10 @@ function irParaPagina(pagina) {
 function criarLinhaModelo(modelo, numero) {
     const tr = document.createElement('tr');
 
-    const temPlano = Math.random() > 0.5; // TODO: verificar se tem plano na API
+    const temPlano = modelo.temPlano ?? true; // Usa dados reais da API
+    const qtdPlanos = modelo.qtdPlanos || 0;
     const badgePlano = temPlano
-        ? '<span class="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300"><span class="size-1.5 rounded-full bg-green-500"></span>Sim</span>'
+        ? `<span class="inline-flex items-center gap-1 rounded-full bg-green-100 dark:bg-green-900 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-300"><span class="size-1.5 rounded-full bg-green-500"></span>Sim (${qtdPlanos} itens)</span>`
         : '<span class="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-300"><span class="size-1.5 rounded-full bg-red-500"></span>Não</span>';
 
     tr.innerHTML = `
@@ -423,7 +470,7 @@ function criarLinhaModelo(modelo, numero) {
                 <button class="p-1 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary" title="Editar" onclick="editarModelo('${modelo.id}')">
                     <span class="material-symbols-outlined text-base">edit</span>
                 </button>
-                <button class="p-1 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary" title="Ver Plano" onclick="window.location.href='/planos-manutencao?modeloId=${modelo.id}'">
+                <button class="p-1 text-gray-500 hover:text-primary dark:text-gray-400 dark:hover:text-primary" title="Ver Plano" onclick="window.location.href='/planos-manutencao.html?modeloId=${modelo.id}'">
                     <span class="material-symbols-outlined text-base">visibility</span>
                 </button>
                 <button class="p-1 text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-500" title="Excluir" onclick="excluirModelo('${modelo.id}')">

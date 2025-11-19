@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html class="light" lang="pt-br"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>FleetFlow - Cadastro de Motorista</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#1E3A8A",
+            "background-light": "#F3F4F6",
+            "background-dark": "#1F2937",
+            "text-light": "#1F2937",
+            "text-dark": "#F3F4F6",
+            "success": "#10B981",
+            "warning": "#F59E0B",
+            "danger": "#EF4444",
+            "info": "#3B82F6",
+          },
+          fontFamily: {
+            "display": ["Inter", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.5rem",
+            "lg": "0.75rem",
+            "xl": "1rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="relative flex min-h-screen w-full flex-col">
+<div class="flex h-full flex-1">
+<aside class="flex flex-col gap-y-6 p-4 bg-white dark:bg-background-dark border-r border-gray-200 dark:border-gray-700 w-64">
+<div class="flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-primary text-3xl">directions_car</span>
+<h1 class="text-xl font-bold text-[#111418] dark:text-white">FleetFlow</h1>
+</div>
+<div class="flex flex-col justify-between h-full">
+<nav class="flex flex-col gap-2">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="dashboard.html">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="veiculos.html">
+<span class="material-symbols-outlined">directions_car</span>
+<p class="text-sm font-medium">Veículos</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/10 dark:bg-primary/20 text-primary" href="motoristas.html">
+<span class="material-symbols-outlined">people</span>
+<p class="text-sm font-medium">Motoristas</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="#">
+<span class="material-symbols-outlined">build</span>
+<p class="text-sm font-medium">Manutenções</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-[#111418] dark:text-gray-300" href="#">
+<span class="material-symbols-outlined">assessment</span>
+<p class="text-sm font-medium">Relatórios</p>
+</a>
+</nav>
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3 p-2 border-t border-gray-200 dark:border-gray-700">
+<img class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVrVgfjcLzwfLby1sAwIY-nZzVjq7Hgukkn2dVW_u_Gl9JuHxqV9xURUrtHGlbws0mv31g0fIIWHHpBxOQynNiFo2Aca4gP3cnDNxmfKc8DMM112lHLzWzPB8UaW0vm9dX3u9_YoLflbP9cDc6XNMUjuZdCIvYgVZXTedYI3_H86rZ6WsGr-30M_OTLhAzGJ8_3bvwWE6lOqYlwac7BFmcck9HwVnNzaIwku7cRKUvApohtuPbUkygSoKPnbgU167PdxXTrxXNf1M"/>
+<div class="flex flex-col">
+<h1 class="text-[#111418] dark:text-white text-sm font-medium leading-normal">Ana Silveira</h1>
+<p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">ana.s@example.com</p>
+</div>
+</div>
+<button class="flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-red-500/10 text-red-500 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-red-500/20">
+<span class="material-symbols-outlined">logout</span>
+<span class="truncate">Sair</span>
+</button>
+</div>
+</div>
+</aside>
+<main class="flex-1 p-6 lg:p-10">
+<div class="max-w-4xl mx-auto">
+<div class="mb-8">
+<h1 class="text-gray-900 dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Cadastro de Motorista</h1>
+<p class="text-gray-500 dark:text-gray-400 text-base font-normal leading-normal mt-2">Preencha os campos abaixo para cadastrar um novo motorista.</p>
+</div>
+<div class="bg-white dark:bg-background-dark p-8 rounded-xl shadow-sm">
+<form action="#" class="space-y-8" method="POST">
+<div>
+<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-b pb-3 border-gray-200 dark:border-gray-700">Dados Pessoais</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="md:col-span-2">
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="full-name">Nome Completo</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal" id="full-name" name="full-name" placeholder="Digite o nome completo" type="text"/>
+</div>
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="cpf">CPF</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal" id="cpf" name="cpf" placeholder="000.000.000-00" type="text"/>
+</div>
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="birth-date">Data de Nascimento</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 p-[15px] text-base font-normal" id="birth-date" name="birth-date" type="date"/>
+</div>
+</div>
+</div>
+<div>
+<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-b pb-3 border-gray-200 dark:border-gray-700">Dados da Habilitação</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="cnh-number">Número da CNH</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 placeholder:text-gray-400 dark:placeholder:text-gray-500 p-[15px] text-base font-normal" id="cnh-number" name="cnh-number" placeholder="Digite o número da CNH" type="text"/>
+</div>
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="cnh-category">Categoria CNH</label>
+<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 p-[15px] text-base font-normal" id="cnh-category" name="cnh-category">
+<option>A</option>
+<option>B</option>
+<option>C</option>
+<option>D</option>
+<option>E</option>
+<option>AB</option>
+<option>AC</option>
+<option>AD</option>
+<option>AE</option>
+</select>
+</div>
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="cnh-expiry">Vencimento da CNH</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 p-[15px] text-base font-normal" id="cnh-expiry" name="cnh-expiry" type="date"/>
+</div>
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2">Status da CNH</label>
+<div class="flex items-center h-14">
+<span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">Em Dia</span>
+</div>
+</div>
+</div>
+</div>
+<div>
+<h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200 mb-6 border-b pb-3 border-gray-200 dark:border-gray-700">Dados Corporativos</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div>
+<label class="block text-base font-medium text-gray-800 dark:text-gray-200 pb-2" for="admission-date">Data de Admissão</label>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 focus:border-primary h-14 p-[15px] text-base font-normal" id="admission-date" name="admission-date" type="date"/>
+</div>
+<div>
+<p class="text-base font-medium text-gray-800 dark:text-gray-200 pb-2">Status</p>
+<div class="flex items-center space-x-6 h-14">
+<div class="flex items-center">
+<input checked="" class="h-4 w-4 text-primary focus:ring-primary border-gray-300" id="status-ativo" name="status" type="radio"/>
+<label class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300" for="status-ativo">Ativo</label>
+</div>
+<div class="flex items-center">
+<input class="h-4 w-4 text-primary focus:ring-primary border-gray-300" id="status-inativo" name="status" type="radio"/>
+<label class="ml-3 block text-sm font-medium text-gray-700 dark:text-gray-300" for="status-inativo">Inativo</label>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-6 flex justify-end gap-4 border-t border-gray-200 dark:border-gray-700">
+<a href="motoristas.html" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-bold hover:bg-gray-300 dark:hover:bg-gray-600">
+<span class="truncate">Cancelar</span>
+</a>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-sm font-bold hover:bg-primary/90" type="submit">
+<span class="truncate">Salvar Cadastro</span>
+</button>
+</div>
+</form>
+</div>
+</div>
+</main>
+</div>
+</div>
+<script src="api-client.js"></script>
+<script>
+// Função para formatar CPF
+function formatCPF(value) {
+    return value
+        .replace(/\D/g, '')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+}
+
+// Aplicar máscara de CPF
+document.getElementById('cpf').addEventListener('input', function(e) {
+    e.target.value = formatCPF(e.target.value);
+});
+
+// Função para submeter o formulário
+document.querySelector('form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    // Coletar dados do formulário
+    const formData = {
+        name: document.getElementById('full-name').value,
+        cpf: document.getElementById('cpf').value,
+        birthDate: document.getElementById('birth-date').value,
+        cnhNumber: document.getElementById('cnh-number').value,
+        cnhCategory: document.getElementById('cnh-category').value,
+        cnhExpiry: document.getElementById('cnh-expiry').value,
+        cnhStatus: 'Em Dia', // Calcular baseado na data de vencimento
+        admissionDate: document.getElementById('admission-date').value,
+        status: document.querySelector('input[name="status"]:checked').id === 'status-ativo' ? 'Ativo' : 'Inativo'
+    };
+
+    // Validação básica
+    if (!formData.name || !formData.cpf || !formData.cnhNumber) {
+        alert('Por favor, preencha todos os campos obrigatórios.');
+        return;
+    }
+
+    try {
+        // Enviar para a API
+        const result = await FleetAPI.createDriver(formData);
+
+        if (result) {
+            alert('Motorista cadastrado com sucesso!');
+            window.location.href = 'motoristas.html';
+        } else {
+            alert('Erro ao cadastrar motorista. Tente novamente.');
+        }
+    } catch (error) {
+        console.error('Erro ao cadastrar motorista:', error);
+        alert('Erro ao cadastrar motorista. Verifique o console para mais detalhes.');
+    }
+});
+
+// Calcular status da CNH baseado na data de vencimento
+document.getElementById('cnh-expiry').addEventListener('change', function() {
+    const expiryDate = new Date(this.value);
+    const today = new Date();
+    const statusElement = document.querySelector('.inline-flex.items-center.px-3.py-1.rounded-full');
+
+    if (expiryDate < today) {
+        statusElement.textContent = 'Vencida';
+        statusElement.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+    } else {
+        statusElement.textContent = 'Em Dia';
+        statusElement.className = 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+    }
+});
+</script>
+</body></html>

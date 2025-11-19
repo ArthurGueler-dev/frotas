@@ -47,181 +47,192 @@
 <h1 class="text-[#18181B] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Planos de Manutenção</h1>
 </div>
 </div>
-<div class="p-4">
+<!-- Cabeçalho do plano com informações do modelo -->
+<div id="cabecalho-plano" class="p-4">
 <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 border dark:border-slate-700">
-<h2 class="text-xl font-bold text-gray-900 dark:text-white mb-4">Seleção de Modelo</h2>
-<div class="flex flex-wrap gap-4 items-end">
+<div class="flex flex-wrap gap-4 items-center justify-between">
 <div class="flex-grow">
-<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300" for="model-select">Modelo do Veículo</label>
-<select class="w-full h-10 px-3 text-sm font-normal leading-normal bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary focus:ring-inset" id="model-select">
-<option selected="">Selecione um modelo</option>
-<option value="volvo-fh-540">Volvo FH 540</option>
-<option value="scania-r450">Scania R 450</option>
-<option value="mb-actros-2651">MB Actros 2651</option>
-</select>
+<h2 id="titulo-plano" class="text-xl font-bold text-gray-900 dark:text-white">Carregando plano...</h2>
+<p id="info-plano" class="text-sm text-gray-600 dark:text-gray-400 mt-1"></p>
 </div>
 <div class="flex items-center gap-2">
-<span class="material-symbols-outlined text-green-500">check_circle</span>
-<p class="text-sm text-gray-600 dark:text-gray-400">Este modelo já possui um plano.</p>
+<a href="modelos.html" class="flex items-center gap-2 text-sm text-primary hover:underline">
+<span class="material-symbols-outlined text-base">arrow_back</span>
+Voltar para Modelos
+</a>
 </div>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-transparent text-primary dark:text-blue-400 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/10 border border-primary">
-<span class="material-symbols-outlined mr-2">content_copy</span>
-<span class="truncate">Copiar de Outro Modelo</span>
+</div>
+</div>
+</div>
+<!-- Container dinâmico para os itens do plano -->
+<div id="container-itens-plano" class="p-4">
+<!-- Os itens serão renderizados aqui via JavaScript -->
+</div>
+</div>
+</div>
+</div>
+
+<!-- Modal de Gerenciamento de Peças -->
+<div id="modalPecas" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70">
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col m-4">
+<div class="flex justify-between items-center p-6 border-b dark:border-slate-700">
+<h3 id="modalPecasTitulo" class="text-2xl font-bold text-gray-900 dark:text-white">Gerenciar Peças do Item</h3>
+<button id="btnFecharModalPecas" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><span class="material-symbols-outlined">close</span></button>
+</div>
+<div class="p-6 overflow-y-auto flex-grow">
+<input type="hidden" id="pecas-item-id" />
+
+<!-- Seção para adicionar peças -->
+<div class="mb-6">
+<h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Adicionar Peça</h4>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+<div class="md:col-span-2">
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Buscar Peça</label>
+<select id="select-peca" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary">
+<option value="">Selecione uma peça...</option>
+</select>
+</div>
+<div>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Quantidade</label>
+<input id="input-quantidade-peca" type="number" min="1" value="1" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" />
+</div>
+<div class="flex items-end">
+<button id="btnAdicionarPeca" class="w-full h-10 px-4 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-base">add</span>
+Adicionar
 </button>
 </div>
 </div>
 </div>
-<div class="p-4">
-<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-6 border dark:border-slate-700">
-<div class="flex flex-wrap justify-between items-center gap-4 mb-6">
-<h2 class="text-xl font-bold text-gray-900 dark:text-white">Plano para: Volvo FH 540 <span class="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">(0 itens)</span></h2>
-<button id="btnAbrirModal" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
-<span class="material-symbols-outlined mr-2">add</span>
-<span class="truncate">Adicionar Item</span>
-</button>
-</div>
-<div class="text-center py-8 px-4 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-lg">
-<p class="mb-4 text-gray-600 dark:text-gray-400">Este plano de manutenção está vazio. Escolha um template para começar ou adicione itens manualmente.</p>
-<div class="flex flex-wrap justify-center gap-4">
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-gray-300 dark:hover:bg-slate-600">
-<span class="truncate">Plano Básico</span>
-</button>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-gray-300 dark:hover:bg-slate-600">
-<span class="truncate">Plano Completo</span>
-</button>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/10 text-primary dark:text-blue-400 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/20">
-<span class="truncate">Começar do Zero</span>
-</button>
-</div>
-</div>
-</div>
-</div>
-<div class="p-4">
-<div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700">
-<div class="p-6 border-b dark:border-slate-700">
-<div class="flex flex-wrap justify-between items-center gap-4">
-<h2 class="text-xl font-bold text-gray-900 dark:text-white">Plano para: Scania R 450 <span class="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">(2 itens)</span></h2>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
-<span class="material-symbols-outlined mr-2">add</span>
-<span class="truncate">Adicionar Item</span>
-</button>
-</div>
-</div>
-<div class="border-b dark:border-slate-700">
-<div class="grid grid-cols-[1fr_auto] items-center p-4">
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-<div class="font-semibold text-gray-900 dark:text-white">Troca de Óleo e Filtros</div>
-<div class="text-gray-600 dark:text-gray-400">A cada 15.000 KM ou 6 meses</div>
-<div class="text-gray-600 dark:text-gray-400">R$ 850,00</div>
-<div><span class="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-full dark:bg-red-700">Alta</span></div>
-</div>
-<div class="flex items-center gap-2 pl-4">
-<button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"><span class="material-symbols-outlined">edit</span></button>
-<button class="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"><span class="material-symbols-outlined">delete</span></button>
-<button class="text-primary hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"><span class="material-symbols-outlined">expand_more</span></button>
-</div>
-</div>
-</div>
-<div class="border-b dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
-<div class="grid grid-cols-[1fr_auto] items-center p-4">
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-<div class="font-semibold text-gray-900 dark:text-white">Verificação de Freios</div>
-<div class="text-gray-600 dark:text-gray-400">A cada 20.000 KM</div>
-<div class="text-gray-600 dark:text-gray-400">R$ 1.200,00</div>
-<div><span class="px-2 py-1 text-xs font-medium text-white bg-red-600 rounded-full dark:bg-red-700">Alta</span></div>
-</div>
-<div class="flex items-center gap-2 pl-4">
-<button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"><span class="material-symbols-outlined">edit</span></button>
-<button class="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400"><span class="material-symbols-outlined">delete</span></button>
-<button class="text-primary hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"><span class="material-symbols-outlined">expand_less</span></button>
-</div>
-</div>
-<div class="p-6">
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Tipo de Manutenção</p><p class="font-medium">Corretiva</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Categoria</p><p class="font-medium">Freios</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Criticidade</p><p class="font-medium">Alta</p></div>
-<div class="md:col-span-3"><p class="text-sm text-gray-500 dark:text-gray-400">Descrição</p><p class="font-medium">Verificação completa do sistema de freios, incluindo pastilhas, discos e fluidos.</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por KM</p><p class="font-medium">20.000</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por Tempo</p><p class="font-medium">N/A</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Critério de Ativação</p><p class="font-medium">Apenas KM</p></div>
-</div>
-<h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Tabela de Peças</h4>
-<div class="overflow-x-auto border rounded-lg dark:border-slate-700">
+
+<!-- Lista de peças do item -->
+<div>
+<h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Peças Cadastradas</h4>
+<div id="lista-pecas-item" class="border rounded-lg dark:border-slate-700 overflow-hidden">
 <table class="w-full text-sm text-left">
 <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-slate-700">
 <tr>
-<th class="px-4 py-2">Nome da Peça</th>
-<th class="px-4 py-2 text-right">Qtd.</th>
-<th class="px-4 py-2">Unidade</th>
-<th class="px-4 py-2 text-right">Custo Unitário</th>
-<th class="px-4 py-2 text-right">Total</th>
+<th class="px-4 py-3">Código</th>
+<th class="px-4 py-3">Nome da Peça</th>
+<th class="px-4 py-3 text-center">Qtd.</th>
+<th class="px-4 py-3">Unidade</th>
+<th class="px-4 py-3 text-right">Custo Unit.</th>
+<th class="px-4 py-3 text-right">Total</th>
+<th class="px-4 py-3 text-center">Ações</th>
 </tr>
 </thead>
-<tbody>
-<tr class="border-b dark:border-slate-700"><td class="px-4 py-2">Pastilha de Freio</td><td class="px-4 py-2 text-right">4</td><td class="px-4 py-2">un</td><td class="px-4 py-2 text-right">R$ 150,00</td><td class="px-4 py-2 text-right">R$ 600,00</td></tr>
-<tr class="border-b dark:border-slate-700"><td class="px-4 py-2">Disco de Freio</td><td class="px-4 py-2 text-right">2</td><td class="px-4 py-2">un</td><td class="px-4 py-2 text-right">R$ 250,00</td><td class="px-4 py-2 text-right">R$ 500,00</td></tr>
+<tbody id="tbody-pecas-item">
+<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Carregando...</td></tr>
 </tbody>
-<tfoot><tr class="font-semibold text-gray-800 dark:text-white"><td class="px-4 py-2 text-right" colspan="4">Total Peças</td><td class="px-4 py-2 text-right">R$ 1.100,00</td></tr></tfoot>
+<tfoot class="font-semibold text-gray-800 dark:text-white bg-gray-50 dark:bg-slate-800/50">
+<tr>
+<td colspan="5" class="px-4 py-3 text-right">Total em Peças:</td>
+<td id="total-pecas-item" class="px-4 py-3 text-right text-primary">R$ 0,00</td>
+<td></td>
+</tr>
+</tfoot>
 </table>
 </div>
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-6 pt-6 border-t dark:border-slate-700">
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Tempo Estimado (minutos)</p><p class="font-medium">90</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Custo Mão de Obra</p><p class="font-medium">R$ 100,00</p></div>
-<div><p class="text-sm text-gray-500 dark:text-gray-400">Custo Total</p><p class="font-bold text-lg text-primary">R$ 1.200,00</p></div>
+</div>
+</div>
+<div class="flex justify-end items-center p-6 bg-gray-50 dark:bg-slate-800/50 border-t dark:border-slate-700 rounded-b-xl gap-4">
+<button id="btnFecharModalPecas2" class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 text-sm font-bold hover:bg-gray-300 dark:hover:bg-slate-600">Fechar</button>
 </div>
 </div>
 </div>
-</div>
-</div>
-</div>
-</div>
-</div>
-</div>
-<div id="modalAdicionarItem" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70">
-<div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+
+<!-- Modal de Edição de Item -->
+<div id="modalEditarItem" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 dark:bg-opacity-70">
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col m-4">
 <div class="flex justify-between items-center p-6 border-b dark:border-slate-700">
-<h3 class="text-2xl font-bold text-gray-900 dark:text-white">Adicionar Item ao Plano</h3>
-<button id="btnFecharModal" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><span class="material-symbols-outlined">close</span></button>
+<h3 id="modalEditarTitulo" class="text-2xl font-bold text-gray-900 dark:text-white">Editar Item do Plano</h3>
+<button id="btnFecharModalEditar" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><span class="material-symbols-outlined">close</span></button>
 </div>
-<div class="p-6 overflow-y-auto space-y-6">
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-<div><label class="block mb-1 text-sm font-medium">Tipo de Manutenção</label><select class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary"><option>Corretiva</option><option>Preventiva</option></select></div>
-<div><label class="block mb-1 text-sm font-medium">Categoria</label><input class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="text" value="Freios"/></div>
-</div>
-<div><label class="block mb-1 text-sm font-medium">Descrição</label><textarea class="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" rows="3">Verificação completa do sistema de freios, incluindo pastilhas, discos e fluidos.</textarea></div>
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-<div><label class="block mb-1 text-sm font-medium">Intervalo por KM</label><input class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="number" value="20000"/></div>
-<div><label class="block mb-1 text-sm font-medium">Intervalo por Tempo (meses)</label><input class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="number"/></div>
-<div><label class="block mb-1 text-sm font-medium">Critério</label><select class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary"><option>Qual vier primeiro</option><option selected="">Apenas KM</option><option>Apenas Tempo</option><option>Ambos</option></select></div>
+<form id="formEditarItem" class="p-6 overflow-y-auto space-y-4">
+<input type="hidden" id="edit-item-id" />
+<div>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Nome/Título *</label>
+<input id="edit-nome" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="text" required />
 </div>
 <div>
-<h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Tabela de Peças</h4>
-<div class="overflow-x-auto border rounded-lg dark:border-slate-700">
-<table class="w-full text-sm">
-<thead class="text-xs uppercase bg-gray-50 dark:bg-slate-700"><tr class="text-left"><th class="px-4 py-2">Nome da Peça</th><th class="px-4 py-2">Qtd.</th><th class="px-4 py-2">Unidade</th><th class="px-4 py-2">Custo Unitário</th><th class="px-4 py-2">Total</th><th class="w-12 px-4 py-2"></th></tr></thead>
-<tbody>
-<tr class="border-b dark:border-slate-700"><td class="p-1"><input class="w-full h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" value="Pastilha de Freio"/></td><td class="p-1"><input class="w-20 h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" type="number" value="4"/></td><td class="p-1"><input class="w-24 h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" value="un"/></td><td class="p-1"><input class="w-32 h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" value="150.00"/></td><td class="p-1"><input class="w-32 h-9 px-2 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded" readonly="" value="600.00"/></td><td class="p-1 text-center"><button class="text-red-500 hover:text-red-700"><span class="material-symbols-outlined">delete</span></button></td></tr>
-<tr class="border-b dark:border-slate-700"><td class="p-1"><input class="w-full h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" value="Disco de Freio"/></td><td class="p-1"><input class="w-20 h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" type="number" value="2"/></td><td class="p-1"><input class="w-24 h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" value="un"/></td><td class="p-1"><input class="w-32 h-9 px-2 bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded" value="250.00"/></td><td class="p-1"><input class="w-32 h-9 px-2 bg-gray-100 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded" readonly="" value="500.00"/></td><td class="p-1 text-center"><button class="text-red-500 hover:text-red-700"><span class="material-symbols-outlined">delete</span></button></td></tr>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Descrição</label>
+<textarea id="edit-descricao" class="w-full px-3 py-2 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" rows="3"></textarea>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Intervalo por KM</label>
+<input id="edit-intervalo-km" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="number" />
+</div>
+<div>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Intervalo por Tempo (meses)</label>
+<input id="edit-intervalo-meses" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="number" />
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Custo Estimado (R$) *</label>
+<input id="edit-custo" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="number" step="0.01" required />
+</div>
+<div>
+<label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Criticidade *</label>
+<select id="edit-criticidade" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" required>
+<option value="baixa">Baixa</option>
+<option value="media">Média</option>
+<option value="alta">Alta</option>
+</select>
+</div>
+</div>
+
+<!-- Seção de Peças -->
+<div class="border-t dark:border-slate-700 pt-4 mt-4">
+<h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined">build</span>
+Peças do Item
+</h4>
+
+<!-- Adicionar peça -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-3 mb-4">
+<div class="md:col-span-6">
+<select id="edit-select-peca" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary">
+<option value="">Selecione uma peça para adicionar...</option>
+</select>
+</div>
+<div class="md:col-span-3">
+<input id="edit-quantidade-peca" type="number" min="1" value="1" placeholder="Qtd" class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-700 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" />
+</div>
+<div class="md:col-span-3">
+<button type="button" id="btnAdicionarPecaEdicao" class="w-full h-10 px-4 bg-green-600 text-white text-sm font-bold rounded-lg hover:bg-green-700 flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-base">add</span>
+Adicionar
+</button>
+</div>
+</div>
+
+<!-- Lista de peças -->
+<div id="edit-lista-pecas" class="border rounded-lg dark:border-slate-700 overflow-hidden max-h-48 overflow-y-auto">
+<table class="w-full text-sm text-left">
+<thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-slate-700 sticky top-0">
+<tr>
+<th class="px-3 py-2">Peça</th>
+<th class="px-3 py-2 text-center">Qtd</th>
+<th class="px-3 py-2 text-right">Custo</th>
+<th class="px-3 py-2 text-center w-10"></th>
+</tr>
+</thead>
+<tbody id="edit-tbody-pecas">
+<tr><td colspan="4" class="px-3 py-4 text-center text-gray-500 italic text-xs">Nenhuma peça adicionada</td></tr>
 </tbody>
 </table>
 </div>
-<button class="mt-2 text-sm text-primary dark:text-blue-400 font-bold hover:underline">+ Adicionar Peça</button>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-<div><label class="block mb-1 text-sm font-medium">Tempo Estimado (minutos)</label><input class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="number" value="90"/></div>
-<div><label class="block mb-1 text-sm font-medium">Custo Mão de Obra</label><input class="w-full h-10 px-3 text-sm bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 rounded-lg focus:outline-0 focus:ring-2 focus:ring-primary" type="text" value="100.00"/></div>
+<div class="flex justify-between items-center mt-2 text-sm">
+<span class="text-gray-500 dark:text-gray-400">Total em peças:</span>
+<span id="edit-total-pecas" class="font-bold text-primary">R$ 0,00</span>
 </div>
 </div>
-<div class="flex justify-between items-center p-6 bg-gray-50 dark:bg-slate-800/50 border-t dark:border-slate-700 rounded-b-xl">
-<div class="text-lg">
-<span class="text-gray-600 dark:text-gray-400">Custo Total do Item:</span>
-<span class="font-bold text-primary text-xl ml-2">R$ 1.200,00</span>
-</div>
-<div class="flex gap-4">
-<button id="btnCancelarModal" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-gray-300 dark:hover:bg-slate-600">Cancelar</button>
-<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">Salvar Item</button>
-</div>
+</form>
+<div class="flex justify-end items-center p-6 bg-gray-50 dark:bg-slate-800/50 border-t dark:border-slate-700 rounded-b-xl gap-4">
+<button id="btnCancelarModalEditar" class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 text-sm font-bold hover:bg-gray-300 dark:hover:bg-slate-600">Cancelar</button>
+<button id="btnSalvarItemEditar" class="flex min-w-[84px] cursor-pointer items-center justify-center rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90">Salvar Alterações</button>
 </div>
 </div>
 </div>
@@ -232,37 +243,791 @@
 </div>
 
 <script>
-// Controle do Modal
-const modal = document.getElementById('modalAdicionarItem');
-const btnAbrirModal = document.getElementById('btnAbrirModal');
-const btnFecharModal = document.getElementById('btnFecharModal');
-const btnCancelarModal = document.getElementById('btnCancelarModal');
+// Variáveis globais
+let planosCarregados = [];
+let modeloAtual = null;
 
-// Abrir modal
-if (btnAbrirModal) {
-    btnAbrirModal.addEventListener('click', () => {
-        modal.classList.remove('hidden');
+// Verificar parâmetro modeloId na URL
+document.addEventListener('DOMContentLoaded', async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const modeloId = urlParams.get('modeloId');
+
+    if (modeloId) {
+        console.log('📋 Carregando plano para modelo:', modeloId);
+        await carregarModeloEPlano(modeloId);
+    } else {
+        console.log('📋 Nenhum modelo especificado na URL');
+        // Mostrar mensagem para selecionar modelo
+        const tituloPlano = document.getElementById('titulo-plano');
+        const infoPlano = document.getElementById('info-plano');
+        const container = document.getElementById('container-itens-plano');
+
+        if (tituloPlano) {
+            tituloPlano.textContent = 'Selecione um modelo';
+        }
+        if (infoPlano) {
+            infoPlano.innerHTML = 'Acesse a página de <a href="modelos.html" class="text-primary hover:underline">Modelos</a> e clique em "Ver Plano" para visualizar o plano de manutenção.';
+        }
+        if (container) {
+            container.innerHTML = `
+                <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm p-8 border dark:border-slate-700 text-center">
+                    <span class="material-symbols-outlined text-6xl text-gray-400 mb-4">info</span>
+                    <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">Nenhum modelo selecionado</h3>
+                    <p class="text-gray-600 dark:text-gray-400 mb-4">Para visualizar ou editar um plano de manutenção, acesse a página de Modelos e clique no ícone de visualização.</p>
+                    <a href="modelos.html" class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                        <span class="material-symbols-outlined">directions_car</span>
+                        Ir para Modelos
+                    </a>
+                </div>
+            `;
+        }
+    }
+});
+
+// Carregar modelo específico e seus planos
+async function carregarModeloEPlano(modeloId) {
+    try {
+        // Carregar dados do modelo
+        const modeloResponse = await fetch(`/api/modelos/${modeloId}`);
+        const modelo = await modeloResponse.json();
+
+        // Carregar planos de manutenção do modelo
+        const planosResponse = await fetch(`/api/maintenance-plan-items?modelo_id=${modeloId}`);
+        const planos = await planosResponse.json();
+
+        // Atualizar UI com informações do modelo
+        const tituloPlano = document.getElementById('titulo-plano');
+        const infoPlano = document.getElementById('info-plano');
+
+        if (tituloPlano) {
+            tituloPlano.innerHTML = `Plano de Manutenção: <span class="text-primary">${modelo.marca} ${modelo.modelo}</span>`;
+        }
+
+        if (infoPlano) {
+            if (planos.length > 0) {
+                infoPlano.innerHTML = `<span class="text-green-600 dark:text-green-400 font-medium">${planos.length} itens cadastrados</span> - Ano: ${modelo.ano || 'N/A'} | Tipo: ${modelo.tipo || 'N/A'}`;
+            } else {
+                infoPlano.innerHTML = `<span class="text-yellow-600 dark:text-yellow-400 font-medium">Nenhum item cadastrado</span> - Ano: ${modelo.ano || 'N/A'} | Tipo: ${modelo.tipo || 'N/A'}`;
+            }
+        }
+
+        console.log(`✅ Plano carregado: ${modelo.marca} ${modelo.modelo} - ${planos.length} itens`);
+
+        // Armazenar planos e modelo para uso nas funções de edição/exclusão
+        planosCarregados = planos;
+        modeloAtual = modelo;
+
+        // Renderizar tabela de itens do plano
+        renderizarItensPlano(modelo, planos);
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar plano do modelo:', error);
+        alert('Erro ao carregar plano de manutenção');
+    }
+}
+
+// Renderizar itens do plano de manutenção
+function renderizarItensPlano(modelo, planos) {
+    const container = document.getElementById('container-itens-plano');
+    if (!container) return;
+
+    if (planos.length === 0) {
+        container.innerHTML = '';
+        return;
+    }
+
+    let html = `
+        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700">
+            <div class="p-6 border-b dark:border-slate-700">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+                        Itens do Plano: <span class="text-primary">${modelo.marca} ${modelo.modelo}</span>
+                        <span class="text-base font-normal text-gray-500 dark:text-gray-400 ml-2">(${planos.length} itens)</span>
+                    </h2>
+                </div>
+            </div>
+    `;
+
+    planos.forEach((item, index) => {
+        const intervalo = formatarIntervalo(item);
+        const custo = formatarMoeda(item.custo_estimado || item.custo_total || item.custo_mao_obra || 0);
+        const criticidadeRaw = (item.criticidade || 'media').toLowerCase();
+        const criticidade = criticidadeRaw === 'alta' ? 'Alta' : criticidadeRaw === 'baixa' ? 'Baixa' : 'Média';
+        const corCriticidade = criticidadeRaw === 'alta' ? 'bg-red-600 dark:bg-red-700' :
+                              criticidadeRaw === 'baixa' ? 'bg-green-600 dark:bg-green-700' :
+                              'bg-yellow-600 dark:bg-yellow-700';
+
+        html += `
+            <div class="border-b dark:border-slate-700 ${index % 2 === 1 ? 'bg-gray-50 dark:bg-slate-800/50' : ''}">
+                <div class="grid grid-cols-[1fr_auto] items-center p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                        <div class="font-semibold text-gray-900 dark:text-white">${item.nome || item.categoria || 'Item de Manutenção'}</div>
+                        <div class="text-gray-600 dark:text-gray-400">${intervalo}</div>
+                        <div class="text-gray-600 dark:text-gray-400">${custo}</div>
+                        <div><span class="px-2 py-1 text-xs font-medium text-white ${corCriticidade} rounded-full">${criticidade}</span></div>
+                    </div>
+                    <div class="flex items-center gap-2 pl-4">
+                        <button class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300" onclick="gerenciarPecas('${item.id}')" title="Gerenciar Peças">
+                            <span class="material-symbols-outlined">build</span>
+                        </button>
+                        <button class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200" onclick="editarItem('${item.id}')" title="Editar Item">
+                            <span class="material-symbols-outlined">edit</span>
+                        </button>
+                        <button class="text-gray-500 hover:text-red-600 dark:text-gray-400 dark:hover:text-red-400" onclick="excluirItem('${item.id}')" title="Excluir Item">
+                            <span class="material-symbols-outlined">delete</span>
+                        </button>
+                        <button class="text-primary hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300" onclick="toggleDetalhes('item-${item.id}')">
+                            <span class="material-symbols-outlined" id="icon-item-${item.id}">expand_more</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Detalhes expandíveis -->
+                <div id="detalhes-item-${item.id}" class="hidden p-6 bg-gray-50 dark:bg-slate-800/50">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Tipo de Manutenção</p><p class="font-medium">${item.tipo_manutencao || 'Preventiva'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Categoria</p><p class="font-medium">${item.categoria || '-'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Criticidade</p><p class="font-medium">${criticidade}</p></div>
+                        <div class="md:col-span-3"><p class="text-sm text-gray-500 dark:text-gray-400">Descrição</p><p class="font-medium">${item.descricao || '-'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por KM</p><p class="font-medium">${item.intervalo_km ? item.intervalo_km.toLocaleString('pt-BR') : 'N/A'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por Tempo</p><p class="font-medium">${item.intervalo_meses ? item.intervalo_meses + ' meses' : 'N/A'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Critério de Ativação</p><p class="font-medium">${item.criterio || 'Qual vier primeiro'}</p></div>
+                    </div>
+                    ${renderizarTabelaPecas(item.pecas || [])}
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-6 pt-6 border-t dark:border-slate-700">
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Tempo Estimado (minutos)</p><p class="font-medium">${item.tempo_estimado || '-'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Custo Estimado</p><p class="font-medium">${formatarMoeda(item.custo_estimado || item.custo_mao_obra || 0)}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Custo Total</p><p class="font-bold text-lg text-primary">${custo}</p></div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// Formatar intervalo para exibição
+function formatarIntervalo(item) {
+    const partes = [];
+    if (item.intervalo_km) {
+        partes.push(`${item.intervalo_km.toLocaleString('pt-BR')} KM`);
+    }
+    if (item.intervalo_meses) {
+        partes.push(`${item.intervalo_meses} meses`);
+    }
+    if (partes.length === 0) return 'Sob demanda';
+    if (partes.length === 1) return `A cada ${partes[0]}`;
+    return `A cada ${partes[0]} ou ${partes[1]}`;
+}
+
+// Formatar valor em moeda
+function formatarMoeda(valor) {
+    const numero = parseFloat(valor) || 0;
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+    }).format(numero);
+}
+
+// Renderizar tabela de peças
+function renderizarTabelaPecas(pecas) {
+    if (!pecas || pecas.length === 0) {
+        return '<p class="text-sm text-gray-500 dark:text-gray-400 italic">Nenhuma peça cadastrada</p>';
+    }
+
+    let totalPecas = 0;
+    let html = `
+        <h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Tabela de Peças</h4>
+        <div class="overflow-x-auto border rounded-lg dark:border-slate-700">
+            <table class="w-full text-sm text-left">
+                <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-slate-700">
+                    <tr>
+                        <th class="px-4 py-2">Nome da Peça</th>
+                        <th class="px-4 py-2 text-right">Qtd.</th>
+                        <th class="px-4 py-2">Unidade</th>
+                        <th class="px-4 py-2 text-right">Custo Unitário</th>
+                        <th class="px-4 py-2 text-right">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    pecas.forEach(peca => {
+        const total = (peca.quantidade || 1) * (peca.custo_unitario || 0);
+        totalPecas += total;
+        html += `
+            <tr class="border-b dark:border-slate-700">
+                <td class="px-4 py-2">${peca.nome}</td>
+                <td class="px-4 py-2 text-right">${peca.quantidade || 1}</td>
+                <td class="px-4 py-2">${peca.unidade || 'un'}</td>
+                <td class="px-4 py-2 text-right">${formatarMoeda(peca.custo_unitario || 0)}</td>
+                <td class="px-4 py-2 text-right">${formatarMoeda(total)}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+                <tfoot>
+                    <tr class="font-semibold text-gray-800 dark:text-white">
+                        <td class="px-4 py-2 text-right" colspan="4">Total Peças</td>
+                        <td class="px-4 py-2 text-right">${formatarMoeda(totalPecas)}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    `;
+
+    return html;
+}
+
+// Toggle para mostrar/ocultar detalhes
+function toggleDetalhes(itemId) {
+    const detalhes = document.getElementById(`detalhes-${itemId}`);
+    const icon = document.getElementById(`icon-${itemId}`);
+
+    if (detalhes) {
+        detalhes.classList.toggle('hidden');
+        if (icon) {
+            icon.textContent = detalhes.classList.contains('hidden') ? 'expand_more' : 'expand_less';
+        }
+    }
+}
+
+// Configurar eventos do modal de edição
+document.addEventListener('DOMContentLoaded', () => {
+    const modalEditar = document.getElementById('modalEditarItem');
+    const btnFechar = document.getElementById('btnFecharModalEditar');
+    const btnCancelar = document.getElementById('btnCancelarModalEditar');
+    const btnSalvar = document.getElementById('btnSalvarItemEditar');
+
+    // Fechar modal
+    if (btnFechar) {
+        btnFechar.addEventListener('click', fecharModalEditar);
+    }
+    if (btnCancelar) {
+        btnCancelar.addEventListener('click', fecharModalEditar);
+    }
+
+    // Fechar ao clicar fora
+    if (modalEditar) {
+        modalEditar.addEventListener('click', (e) => {
+            if (e.target === modalEditar) fecharModalEditar();
+        });
+    }
+
+    // Salvar alterações
+    if (btnSalvar) {
+        btnSalvar.addEventListener('click', salvarEdicaoItem);
+    }
+
+    // Botão de adicionar peça no modal de edição
+    const btnAdicionarPecaEdicao = document.getElementById('btnAdicionarPecaEdicao');
+    if (btnAdicionarPecaEdicao) {
+        btnAdicionarPecaEdicao.addEventListener('click', adicionarPecaEdicao);
+    }
+});
+
+// Abrir modal de edição
+async function editarItem(itemId) {
+    const item = planosCarregados.find(p => p.id == itemId);
+    if (!item) {
+        console.error('Item não encontrado:', itemId);
+        alert('Item não encontrado');
+        return;
+    }
+
+    console.log('Editando item:', item);
+
+    // Preencher formulário
+    document.getElementById('edit-item-id').value = item.id;
+    document.getElementById('edit-nome').value = item.nome || '';
+    document.getElementById('edit-descricao').value = item.descricao || '';
+    document.getElementById('edit-intervalo-km').value = item.intervalo_km || '';
+    document.getElementById('edit-intervalo-meses').value = item.intervalo_meses || '';
+    document.getElementById('edit-custo').value = item.custo_estimado || 0;
+
+    // Definir criticidade
+    const criticidade = (item.criticidade || 'media').toLowerCase();
+    document.getElementById('edit-criticidade').value = criticidade;
+
+    // Carregar peças disponíveis no select de edição
+    await carregarPecasSelectEdicao();
+
+    // Carregar peças do item
+    await carregarPecasItemEdicao(itemId);
+
+    // Abrir modal
+    document.getElementById('modalEditarItem').classList.remove('hidden');
+}
+
+// Carregar peças no select do modal de edição
+async function carregarPecasSelectEdicao() {
+    const select = document.getElementById('edit-select-peca');
+    if (!select) return;
+
+    // Carregar peças se ainda não carregou
+    if (pecasDisponiveis.length === 0) {
+        await carregarPecasDisponiveis();
+    }
+
+    select.innerHTML = '<option value="">Selecione uma peça para adicionar...</option>';
+
+    // Agrupar por categoria
+    const categorias = {};
+    pecasDisponiveis.forEach(peca => {
+        const cat = peca.categoria || 'Outros';
+        if (!categorias[cat]) categorias[cat] = [];
+        categorias[cat].push(peca);
+    });
+
+    // Criar optgroups por categoria
+    Object.keys(categorias).sort().forEach(categoria => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = categoria;
+
+        categorias[categoria].forEach(peca => {
+            const option = document.createElement('option');
+            option.value = peca.id;
+            option.textContent = `${peca.codigo ? peca.codigo + ' - ' : ''}${peca.nome} (${formatarMoeda(peca.custo_unitario)})`;
+            optgroup.appendChild(option);
+        });
+
+        select.appendChild(optgroup);
     });
 }
 
-// Fechar modal - botão X
-if (btnFecharModal) {
-    btnFecharModal.addEventListener('click', () => {
-        modal.classList.add('hidden');
+// Carregar peças de um item no modal de edição
+async function carregarPecasItemEdicao(itemId) {
+    const tbody = document.getElementById('edit-tbody-pecas');
+    const totalElement = document.getElementById('edit-total-pecas');
+
+    tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-500 text-xs">Carregando...</td></tr>';
+
+    try {
+        const response = await fetch(`${API_PLANO_PECAS_URL}/${itemId}`);
+        const result = await response.json();
+
+        const pecas = result.data || result;
+        let custoTotal = 0;
+
+        if (!pecas || pecas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-500 italic text-xs">Nenhuma peça adicionada</td></tr>';
+            totalElement.textContent = 'R$ 0,00';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        pecas.forEach(peca => {
+            const total = (peca.quantidade || 1) * (peca.custo_unitario || 0);
+            custoTotal += total;
+
+            const tr = document.createElement('tr');
+            tr.className = 'border-b dark:border-slate-700';
+            tr.innerHTML = `
+                <td class="px-3 py-2 text-xs">${peca.nome}</td>
+                <td class="px-3 py-2 text-center text-xs">${peca.quantidade || 1}</td>
+                <td class="px-3 py-2 text-right text-xs">${formatarMoeda(total)}</td>
+                <td class="px-3 py-2 text-center">
+                    <button type="button" class="text-red-500 hover:text-red-700" onclick="removerPecaEdicao(${peca.id})" title="Remover">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        totalElement.textContent = formatarMoeda(custoTotal);
+    } catch (error) {
+        console.error('Erro ao carregar peças do item:', error);
+        tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-red-500 text-xs">Erro ao carregar</td></tr>';
+    }
+}
+
+// Adicionar peça ao item (modal de edição)
+async function adicionarPecaEdicao() {
+    const itemId = document.getElementById('edit-item-id').value;
+    const pecaId = document.getElementById('edit-select-peca').value;
+    const quantidade = parseInt(document.getElementById('edit-quantidade-peca').value) || 1;
+
+    if (!pecaId) {
+        alert('Selecione uma peça');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_PLANO_PECAS_URL}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                plano_item_id: itemId,
+                peca_id: pecaId,
+                quantidade: quantidade
+            })
+        });
+
+        if (response.ok) {
+            // Recarregar lista de peças
+            await carregarPecasItemEdicao(itemId);
+
+            // Limpar campos
+            document.getElementById('edit-select-peca').value = '';
+            document.getElementById('edit-quantidade-peca').value = '1';
+        } else {
+            const result = await response.json();
+            alert('Erro ao adicionar peça: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao adicionar peça:', error);
+        alert('Erro ao adicionar peça');
+    }
+}
+
+// Remover peça do item (modal de edição)
+async function removerPecaEdicao(associacaoId) {
+    if (!confirm('Remover esta peça?')) return;
+
+    try {
+        const response = await fetch(`${API_PLANO_PECAS_URL}/${associacaoId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            const itemId = document.getElementById('edit-item-id').value;
+            await carregarPecasItemEdicao(itemId);
+        } else {
+            const result = await response.json();
+            alert('Erro: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao remover peça:', error);
+        alert('Erro ao remover peça');
+    }
+}
+
+// Fechar modal de edição
+function fecharModalEditar() {
+    document.getElementById('modalEditarItem').classList.add('hidden');
+}
+
+// Salvar edição do item
+async function salvarEdicaoItem() {
+    const itemId = document.getElementById('edit-item-id').value;
+    const dados = {
+        nome: document.getElementById('edit-nome').value,
+        descricao: document.getElementById('edit-descricao').value,
+        intervalo_km: document.getElementById('edit-intervalo-km').value ? parseInt(document.getElementById('edit-intervalo-km').value) : null,
+        intervalo_meses: document.getElementById('edit-intervalo-meses').value ? parseInt(document.getElementById('edit-intervalo-meses').value) : null,
+        custo_estimado: parseFloat(document.getElementById('edit-custo').value) || 0,
+        criticidade: document.getElementById('edit-criticidade').value
+    };
+
+    if (!dados.nome || !dados.custo_estimado) {
+        alert('Preencha os campos obrigatórios: Nome e Custo Estimado');
+        return;
+    }
+
+    try {
+        console.log('Salvando item:', itemId, dados);
+
+        const response = await fetch(`/api/maintenance-plan-items/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        if (response.ok) {
+            alert('Item atualizado com sucesso!');
+            fecharModalEditar();
+
+            // Recarregar planos
+            const urlParams = new URLSearchParams(window.location.search);
+            const modeloId = urlParams.get('modeloId');
+            if (modeloId) {
+                await carregarModeloEPlano(modeloId);
+            }
+        } else {
+            const error = await response.json();
+            alert('Erro ao atualizar: ' + (error.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao salvar:', error);
+        alert('Erro ao salvar alterações');
+    }
+}
+
+// Excluir item
+async function excluirItem(itemId) {
+    const item = planosCarregados.find(p => p.id == itemId);
+    const nomeItem = item ? item.nome : 'este item';
+
+    if (!confirm(`Deseja realmente excluir "${nomeItem}"?\n\nEsta ação não pode ser desfeita.`)) {
+        return;
+    }
+
+    try {
+        console.log('Excluindo item:', itemId);
+
+        const response = await fetch(`/api/maintenance-plan-items/${itemId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert('Item excluído com sucesso!');
+
+            // Recarregar planos
+            const urlParams = new URLSearchParams(window.location.search);
+            const modeloId = urlParams.get('modeloId');
+            if (modeloId) {
+                await carregarModeloEPlano(modeloId);
+            }
+        } else {
+            const error = await response.json();
+            alert('Erro ao excluir: ' + (error.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao excluir:', error);
+        alert('Erro ao excluir item');
+    }
+}
+
+// ==================== GERENCIAMENTO DE PEÇAS ====================
+
+// URL base da API de peças (ajuste conforme seu ambiente)
+const API_PECAS_URL = '/api/pecas'; // Para servidor local
+const API_PLANO_PECAS_URL = '/api/plano-pecas'; // Para associação peças-plano
+// const API_PECAS_URL = 'https://seudominio.com/api/pecas-api.php'; // Para cPanel
+
+let pecasDisponiveis = [];
+
+// Carregar lista de peças disponíveis
+async function carregarPecasDisponiveis() {
+    try {
+        const response = await fetch(`${API_PECAS_URL}`);
+        const result = await response.json();
+
+        if (result.success !== false) {
+            pecasDisponiveis = result.data || result;
+            atualizarSelectPecas();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar peças:', error);
+    }
+}
+
+// Atualizar select de peças
+function atualizarSelectPecas() {
+    const select = document.getElementById('select-peca');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Selecione uma peça...</option>';
+
+    // Agrupar por categoria
+    const categorias = {};
+    pecasDisponiveis.forEach(peca => {
+        const cat = peca.categoria || 'Outros';
+        if (!categorias[cat]) categorias[cat] = [];
+        categorias[cat].push(peca);
+    });
+
+    // Criar optgroups por categoria
+    Object.keys(categorias).sort().forEach(categoria => {
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = categoria;
+
+        categorias[categoria].forEach(peca => {
+            const option = document.createElement('option');
+            option.value = peca.id;
+            option.textContent = `${peca.codigo ? peca.codigo + ' - ' : ''}${peca.nome} (${formatarMoeda(peca.custo_unitario)})`;
+            option.dataset.custo = peca.custo_unitario;
+            optgroup.appendChild(option);
+        });
+
+        select.appendChild(optgroup);
     });
 }
 
-// Fechar modal - botão Cancelar
-if (btnCancelarModal) {
-    btnCancelarModal.addEventListener('click', () => {
-        modal.classList.add('hidden');
-    });
+// Abrir modal de gerenciamento de peças
+async function gerenciarPecas(itemId) {
+    const item = planosCarregados.find(p => p.id == itemId);
+    if (!item) {
+        alert('Item não encontrado');
+        return;
+    }
+
+    console.log('Gerenciando peças do item:', item);
+
+    // Atualizar título do modal
+    document.getElementById('modalPecasTitulo').textContent = `Peças: ${item.nome || 'Item de Manutenção'}`;
+    document.getElementById('pecas-item-id').value = itemId;
+
+    // Carregar peças disponíveis se ainda não carregou
+    if (pecasDisponiveis.length === 0) {
+        await carregarPecasDisponiveis();
+    }
+
+    // Carregar peças do item
+    await carregarPecasDoItem(itemId);
+
+    // Abrir modal
+    document.getElementById('modalPecas').classList.remove('hidden');
 }
 
-// Fechar modal ao clicar fora
-modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-        modal.classList.add('hidden');
+// Carregar peças de um item específico
+async function carregarPecasDoItem(itemId) {
+    const tbody = document.getElementById('tbody-pecas-item');
+    const totalElement = document.getElementById('total-pecas-item');
+
+    tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Carregando...</td></tr>';
+
+    try {
+        const response = await fetch(`${API_PLANO_PECAS_URL}/${itemId}`);
+        const result = await response.json();
+
+        const pecas = result.data || result;
+        let custoTotal = 0;
+
+        if (!pecas || pecas.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500 italic">Nenhuma peça cadastrada para este item</td></tr>';
+            totalElement.textContent = 'R$ 0,00';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        pecas.forEach(peca => {
+            const total = (peca.quantidade || 1) * (peca.custo_unitario || 0);
+            custoTotal += total;
+
+            const tr = document.createElement('tr');
+            tr.className = 'border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50';
+            tr.innerHTML = `
+                <td class="px-4 py-3 text-gray-600 dark:text-gray-400">${peca.codigo || '-'}</td>
+                <td class="px-4 py-3 font-medium">${peca.nome}</td>
+                <td class="px-4 py-3 text-center">${peca.quantidade || 1}</td>
+                <td class="px-4 py-3">${peca.unidade || 'un'}</td>
+                <td class="px-4 py-3 text-right">${formatarMoeda(peca.custo_unitario || 0)}</td>
+                <td class="px-4 py-3 text-right font-medium">${formatarMoeda(total)}</td>
+                <td class="px-4 py-3 text-center">
+                    <button class="text-red-500 hover:text-red-700" onclick="removerPecaDoItem(${peca.id})" title="Remover peça">
+                        <span class="material-symbols-outlined text-base">delete</span>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        totalElement.textContent = formatarMoeda(custoTotal);
+    } catch (error) {
+        console.error('Erro ao carregar peças do item:', error);
+        tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-red-500">Erro ao carregar peças</td></tr>';
+    }
+}
+
+// Adicionar peça ao item
+async function adicionarPecaAoItem() {
+    const itemId = document.getElementById('pecas-item-id').value;
+    const pecaId = document.getElementById('select-peca').value;
+    const quantidade = parseInt(document.getElementById('input-quantidade-peca').value) || 1;
+
+    if (!pecaId) {
+        alert('Selecione uma peça');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_PLANO_PECAS_URL}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                plano_item_id: itemId,
+                peca_id: pecaId,
+                quantidade: quantidade
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Recarregar lista de peças
+            await carregarPecasDoItem(itemId);
+
+            // Limpar campos
+            document.getElementById('select-peca').value = '';
+            document.getElementById('input-quantidade-peca').value = '1';
+
+            // Recarregar plano para atualizar a tabela de peças nos detalhes
+            const urlParams = new URLSearchParams(window.location.search);
+            const modeloId = urlParams.get('modeloId');
+            if (modeloId) {
+                await carregarModeloEPlano(modeloId);
+            }
+        } else {
+            alert('Erro ao adicionar peça: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao adicionar peça:', error);
+        alert('Erro ao adicionar peça');
+    }
+}
+
+// Remover peça do item
+async function removerPecaDoItem(associacaoId) {
+    if (!confirm('Deseja remover esta peça do item?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_PLANO_PECAS_URL}/${associacaoId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            // Recarregar lista de peças
+            const itemId = document.getElementById('pecas-item-id').value;
+            await carregarPecasDoItem(itemId);
+
+            // Recarregar plano
+            const urlParams = new URLSearchParams(window.location.search);
+            const modeloId = urlParams.get('modeloId');
+            if (modeloId) {
+                await carregarModeloEPlano(modeloId);
+            }
+        } else {
+            const result = await response.json();
+            alert('Erro ao remover peça: ' + (result.error || 'Erro desconhecido'));
+        }
+    } catch (error) {
+        console.error('Erro ao remover peça:', error);
+        alert('Erro ao remover peça');
+    }
+}
+
+// Fechar modal de peças
+function fecharModalPecas() {
+    document.getElementById('modalPecas').classList.add('hidden');
+}
+
+// Configurar eventos do modal de peças
+document.addEventListener('DOMContentLoaded', () => {
+    // Carregar peças disponíveis
+    carregarPecasDisponiveis();
+
+    // Eventos do modal
+    const btnFechar = document.getElementById('btnFecharModalPecas');
+    const btnFechar2 = document.getElementById('btnFecharModalPecas2');
+    const btnAdicionar = document.getElementById('btnAdicionarPeca');
+    const modalPecas = document.getElementById('modalPecas');
+
+    if (btnFechar) btnFechar.addEventListener('click', fecharModalPecas);
+    if (btnFechar2) btnFechar2.addEventListener('click', fecharModalPecas);
+    if (btnAdicionar) btnAdicionar.addEventListener('click', adicionarPecaAoItem);
+
+    // Fechar ao clicar fora
+    if (modalPecas) {
+        modalPecas.addEventListener('click', (e) => {
+            if (e.target === modalPecas) fecharModalPecas();
+        });
     }
 });
 </script>

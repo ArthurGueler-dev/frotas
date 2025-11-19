@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - API Planos de Manutenção</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+        }
+
+        .test-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #48bb78;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+        }
+
+        .btn-danger {
+            background: #f56565;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+        }
+
+        .result {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        .success {
+            color: #48bb78;
+            font-weight: bold;
+        }
+
+        .error {
+            color: #f56565;
+            font-weight: bold;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e2e8f0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .input-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔧 Teste - API Planos de Manutenção</h1>
+            <p>Interface de teste para a API REST de planos de manutenção</p>
+        </div>
+
+        <!-- Listar Todos -->
+        <div class="test-section">
+            <h2>📋 Listar Planos</h2>
+            <button class="btn" onclick="listarTodos()">Listar Todos os Planos</button>
+            <button class="btn" onclick="listarPorModelo()">Buscar por Modelo</button>
+            <div id="result-listar" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Criar Novo -->
+        <div class="test-section">
+            <h2>➕ Criar Novo Plano</h2>
+            <div class="grid">
+                <div class="input-group">
+                    <label>Modelo do Carro:</label>
+                    <input type="text" id="novo-modelo" placeholder="Ex: Toyota Hilux">
+                </div>
+                <div class="input-group">
+                    <label>Título da Manutenção:</label>
+                    <input type="text" id="novo-titulo" placeholder="Ex: Revisão 10.000 km">
+                </div>
+            </div>
+            <div class="grid">
+                <div class="input-group">
+                    <label>KM Recomendado:</label>
+                    <input type="number" id="novo-km" placeholder="Ex: 10000">
+                </div>
+                <div class="input-group">
+                    <label>Intervalo de Tempo:</label>
+                    <input type="text" id="novo-intervalo" placeholder="Ex: 6 meses">
+                </div>
+            </div>
+            <div class="grid">
+                <div class="input-group">
+                    <label>Custo Estimado (R$):</label>
+                    <input type="number" step="0.01" id="novo-custo" placeholder="Ex: 500.00">
+                </div>
+                <div class="input-group">
+                    <label>Criticidade:</label>
+                    <select id="novo-criticidade">
+                        <option value="Baixa">Baixa</option>
+                        <option value="Média" selected>Média</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Crítica">Crítica</option>
+                    </select>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Descrição/Observação:</label>
+                <textarea id="novo-descricao" placeholder="Descreva os serviços incluídos..."></textarea>
+            </div>
+            <button class="btn btn-success" onclick="criarPlano()">Criar Plano</button>
+            <div id="result-criar" class="result" style="display:none;"></div>
+        </div>
+
+        <!-- Buscar, Atualizar e Deletar -->
+        <div class="test-section">
+            <h2>🔍 Buscar, Atualizar ou Deletar</h2>
+            <div class="input-group">
+                <label>ID do Plano:</label>
+                <input type="number" id="plano-id" placeholder="Digite o ID">
+            </div>
+            <button class="btn" onclick="buscarPorId()">Buscar por ID</button>
+            <button class="btn btn-danger" onclick="deletarPlano()">Deletar Plano</button>
+            <div id="result-acoes" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // URL da API no cPanel
+        const API_URL = 'https://floripa.in9automacao.com.br/cpanel-api/planos-manutencao-api.php';
+
+        function mostrarResultado(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.style.display = 'block';
+            element.innerHTML = `<pre class="${isError ? 'error' : 'success'}">${JSON.stringify(data, null, 2)}</pre>`;
+        }
+
+        async function listarTodos() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                mostrarResultado('result-listar', data);
+            } catch (error) {
+                mostrarResultado('result-listar', { error: error.message }, true);
+            }
+        }
+
+        async function listarPorModelo() {
+            const modelo = prompt('Digite o nome do modelo:');
+            if (!modelo) return;
+
+            try {
+                const response = await fetch(`${API_URL}?modelo=${encodeURIComponent(modelo)}`);
+                const data = await response.json();
+                mostrarResultado('result-listar', data);
+            } catch (error) {
+                mostrarResultado('result-listar', { error: error.message }, true);
+            }
+        }
+
+        async function criarPlano() {
+            const novoPlano = {
+                modelo_carro: document.getElementById('novo-modelo').value,
+                descricao_titulo: document.getElementById('novo-titulo').value,
+                km_recomendado: parseInt(document.getElementById('novo-km').value) || null,
+                intervalo_tempo: document.getElementById('novo-intervalo').value || null,
+                custo_estimado: parseFloat(document.getElementById('novo-custo').value) || null,
+                criticidade: document.getElementById('novo-criticidade').value,
+                descricao_observacao: document.getElementById('novo-descricao').value || null
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(novoPlano)
+                });
+                const data = await response.json();
+                mostrarResultado('result-criar', data, !data.success);
+
+                if (data.success) {
+                    // Limpar formulário
+                    document.getElementById('novo-modelo').value = '';
+                    document.getElementById('novo-titulo').value = '';
+                    document.getElementById('novo-km').value = '';
+                    document.getElementById('novo-intervalo').value = '';
+                    document.getElementById('novo-custo').value = '';
+                    document.getElementById('novo-descricao').value = '';
+                }
+            } catch (error) {
+                mostrarResultado('result-criar', { error: error.message }, true);
+            }
+        }
+
+        async function buscarPorId() {
+            const id = document.getElementById('plano-id').value;
+            if (!id) {
+                alert('Digite um ID');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}?id=${id}`);
+                const data = await response.json();
+                mostrarResultado('result-acoes', data, !data.success);
+            } catch (error) {
+                mostrarResultado('result-acoes', { error: error.message }, true);
+            }
+        }
+
+        async function deletarPlano() {
+            const id = document.getElementById('plano-id').value;
+            if (!id) {
+                alert('Digite um ID');
+                return;
+            }
+
+            if (!confirm(`Tem certeza que deseja deletar o plano ID ${id}?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}?id=${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await response.json();
+                mostrarResultado('result-acoes', data, !data.success);
+            } catch (error) {
+                mostrarResultado('result-acoes', { error: error.message }, true);
+            }
+        }
+    </script>
+</body>
+</html>

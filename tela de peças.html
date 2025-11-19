@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cadastro de Peças - Gestão de Frotas</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
+<div class="flex h-screen bg-background-light dark:bg-background-dark">
+<aside class="flex w-64 flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-background-dark">
+<div class="flex h-16 shrink-0 items-center justify-between px-6">
+<div class="flex items-center gap-3">
+<div class="size-7 text-primary">
+<svg fill="none" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 4H17.3334V17.3334H30.6666V30.6666H44V44H4V4Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold tracking-tight text-gray-900 dark:text-white">Gestão de Frotas</h2>
+</div>
+</div>
+<nav class="flex-1 space-y-2 px-4 py-4">
+<a class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50" href="#">
+<span class="material-symbols-outlined text-xl">dashboard</span>
+<span>Dashboard</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50" href="#">
+<span class="material-symbols-outlined text-xl">directions_car</span>
+<span>Veículos</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50" href="#">
+<span class="material-symbols-outlined text-xl">build</span>
+<span>Planos de Manutenção</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-bold bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary" href="#">
+<span class="material-symbols-outlined text-xl">settings_input_component</span>
+<span>Peças</span>
+</a>
+<a class="flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/50" href="#">
+<span class="material-symbols-outlined text-xl">assessment</span>
+<span>Relatórios</span>
+</a>
+</nav>
+<div class="mt-auto p-4">
+<div class="rounded-lg bg-gray-100 dark:bg-gray-700/50 p-4 flex flex-col items-center text-center">
+<span class="material-symbols-outlined text-3xl text-primary mb-2">new_releases</span>
+<p class="text-sm font-semibold text-gray-800 dark:text-white">Nova funcionalidade!</p>
+<p class="text-xs text-gray-600 dark:text-gray-400 mt-1 mb-3">Gerencie seus fornecedores de forma mais eficiente.</p>
+<button class="bg-primary text-white text-xs font-bold py-2 px-3 rounded-md hover:bg-primary/90">Conhecer agora</button>
+</div>
+</div>
+</aside>
+<div class="flex flex-1 flex-col overflow-hidden">
+<header class="flex h-16 shrink-0 items-center justify-end border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-background-dark px-6">
+<div class="flex items-center gap-3">
+<button class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+<span class="material-symbols-outlined text-xl">notifications</span>
+</button>
+<button class="flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-700/50 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700">
+<span class="material-symbols-outlined text-xl">settings</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuANpHxsbr15X6PuFTuY6SuOu4dkp7s5DpvYI_CdoK4kqk4F4JN2gBVBwSI5ZKJI0LE9mC0fnpVgw5CIhvw9xYKBRHsPXyBR6wCgAAKQno2kF4tw81srVoJf1eAEVDcF4rKGU0cP2cQFqtj_ZLADsmqqEcF-l4mFyavFgNPYsWAPZIh-BA1RpyC2K596_oViGUiXLEbNgCO6VxW2Qfhd3uZ1kKR5oKiKBUeQs1oCZly3Fy1dLw1z_ZfU4tHzR_h6I8OWBl4pCsdrYSo");'></div>
+</div>
+</header>
+<main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+<div class="mx-auto w-full" style="max-width: 1400px;">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+<div class="lg:col-span-1 bg-white dark:bg-gray-800/50 p-6 rounded-xl border border-gray-200 dark:border-gray-700 sticky top-6">
+<h2 class="text-gray-900 dark:text-white text-xl font-bold tracking-tight mb-6">Cadastrar Nova Peça</h2>
+<form class="space-y-4">
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-name">Nome da Peça</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-name" placeholder="Ex: Filtro de Óleo" type="text"/>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-code">Código/Referência</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-code" placeholder="Ex: SC-450-FO" type="text"/>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-unit">Unidade de Medida</label>
+<select class="form-select mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-unit">
+<option>UN</option>
+<option>L</option>
+<option>KG</option>
+<option>M</option>
+</select>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-cost">Custo Unitário (R$)</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-cost" placeholder="Ex: 85,50" type="text"/>
+</div>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-supplier">Fornecedor Padrão</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-supplier" placeholder="Ex: Fornecedor XYZ" type="text"/>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-description">Descrição</label>
+<textarea class="form-textarea mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-2 text-sm font-normal" id="part-description" placeholder="Detalhes sobre a peça..." rows="3"></textarea>
+</div>
+<div>
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-notes">Observações</label>
+<textarea class="form-textarea mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-background-light dark:bg-gray-700 focus:border-primary dark:focus:border-primary placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 py-2 text-sm font-normal" id="part-notes" placeholder="Notas adicionais..." rows="3"></textarea>
+</div>
+<div class="flex justify-end pt-4">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white gap-2 text-sm font-bold tracking-wide hover:bg-primary/90 w-full" type="submit">
+<span class="material-symbols-outlined text-lg">add_circle</span>
+<span class="truncate">Salvar Peça</span>
+</button>
+</div>
+</form>
+</div>
+<div class="lg:col-span-2">
+<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+<h1 class="text-gray-900 dark:text-white text-3xl font-black tracking-tighter">Peças Cadastradas</h1>
+<div class="flex items-center gap-4">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+<input class="form-input pl-10 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800/50 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" placeholder="Buscar por nome ou código..." type="search"/>
+</div>
+<button class="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+<span class="material-symbols-outlined text-xl">filter_list</span>
+</button>
+</div>
+</div>
+<div class="bg-white dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-sm text-left">
+<thead class="bg-gray-50 dark:bg-gray-900/50 text-xs uppercase text-gray-700 dark:text-gray-400">
+<tr>
+<th class="px-6 py-3" scope="col">Nome da Peça</th>
+<th class="px-6 py-3" scope="col">Código/Referência</th>
+<th class="px-6 py-3" scope="col">Unidade</th>
+<th class="px-6 py-3" scope="col">Custo Unitário</th>
+<th class="px-6 py-3 text-right" scope="col">Ações</th>
+</tr>
+</thead>
+<tbody>
+<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">Filtro de Óleo do Motor</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">SC-450-FO</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">UN</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">R$ 85,50</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400"><span class="material-symbols-outlined text-lg">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">Pastilhas de Freio (par)</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">FR-20-PD</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">UN</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">R$ 250,00</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400"><span class="material-symbols-outlined text-lg">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">Fluido de Freio DOT 4</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">FF-DOT4-1L</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">L</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">R$ 80,00</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400"><span class="material-symbols-outlined text-lg">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">Óleo Lubrificante 15W40</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">OL-15W40-20L</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">L</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">R$ 22,50</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400"><span class="material-symbols-outlined text-lg">delete</span></button>
+</div>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+<td class="px-6 py-4 font-medium text-gray-900 dark:text-white">Lona de Freio Traseira</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">LFT-003</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">UN</td>
+<td class="px-6 py-4 text-gray-600 dark:text-gray-300">R$ 420,00</td>
+<td class="px-6 py-4 text-right">
+<div class="flex justify-end gap-2">
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"><span class="material-symbols-outlined text-lg">edit</span></button>
+<button class="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-900/50 text-red-500 dark:text-red-400"><span class="material-symbols-outlined text-lg">delete</span></button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center text-sm text-gray-600 dark:text-gray-400">
+<div>
+<p>Exibindo <span class="font-semibold text-gray-900 dark:text-white">1-5</span> de <span class="font-semibold text-gray-900 dark:text-white">25</span> peças</p>
+</div>
+<div class="inline-flex items-center gap-2 mt-4 sm:mt-0">
+<button class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50" disabled="">
+<span class="material-symbols-outlined text-base">chevron_left</span>
+</button>
+<span>Página 1 de 5</span>
+<button class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700">
+<span class="material-symbols-outlined text-base">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

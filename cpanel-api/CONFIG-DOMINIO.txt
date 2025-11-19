@@ -1,0 +1,65 @@
+╔════════════════════════════════════════════════════════════════════╗
+║                  CONFIGURAÇÃO DO DOMÍNIO                           ║
+╚════════════════════════════════════════════════════════════════════╝
+
+⚠️  ATENÇÃO: Você precisa configurar o domínio correto!
+
+PASSO 1: Descubra seu domínio do cPanel
+=========================================
+
+1. Acesse seu cPanel
+2. Veja qual é o domínio principal (exemplo: seusite.com.br)
+3. Anote o endereço completo
+
+Exemplos comuns:
+- https://seusite.com.br
+- https://www.seusite.com.br
+- http://seusite.com.br (se não tiver SSL)
+
+
+PASSO 2: Atualizar os arquivos
+================================
+
+Abra e edite os seguintes arquivos, substituindo
+"SEU_DOMINIO_AQUI" pelo seu domínio real:
+
+📁 Arquivo 1: testar-api-planos.html
+Linha ~231:
+const API_URL = 'SEU_DOMINIO_AQUI/cpanel-api/planos-manutencao-api.php';
+
+Substitua por (exemplo):
+const API_URL = 'https://seusite.com.br/cpanel-api/planos-manutencao-api.php';
+
+
+📁 Arquivo 2: migrar-planos-para-nova-tabela.js
+Linha ~6:
+const API_URL = 'SEU_DOMINIO_AQUI/cpanel-api/planos-manutencao-api.php';
+
+Substitua por (exemplo):
+const API_URL = 'https://seusite.com.br/cpanel-api/planos-manutencao-api.php';
+
+
+PASSO 3: Testar
+================
+
+Depois de configurar, teste abrindo no navegador:
+https://seusite.com.br/cpanel-api/testar-api-planos.html
+
+(substitua "seusite.com.br" pelo seu domínio real)
+
+
+PRECISA DE AJUDA?
+=================
+
+Se você não sabe qual é o domínio, me informe:
+
+1. Você tem um site já online? Qual o endereço?
+2. Você tem acesso ao cPanel? Qual o link de acesso?
+3. O site está em qual servidor/hospedagem?
+
+Com essas informações posso te ajudar melhor!
+
+
+╔════════════════════════════════════════════════════════════════════╗
+║  IMPORTANTE: Não invente URLs! Use o domínio real do seu cPanel   ║
+╚════════════════════════════════════════════════════════════════════╝

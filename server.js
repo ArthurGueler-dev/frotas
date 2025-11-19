@@ -3383,6 +3383,435 @@ app.delete('/api/maintenance-plan-items/:id', async (req, res) => {
     }
 });
 
+// ==================== API DE ORDENS DE SERVIÇO ====================
+
+// GET - Listar todas as ordens de serviço
+app.get('/api/ordens-servico', async (req, res) => {
+    try {
+        const [ordens] = await pool.query(`
+            SELECT
+                os.id,
+                os.ordem_numero,
+                os.placa_veiculo as placa,
+                os.km_veiculo,
+                os.responsavel,
+                os.status,
+                os.observacoes,
+                os.data_criacao as data_abertura,
+                os.data_finalizacao as data_conclusao,
+                os.ocorrencia as tipo_servico,
+                COALESCE(
+                    (SELECT SUM(valor_total) FROM ordemservico_itens WHERE ordem_numero = os.ordem_numero),
+                    0
+                ) as custo_total
+            FROM ordemservico os
+            ORDER BY
+                CASE os.status
+                    WHEN 'Aberta' THEN 1
+                    WHEN 'Diagnóstico' THEN 2
+                    WHEN 'Orçamento' THEN 3
+                    WHEN 'Execução' THEN 4
+                    WHEN 'Finalizada' THEN 5
+                    WHEN 'Cancelada' THEN 6
+                END,
+                os.data_criacao DESC
+        `);
+
+        // Mapear status para formato esperado pelo frontend
+        const ordensFormatadas = ordens.map(os => ({
+            ...os,
+            status: mapearStatus(os.status),
+            prioridade: os.ocorrencia === 'Corretiva' ? 'Alta' : 'Normal'
+        }));
+
+        res.json(ordensFormatadas);
+    } catch (error) {
+        console.error('❌ Erro ao listar ordens de serviço:', error);
+        res.status(500).json({ error: 'Erro ao listar ordens de serviço' });
+    }
+});
+
+// Função para mapear status da tabela para o frontend
+function mapearStatus(status) {
+    const mapa = {
+        'Aberta': 'Pendente',
+        'Diagnóstico': 'Pendente',
+        'Orçamento': 'Pendente',
+        'Execução': 'Em Andamento',
+        'Finalizada': 'Concluída',
+        'Cancelada': 'Cancelada'
+    };
+    return mapa[status] || status;
+}
+
+// GET - Buscar ordem de serviço por ID
+app.get('/api/ordens-servico/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [ordens] = await pool.query('SELECT * FROM ordemservico WHERE id = ?', [id]);
+
+        if (ordens.length === 0) {
+            return res.status(404).json({ error: 'Ordem de serviço não encontrada' });
+        }
+
+        // Buscar itens da OS
+        const [itens] = await pool.query(
+            'SELECT * FROM ordemservico_itens WHERE ordem_numero = ?',
+            [ordens[0].ordem_numero]
+        );
+
+        res.json({ ...ordens[0], itens });
+    } catch (error) {
+        console.error('❌ Erro ao buscar ordem de serviço:', error);
+        res.status(500).json({ error: 'Erro ao buscar ordem de serviço' });
+    }
+});
+
+// POST - Criar nova ordem de serviço
+app.post('/api/ordens-servico', async (req, res) => {
+    try {
+        const { placa_veiculo, km_veiculo, responsavel, status, observacoes, ocorrencia } = req.body;
+
+        if (!placa_veiculo) {
+            return res.status(400).json({ error: 'Campo obrigatório: placa_veiculo' });
+        }
+
+        // Gerar número da ordem
+        const [lastOrder] = await pool.query('SELECT MAX(id) as maxId FROM ordemservico');
+        const nextId = (lastOrder[0].maxId || 0) + 1;
+        const ordem_numero = `OS-${String(nextId).padStart(6, '0')}`;
+
+        const [result] = await pool.query(
+            `INSERT INTO ordemservico
+            (ordem_numero, placa_veiculo, km_veiculo, responsavel, status, observacoes, ocorrencia)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [ordem_numero, placa_veiculo, km_veiculo || 0, responsavel || null,
+             status || 'Aberta', observacoes || null, ocorrencia || 'Corretiva']
+        );
+
+        console.log('✅ Ordem de serviço criada:', ordem_numero);
+        res.status(201).json({ id: result.insertId, ordem_numero, message: 'Ordem de serviço criada com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao criar ordem de serviço:', error);
+        res.status(500).json({ error: 'Erro ao criar ordem de serviço' });
+    }
+});
+
+// PUT - Atualizar ordem de serviço
+app.put('/api/ordens-servico/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { placa_veiculo, km_veiculo, responsavel, status, observacoes, ocorrencia } = req.body;
+
+        // Atualizar datas conforme status
+        let updateFields = 'placa_veiculo = ?, km_veiculo = ?, responsavel = ?, status = ?, observacoes = ?, ocorrencia = ?';
+        let params = [placa_veiculo, km_veiculo || 0, responsavel || null, status || 'Aberta', observacoes || null, ocorrencia || 'Corretiva'];
+
+        if (status === 'Diagnóstico') {
+            updateFields += ', data_diagnostico = NOW()';
+        } else if (status === 'Orçamento') {
+            updateFields += ', data_orcamento = NOW()';
+        } else if (status === 'Execução') {
+            updateFields += ', data_execucao = NOW()';
+        } else if (status === 'Finalizada') {
+            updateFields += ', data_finalizacao = NOW()';
+        }
+
+        await pool.query(
+            `UPDATE ordemservico SET ${updateFields} WHERE id = ?`,
+            [...params, id]
+        );
+
+        console.log('✅ Ordem de serviço atualizada:', id);
+        res.json({ message: 'Ordem de serviço atualizada com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao atualizar ordem de serviço:', error);
+        res.status(500).json({ error: 'Erro ao atualizar ordem de serviço' });
+    }
+});
+
+// DELETE - Excluir ordem de serviço
+// DELETE por ordem_numero (query param)
+app.delete('/api/ordens-servico', async (req, res) => {
+    try {
+        const { ordem_numero } = req.query;
+
+        if (!ordem_numero) {
+            return res.status(400).json({ error: 'Número da OS é obrigatório' });
+        }
+
+        // Excluir itens primeiro
+        await pool.query('DELETE FROM ordemservico_itens WHERE ordem_numero = ?', [ordem_numero]);
+
+        // Excluir a OS
+        const [result] = await pool.query('DELETE FROM ordemservico WHERE ordem_numero = ?', [ordem_numero]);
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Ordem de serviço não encontrada' });
+        }
+
+        console.log('✅ Ordem de serviço excluída:', ordem_numero);
+        res.json({ message: 'Ordem de serviço excluída com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao excluir ordem de serviço:', error);
+        res.status(500).json({ error: 'Erro ao excluir ordem de serviço' });
+    }
+});
+
+// DELETE por ID (path param)
+app.delete('/api/ordens-servico/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Buscar ordem_numero para excluir itens
+        const [ordem] = await pool.query('SELECT ordem_numero FROM ordemservico WHERE id = ?', [id]);
+        if (ordem.length > 0) {
+            await pool.query('DELETE FROM ordemservico_itens WHERE ordem_numero = ?', [ordem[0].ordem_numero]);
+        }
+
+        await pool.query('DELETE FROM ordemservico WHERE id = ?', [id]);
+
+        console.log('✅ Ordem de serviço excluída:', id);
+        res.json({ message: 'Ordem de serviço excluída com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao excluir ordem de serviço:', error);
+        res.status(500).json({ error: 'Erro ao excluir ordem de serviço' });
+    }
+});
+
+// ==================== API DE PEÇAS ====================
+
+// GET - Listar todas as peças
+app.get('/api/pecas', async (req, res) => {
+    try {
+        // Tenta com ativo, se falhar tenta sem
+        let pecas;
+        try {
+            [pecas] = await pool.query('SELECT * FROM FF_Pecas WHERE ativo = 1 ORDER BY nome ASC');
+        } catch (err) {
+            // Se a coluna ativo não existe, busca todas
+            [pecas] = await pool.query('SELECT * FROM FF_Pecas ORDER BY nome ASC');
+        }
+        res.json(pecas);
+    } catch (error) {
+        console.error('❌ Erro ao listar peças:', error);
+        res.status(500).json({ error: 'Erro ao listar peças' });
+    }
+});
+
+// GET - Buscar peça por ID
+app.get('/api/pecas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [pecas] = await pool.query('SELECT * FROM FF_Pecas WHERE id = ?', [id]);
+
+        if (pecas.length === 0) {
+            return res.status(404).json({ error: 'Peça não encontrada' });
+        }
+
+        res.json(pecas[0]);
+    } catch (error) {
+        console.error('❌ Erro ao buscar peça:', error);
+        res.status(500).json({ error: 'Erro ao buscar peça' });
+    }
+});
+
+// POST - Criar nova peça
+app.post('/api/pecas', async (req, res) => {
+    try {
+        const { nome, codigo, unidade, custo_unitario, fornecedor, descricao, categoria, vida_util_km, vida_util_meses } = req.body;
+
+        if (!nome || !custo_unitario) {
+            return res.status(400).json({ error: 'Campos obrigatórios: nome, custo_unitario' });
+        }
+
+        const [result] = await pool.query(
+            'INSERT INTO FF_Pecas (nome, codigo, unidade, custo_unitario, fornecedor, descricao, categoria, vida_util_km, vida_util_meses) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [nome, codigo || null, unidade || 'UN', custo_unitario, fornecedor || null, descricao || null, categoria || null, vida_util_km || null, vida_util_meses || null]
+        );
+
+        console.log('✅ Peça criada:', nome, '- Código:', codigo);
+        res.status(201).json({ id: result.insertId, codigo: codigo, message: 'Peça criada com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao criar peça:', error);
+        res.status(500).json({ error: 'Erro ao criar peça' });
+    }
+});
+
+// PUT - Atualizar peça
+app.put('/api/pecas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { nome, codigo, unidade, custo_unitario, fornecedor, descricao, categoria, vida_util_km, vida_util_meses } = req.body;
+
+        if (!nome || !custo_unitario) {
+            return res.status(400).json({ error: 'Campos obrigatórios: nome, custo_unitario' });
+        }
+
+        await pool.query(
+            'UPDATE FF_Pecas SET nome = ?, codigo = ?, unidade = ?, custo_unitario = ?, fornecedor = ?, descricao = ?, categoria = ?, vida_util_km = ?, vida_util_meses = ? WHERE id = ?',
+            [nome, codigo || null, unidade || 'UN', custo_unitario, fornecedor || null, descricao || null, categoria || null, vida_util_km || null, vida_util_meses || null, id]
+        );
+
+        console.log('✅ Peça atualizada:', id);
+        res.json({ message: 'Peça atualizada com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao atualizar peça:', error);
+        res.status(500).json({ error: 'Erro ao atualizar peça' });
+    }
+});
+
+// DELETE - Excluir peça
+app.delete('/api/pecas/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await pool.query('DELETE FROM FF_Pecas WHERE id = ?', [id]);
+
+        console.log('✅ Peça excluída:', id);
+        res.json({ message: 'Peça excluída com sucesso' });
+    } catch (error) {
+        console.error('❌ Erro ao excluir peça:', error);
+        res.status(500).json({ error: 'Erro ao excluir peça' });
+    }
+});
+
+// ==================== ASSOCIAÇÃO PEÇAS <-> ITENS DE PLANO ====================
+
+// GET - Listar peças de um item de plano
+app.get('/api/plano-pecas/:itemId', async (req, res) => {
+    try {
+        const [pecas] = await pool.query(`
+            SELECT
+                pp.id,
+                pp.plano_item_id,
+                pp.peca_id,
+                pp.quantidade,
+                p.codigo,
+                p.nome,
+                p.descricao,
+                p.unidade,
+                p.custo_unitario,
+                p.vida_util_km,
+                p.vida_util_meses,
+                (pp.quantidade * p.custo_unitario) as custo_total
+            FROM FF_PlanoManutencao_Pecas pp
+            JOIN FF_Pecas p ON p.id = pp.peca_id
+            WHERE pp.plano_item_id = ?
+            ORDER BY p.nome ASC
+        `, [req.params.itemId]);
+
+        let custoTotal = 0;
+        pecas.forEach(p => custoTotal += parseFloat(p.custo_total) || 0);
+
+        res.json({
+            success: true,
+            count: pecas.length,
+            custo_total_pecas: custoTotal,
+            data: pecas
+        });
+    } catch (error) {
+        console.error('❌ Erro ao listar peças do item:', error);
+        res.status(500).json({ error: 'Erro ao listar peças do item' });
+    }
+});
+
+// POST - Adicionar peça ao item de plano
+app.post('/api/plano-pecas', async (req, res) => {
+    try {
+        const { plano_item_id, peca_id, quantidade = 1 } = req.body;
+
+        if (!plano_item_id || !peca_id) {
+            return res.status(400).json({ error: 'plano_item_id e peca_id são obrigatórios' });
+        }
+
+        // Buscar o código da peça
+        const [pecaData] = await pool.query('SELECT codigo FROM FF_Pecas WHERE id = ?', [peca_id]);
+        const codigo_peca = pecaData.length > 0 ? pecaData[0].codigo : null;
+
+        // Verificar se já existe
+        const [existing] = await pool.query(
+            'SELECT id, quantidade FROM FF_PlanoManutencao_Pecas WHERE plano_item_id = ? AND peca_id = ?',
+            [plano_item_id, peca_id]
+        );
+
+        if (existing.length > 0) {
+            // Atualizar quantidade existente
+            await pool.query(
+                'UPDATE FF_PlanoManutencao_Pecas SET quantidade = quantidade + ? WHERE id = ?',
+                [quantidade, existing[0].id]
+            );
+            res.json({
+                success: true,
+                message: 'Quantidade da peça atualizada',
+                id: existing[0].id
+            });
+        } else {
+            // Inserir nova associação com codigo_peca
+            const [result] = await pool.query(`
+                INSERT INTO FF_PlanoManutencao_Pecas (plano_item_id, peca_id, codigo_peca, quantidade, criado_em)
+                VALUES (?, ?, ?, ?, NOW())
+            `, [plano_item_id, peca_id, codigo_peca, quantidade]);
+
+            res.status(201).json({
+                success: true,
+                message: 'Peça adicionada ao item com sucesso',
+                id: result.insertId,
+                codigo_peca: codigo_peca
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao adicionar peça ao item:', error);
+        res.status(500).json({ error: 'Erro ao adicionar peça ao item' });
+    }
+});
+
+// PUT - Atualizar quantidade de peça no item
+app.put('/api/plano-pecas/:id', async (req, res) => {
+    try {
+        const { quantidade } = req.body;
+
+        if (!quantidade) {
+            return res.status(400).json({ error: 'quantidade é obrigatória' });
+        }
+
+        await pool.query(
+            'UPDATE FF_PlanoManutencao_Pecas SET quantidade = ? WHERE id = ?',
+            [quantidade, req.params.id]
+        );
+
+        res.json({
+            success: true,
+            message: 'Quantidade atualizada com sucesso'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao atualizar quantidade:', error);
+        res.status(500).json({ error: 'Erro ao atualizar quantidade' });
+    }
+});
+
+// DELETE - Remover peça do item de plano
+app.delete('/api/plano-pecas/:id', async (req, res) => {
+    try {
+        const [result] = await pool.query(
+            'DELETE FROM FF_PlanoManutencao_Pecas WHERE id = ?',
+            [req.params.id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Associação não encontrada' });
+        }
+
+        res.json({
+            success: true,
+            message: 'Peça removida do item com sucesso'
+        });
+    } catch (error) {
+        console.error('❌ Erro ao remover peça do item:', error);
+        res.status(500).json({ error: 'Erro ao remover peça do item' });
+    }
+});
+
 // Servir arquivos estáticos DEPOIS de todas as rotas dinâmicas
 app.use(express.static(__dirname));
 
@@ -3412,10 +3841,118 @@ async function ensureMaintenancePlanItemsTable() {
     }
 }
 
+// Função para criar tabelas de peças
+async function ensurePecasTables() {
+    try {
+        // Tabela de peças
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS FF_Pecas (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                codigo VARCHAR(50) NULL,
+                nome VARCHAR(255) NOT NULL,
+                descricao TEXT NULL,
+                unidade VARCHAR(20) DEFAULT 'un',
+                custo_unitario DECIMAL(10,2) DEFAULT 0,
+                estoque_minimo INT DEFAULT 0,
+                estoque_atual INT DEFAULT 0,
+                fornecedor VARCHAR(255) NULL,
+                categoria VARCHAR(100) NULL,
+                ativo TINYINT(1) DEFAULT 1,
+                criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+                atualizado_em DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_codigo (codigo),
+                INDEX idx_nome (nome),
+                INDEX idx_categoria (categoria),
+                INDEX idx_ativo (ativo)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Adicionar colunas faltantes se a tabela já existir com estrutura antiga
+        const columnsToAdd = [
+            { name: 'categoria', sql: "ALTER TABLE FF_Pecas ADD COLUMN categoria VARCHAR(100) NULL" },
+            { name: 'ativo', sql: "ALTER TABLE FF_Pecas ADD COLUMN ativo TINYINT(1) DEFAULT 1" },
+            { name: 'estoque_minimo', sql: "ALTER TABLE FF_Pecas ADD COLUMN estoque_minimo INT DEFAULT 0" },
+            { name: 'estoque_atual', sql: "ALTER TABLE FF_Pecas ADD COLUMN estoque_atual INT DEFAULT 0" },
+            { name: 'criado_em', sql: "ALTER TABLE FF_Pecas ADD COLUMN criado_em DATETIME DEFAULT CURRENT_TIMESTAMP" },
+            { name: 'atualizado_em', sql: "ALTER TABLE FF_Pecas ADD COLUMN atualizado_em DATETIME NULL ON UPDATE CURRENT_TIMESTAMP" },
+            { name: 'vida_util_km', sql: "ALTER TABLE FF_Pecas ADD COLUMN vida_util_km INT NULL COMMENT 'Vida útil em KM'" },
+            { name: 'vida_util_meses', sql: "ALTER TABLE FF_Pecas ADD COLUMN vida_util_meses INT NULL COMMENT 'Vida útil em meses'" }
+        ];
+
+        for (const col of columnsToAdd) {
+            try {
+                const [columns] = await pool.query(`SHOW COLUMNS FROM FF_Pecas LIKE '${col.name}'`);
+                if (columns.length === 0) {
+                    await pool.query(col.sql);
+                    console.log(`✅ Coluna ${col.name} adicionada à tabela FF_Pecas`);
+                }
+            } catch (err) {
+                // Ignora erro se coluna já existe
+            }
+        }
+
+        console.log('✅ Tabela FF_Pecas verificada/criada');
+
+        // Tabela de associação peças <-> itens de plano
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS FF_PlanoManutencao_Pecas (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                plano_item_id INT NOT NULL,
+                peca_id INT NOT NULL,
+                codigo_peca VARCHAR(50) NULL,
+                quantidade INT DEFAULT 1,
+                criado_em DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_plano_item (plano_item_id),
+                INDEX idx_peca (peca_id),
+                INDEX idx_codigo_peca (codigo_peca),
+                UNIQUE KEY unique_plano_peca (plano_item_id, peca_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+
+        // Adicionar coluna codigo_peca se não existir
+        try {
+            const [columns] = await pool.query("SHOW COLUMNS FROM FF_PlanoManutencao_Pecas LIKE 'codigo_peca'");
+            if (columns.length === 0) {
+                await pool.query("ALTER TABLE FF_PlanoManutencao_Pecas ADD COLUMN codigo_peca VARCHAR(50) NULL AFTER peca_id");
+                console.log('✅ Coluna codigo_peca adicionada à tabela FF_PlanoManutencao_Pecas');
+            }
+        } catch (err) {
+            // Ignora erro se coluna já existe
+        }
+
+        console.log('✅ Tabela FF_PlanoManutencao_Pecas verificada/criada');
+
+        // Inserir peças de exemplo se a tabela estiver vazia
+        const [count] = await pool.query('SELECT COUNT(*) as total FROM FF_Pecas');
+        if (count[0].total === 0) {
+            await pool.query(`
+                INSERT INTO FF_Pecas (codigo, nome, descricao, unidade, custo_unitario, estoque_minimo, categoria) VALUES
+                ('FLT-OL-001', 'Filtro de Óleo', 'Filtro de óleo do motor - universal', 'un', 35.00, 10, 'Filtros'),
+                ('FLT-AR-001', 'Filtro de Ar', 'Filtro de ar do motor - universal', 'un', 45.00, 10, 'Filtros'),
+                ('FLT-CB-001', 'Filtro de Combustível', 'Filtro de combustível - universal', 'un', 55.00, 5, 'Filtros'),
+                ('FLT-AC-001', 'Filtro de Ar Condicionado', 'Filtro de cabine/ar condicionado', 'un', 65.00, 5, 'Filtros'),
+                ('OLE-MOT-001', 'Óleo de Motor 5W30', 'Óleo sintético 5W30 - 1 litro', 'litros', 45.00, 20, 'Óleos e Fluidos'),
+                ('OLE-MOT-002', 'Óleo de Motor 10W40', 'Óleo semi-sintético 10W40 - 1 litro', 'litros', 35.00, 20, 'Óleos e Fluidos'),
+                ('FLU-FRE-001', 'Fluido de Freio DOT4', 'Fluido de freio DOT4 - 500ml', 'un', 38.00, 10, 'Óleos e Fluidos'),
+                ('PAS-FRE-001', 'Pastilha de Freio Dianteira', 'Jogo de pastilhas dianteiras - universal', 'jogo', 120.00, 5, 'Freios'),
+                ('PAS-FRE-002', 'Pastilha de Freio Traseira', 'Jogo de pastilhas traseiras - universal', 'jogo', 95.00, 5, 'Freios'),
+                ('DIS-FRE-001', 'Disco de Freio Dianteiro', 'Par de discos dianteiros - universal', 'par', 280.00, 2, 'Freios'),
+                ('VEL-IGN-001', 'Vela de Ignição', 'Vela de ignição iridium - unidade', 'un', 65.00, 20, 'Ignição'),
+                ('COR-DEN-001', 'Correia Dentada', 'Kit correia dentada com tensor', 'kit', 320.00, 3, 'Correias'),
+                ('BAT-60A-001', 'Bateria 60Ah', 'Bateria automotiva 60Ah', 'un', 480.00, 2, 'Elétrica')
+            `);
+            console.log('✅ Peças de exemplo inseridas');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao criar tabelas de peças:', error);
+    }
+}
+
 // Iniciar servidor
 app.listen(PORT, async () => {
-    // Criar tabela se não existir
+    // Criar tabelas se não existirem
     await ensureMaintenancePlanItemsTable();
+    await ensurePecasTables();
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║

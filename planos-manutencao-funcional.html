@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Planos de Manutenção - FleetFlow</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script>
+    tailwind.config = {
+        darkMode: "class",
+        theme: {
+            extend: {
+                colors: {
+                    "primary": "#1173d4",
+                    "background-light": "#f6f7f8",
+                    "background-dark": "#101922",
+                },
+                fontFamily: {
+                    "display": ["Inter"]
+                },
+            },
+        },
+    }
+</script>
+<style>
+    .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+</style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white">
+<div class="relative flex h-auto min-h-screen w-full flex-col">
+<div class="flex h-full grow flex-row">
+<!-- Sidebar Container -->
+<div id="sidebar-container" data-page="planos"></div>
+
+<!-- Main Content -->
+<main class="flex-1 p-6 lg:p-8 overflow-y-auto bg-background-light dark:bg-gray-900">
+<div class="max-w-[1400px] mx-auto">
+
+<!-- Header -->
+<div class="flex flex-wrap justify-between gap-4 mb-6 items-center">
+<div>
+<h1 class="text-4xl font-black text-gray-900 dark:text-white mb-2">Planos de Manutenção</h1>
+<p class="text-gray-600 dark:text-gray-400">Gerencie os planos preventivos da frota</p>
+</div>
+<button id="btnNovoPlan" class="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600 transition">
+<span class="material-symbols-outlined">add</span>
+<span>Novo Plano</span>
+</button>
+</div>
+
+<!-- Plans List -->
+<div id="plansContainer" class="grid gap-6">
+<div class="flex items-center justify-center p-12">
+<div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+</div>
+</div>
+
+</div>
+</main>
+</div>
+</div>
+
+<!-- Modal Novo Plano -->
+<div id="modalNovoPlan" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-2xl">
+<div class="flex justify-between items-center p-6 border-b dark:border-slate-700">
+<h3 class="text-2xl font-bold text-gray-900 dark:text-white">Novo Plano de Manutenção</h3>
+<button id="btnFecharModalPlan" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<form id="formNovoPlan" class="p-6 space-y-4">
+<div>
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Nome do Plano</label>
+<input type="text" id="inputNomePlan" required class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary">
+</div>
+<div>
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de Gatilho</label>
+<select id="selectTipoGatilho" required class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary">
+<option value="Quilometragem">Quilometragem</option>
+<option value="Tempo">Tempo</option>
+<option value="Quilometragem e Tempo">Quilometragem e Tempo</option>
+</select>
+</div>
+<div id="divIntervaloKm">
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Intervalo em KM</label>
+<input type="number" id="inputIntervaloKm" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary">
+</div>
+<div id="divIntervaloDias" class="hidden">
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Intervalo em Dias</label>
+<input type="number" id="inputIntervaloDias" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary">
+</div>
+<div id="divAlertaKm">
+<label class="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Alerta Antecipado (KM antes)</label>
+<input type="number" id="inputAlertaKm" value="300" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-slate-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary">
+</div>
+<div class="flex gap-4 pt-4">
+<button type="button" id="btnCancelarPlan" class="flex-1 px-4 py-2 bg-gray-200 dark:bg-slate-700 text-gray-800 dark:text-gray-200 rounded-lg font-semibold hover:bg-gray-300">Cancelar</button>
+<button type="submit" class="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600">Criar Plano</button>
+</div>
+</form>
+</div>
+</div>
+
+<!-- Modal Ver Detalhes do Plano -->
+<div id="modalDetalhesPlan" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+<div class="bg-white dark:bg-slate-800 rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+<div class="flex justify-between items-center p-6 border-b dark:border-slate-700">
+<h3 id="tituloModalDetalhes" class="text-2xl font-bold text-gray-900 dark:text-white">Detalhes do Plano</h3>
+<button id="btnFecharModalDetalhes" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div id="conteudoModalDetalhes" class="p-6">
+<!-- Será preenchido dinamicamente -->
+</div>
+</div>
+</div>
+
+<script>
+const API_BASE = 'http://localhost:5000/api';
+
+// Carregar planos ao iniciar
+document.addEventListener('DOMContentLoaded', () => {
+    carregarPlanos();
+    carregarAlertas();
+    configurarModalNovoPlan();
+});
+
+// Carregar alertas
+async function carregarAlertas() {
+    try {
+        const response = await fetch(`${API_BASE}/maintenance-alerts`);
+        const alertas = await response.json();
+        const badge = document.getElementById('badge-alertas');
+        if (alertas.length > 0) {
+            badge.textContent = alertas.length;
+            badge.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('Erro ao carregar alertas:', error);
+    }
+}
+
+// Carregar planos
+async function carregarPlanos() {
+    const container = document.getElementById('plansContainer');
+
+    try {
+        const response = await fetch(`${API_BASE}/maintenance-plans`);
+        const planos = await response.json();
+
+        if (planos.length === 0) {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-12 px-4 bg-white dark:bg-slate-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+                    <span class="material-symbols-outlined text-gray-400 text-6xl mb-4">calendar_month</span>
+                    <p class="text-gray-600 dark:text-gray-400 text-lg mb-4">Nenhum plano de manutenção cadastrado</p>
+                    <button onclick="document.getElementById('btnNovoPlan').click()" class="px-6 py-2 bg-primary text-white rounded-lg font-semibold hover:bg-blue-600">
+                        Criar Primeiro Plano
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = planos.map(plano => `
+            <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border dark:border-slate-700 p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-2">${plano.nome_plano}</h3>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span class="px-3 py-1 text-xs font-medium rounded-full ${
+                                plano.tipo_gatilho.includes('Quilometragem') ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' : ''
+                            }">
+                                ${plano.tipo_gatilho}
+                            </span>
+                            ${plano.ativo ? '<span class="px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Ativo</span>' : '<span class="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Inativo</span>'}
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            ${plano.intervalo_km ? `
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400">Intervalo KM</p>
+                                <p class="font-semibold">${plano.intervalo_km.toLocaleString('pt-BR')} km</p>
+                            </div>
+                            ` : ''}
+                            ${plano.intervalo_dias ? `
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400">Intervalo Tempo</p>
+                                <p class="font-semibold">${plano.intervalo_dias} dias</p>
+                            </div>
+                            ` : ''}
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400">Veículos Associados</p>
+                                <p class="font-semibold">${plano.total_veiculos || 0}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-500 dark:text-gray-400">Serviços</p>
+                                <p class="font-semibold">${plano.total_servicos || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="verDetalhesPlan(${plano.id})" class="p-2 text-primary hover:bg-primary/10 rounded-lg transition">
+                            <span class="material-symbols-outlined">visibility</span>
+                        </button>
+                        <button onclick="associarVeiculo(${plano.id}, '${plano.nome_plano}')" class="p-2 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition">
+                            <span class="material-symbols-outlined">add_circle</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (error) {
+        console.error('Erro ao carregar planos:', error);
+        container.innerHTML = `
+            <div class="col-span-full text-center py-12 px-4 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                <span class="material-symbols-outlined text-red-500 text-6xl mb-4">error</span>
+                <p class="text-red-600 dark:text-red-400 text-lg">Erro ao carregar planos de manutenção</p>
+            </div>
+        `;
+    }
+}
+
+// Ver detalhes do plano
+async function verDetalhesPlan(planId) {
+    try {
+        const response = await fetch(`${API_BASE}/maintenance-plans/${planId}`);
+        const plano = await response.json();
+
+        const modal = document.getElementById('modalDetalhesPlan');
+        const titulo = document.getElementById('tituloModalDetalhes');
+        const conteudo = document.getElementById('conteudoModalDetalhes');
+
+        titulo.textContent = plano.nome_plano;
+
+        conteudo.innerHTML = `
+            <div class="space-y-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Tipo de Gatilho</p>
+                        <p class="font-semibold">${plano.tipo_gatilho}</p>
+                    </div>
+                    ${plano.intervalo_km ? `
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Intervalo KM</p>
+                        <p class="font-semibold">${plano.intervalo_km.toLocaleString('pt-BR')} km</p>
+                    </div>
+                    ` : ''}
+                    ${plano.intervalo_dias ? `
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Intervalo Dias</p>
+                        <p class="font-semibold">${plano.intervalo_dias} dias</p>
+                    </div>
+                    ` : ''}
+                    ${plano.alertar_antecipacao_km ? `
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Alerta Antecipado</p>
+                        <p class="font-semibold">${plano.alertar_antecipacao_km} km antes</p>
+                    </div>
+                    ` : ''}
+                </div>
+
+                ${plano.servicos && plano.servicos.length > 0 ? `
+                <div>
+                    <h4 class="text-lg font-semibold mb-3">Serviços Incluídos (${plano.servicos.length})</h4>
+                    <div class="space-y-2">
+                        ${plano.servicos.map(servico => `
+                            <div class="p-3 bg-gray-50 dark:bg-slate-700 rounded-lg">
+                                <p class="font-medium">${servico.nome || servico.codigo}</p>
+                                ${servico.valor_padrao ? `<p class="text-sm text-gray-600 dark:text-gray-400">R$ ${parseFloat(servico.valor_padrao).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</p>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : '<p class="text-gray-500 dark:text-gray-400">Nenhum serviço vinculado a este plano</p>'}
+            </div>
+        `;
+
+        modal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Erro ao carregar detalhes do plano:', error);
+        alert('Erro ao carregar detalhes do plano');
+    }
+}
+
+// Associar veículo ao plano
+async function associarVeiculo(planId, planNome) {
+    const placa = prompt(`Associar plano "${planNome}" ao veículo:\n\nDigite o ID do veículo:`);
+
+    if (!placa) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/vehicles/${placa}/maintenance-plans`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                plano_id: planId,
+                km_inicial: null,
+                data_inicial: null
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            alert(`✅ Plano associado com sucesso!\n\nPróxima manutenção em: ${result.proxima_execucao_km} km`);
+            carregarPlanos(); // Recarregar para atualizar contadores
+        } else {
+            alert(`❌ Erro: ${result.error || 'Não foi possível associar o plano'}`);
+        }
+    } catch (error) {
+        console.error('Erro ao associar plano:', error);
+        alert('Erro ao associar plano ao veículo');
+    }
+}
+
+// Configurar modal novo plano
+function configurarModalNovoPlan() {
+    const modal = document.getElementById('modalNovoPlan');
+    const btnAbrir = document.getElementById('btnNovoPlan');
+    const btnFechar = document.getElementById('btnFecharModalPlan');
+    const btnCancelar = document.getElementById('btnCancelarPlan');
+    const form = document.getElementById('formNovoPlan');
+    const selectTipo = document.getElementById('selectTipoGatilho');
+
+    // Abrir modal
+    btnAbrir.addEventListener('click', () => {
+        modal.classList.remove('hidden');
+    });
+
+    // Fechar modal
+    const fechar = () => {
+        modal.classList.add('hidden');
+        form.reset();
+    };
+
+    btnFechar.addEventListener('click', fechar);
+    btnCancelar.addEventListener('click', fechar);
+
+    // Mostrar/ocultar campos baseado no tipo
+    selectTipo.addEventListener('change', () => {
+        const tipo = selectTipo.value;
+        const divKm = document.getElementById('divIntervaloKm');
+        const divDias = document.getElementById('divIntervaloDias');
+        const divAlertaKm = document.getElementById('divAlertaKm');
+
+        if (tipo === 'Quilometragem') {
+            divKm.classList.remove('hidden');
+            divDias.classList.add('hidden');
+            divAlertaKm.classList.remove('hidden');
+        } else if (tipo === 'Tempo') {
+            divKm.classList.add('hidden');
+            divDias.classList.remove('hidden');
+            divAlertaKm.classList.add('hidden');
+        } else {
+            divKm.classList.remove('hidden');
+            divDias.classList.remove('hidden');
+            divAlertaKm.classList.remove('hidden');
+        }
+    });
+
+    // Submit form
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const tipo = selectTipo.value;
+        const dados = {
+            nome_plano: document.getElementById('inputNomePlan').value,
+            tipo_gatilho: tipo,
+            intervalo_km: tipo.includes('Quilometragem') ? parseInt(document.getElementById('inputIntervaloKm').value) : null,
+            intervalo_dias: tipo.includes('Tempo') ? parseInt(document.getElementById('inputIntervaloDias').value) : null,
+            alertar_antecipacao_km: tipo.includes('Quilometragem') ? parseInt(document.getElementById('inputAlertaKm').value) : null
+        };
+
+        try {
+            const response = await fetch(`${API_BASE}/maintenance-plans`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (response.ok) {
+                alert('✅ Plano criado com sucesso!');
+                fechar();
+                carregarPlanos();
+            } else {
+                const error = await response.json();
+                alert(`❌ Erro: ${error.error || 'Não foi possível criar o plano'}`);
+            }
+        } catch (error) {
+            console.error('Erro ao criar plano:', error);
+            alert('Erro ao criar plano de manutenção');
+        }
+    });
+}
+
+// Fechar modal de detalhes
+document.getElementById('btnFecharModalDetalhes').addEventListener('click', () => {
+    document.getElementById('modalDetalhesPlan').classList.add('hidden');
+});
+</script>
+
+<!-- Carregar Sidebar Unificado -->
+<script src="sidebar.js"></script>
+
+</body>
+</html>
