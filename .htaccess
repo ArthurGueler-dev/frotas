@@ -1,5 +1,9 @@
 # FleetFlow - Proteção de Arquivos Sensíveis
 
+# Force PHP execution (FIX: Evitar download de arquivos PHP)
+AddType application/x-httpd-php .php .php5
+AddHandler application/x-httpd-php .php .php5
+
 # Proteger arquivo de configuração do banco de dados
 <Files "db-config.php">
     Order Allow,Deny
