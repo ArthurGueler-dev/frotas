@@ -17,11 +17,32 @@ const dbConfig = {
     user: 'f137049_tool',
     password: 'In9@1234qwer',
     database: 'f137049_in9aut',
-    charset: 'utf8mb4'
+    charset: 'utf8mb4',
+    waitForConnections: true,
+    connectionLimit: 5,  // Reduzido para evitar muitas conexões simultâneas
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 30000,
+    connectTimeout: 10000,
+    waitForConnectionsMillis: 30000
 };
 
 // Pool de conexões MySQL
 const pool = mysql.createPool(dbConfig);
+
+// Tratamento de erros da pool
+pool.on('error', (err) => {
+    console.error('❌ Erro no pool de MySQL:', err.message);
+    if (err.code === 'PROTOCOL_CONNECTION_LOST') {
+        console.error('   Database connection was closed.');
+    }
+    if (err.code === 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR') {
+        console.error('   Database fatal error, need to restart connection.');
+    }
+    if (err.code === 'PROTOCOL_ENQUEUE_AFTER_CLOSE') {
+        console.error('   Database connection was closed.');
+    }
+});
 
 // Middleware
 app.use(cors());
@@ -80,14 +101,16 @@ function calculateStats() {
 }
 
 // ===== PROXY ITURAN API (PARA FRONTEND) =====
-// Frontend chama /api/quilometragem/* que redireciona para API Ituran
+// Frontend chama /api/quilometragem/ituranwebservice3/* que redireciona para API Ituran
 // Isso resolve problemas de CORS sem necessidade de proxy separado
+// NOTA: Este endpoint é ESPECÍFICO para Ituran (ituranwebservice3)
+// Os endpoints legítimos de quilometragem vêm DEPOIS
 
-app.get('/api/quilometragem/:path(*)', async (req, res) => {
+app.get('/api/quilometragem/ituranwebservice3/:subroute(*)', async (req, res) => {
     try {
-        const path = req.params.path || '';
+        const subroute = req.params.subroute || '';
         const queryString = new URLSearchParams(req.query).toString();
-        const ituranUrl = `https://iweb.ituran.com.br/${path}${queryString ? '?' + queryString : ''}`;
+        const ituranUrl = `https://iweb.ituran.com.br/ituranwebservice3/${subroute}${queryString ? '?' + queryString : ''}`;
 
         console.log(`🔄 [PROXY] Redirecionando para Ituran: ${ituranUrl.substring(0, 100)}...`);
 
@@ -97,8 +120,7 @@ app.get('/api/quilometragem/:path(*)', async (req, res) => {
                 'Accept': 'application/xml, text/xml, */*',
                 'Cache-Control': 'no-cache'
             },
-            cache: 'no-store',
-            timeout: 120000
+            cache: 'no-store'
         });
 
         const text = await response.text();
