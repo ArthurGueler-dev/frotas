@@ -106,7 +106,7 @@ function createSidebar(activePage = '') {
 // Função para carregar o badge de alertas
 async function carregarBadgeAlertas() {
     try {
-        const response = await fetch('http://localhost:5000/api/maintenance-alerts');
+        const response = await fetch('/api/maintenance-alerts');
         const alertas = await response.json();
         const badge = document.getElementById('badge-alertas-sidebar');
         if (badge && alertas.length > 0) {

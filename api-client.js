@@ -1,5 +1,7 @@
 // Cliente API para FleetFlow
-const API_BASE_URL = 'http://localhost:5000/api';
+// Em produção: usa URL relativa (resolve para frotas.in9automacao.com.br)
+// Em desenvolvimento: usa URL relativa (resolve para localhost:5000)
+const API_BASE_URL = '/api';
 
 class FleetAPI {
     // Estatísticas

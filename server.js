@@ -79,16 +79,40 @@ function calculateStats() {
     };
 }
 
-// ===== PROXY ITURAN API =====
-// EM PRODUÇÃO: As requisições são feitas direto do backend (veja ituran-api-client.js)
-// EM DESENVOLVIMENTO: Descomente o código abaixo se ainda quiser usar um proxy separado
+// ===== PROXY ITURAN API (PARA FRONTEND) =====
+// Frontend chama /api/quilometragem/* que redireciona para API Ituran
+// Isso resolve problemas de CORS sem necessidade de proxy separado
 
-/*
-app.get('/api/proxy/ituran/*', async (req, res) => {
-    // Endpoint proxy obsoleto - usar diretamente no backend
-    res.status(410).json({ error: 'Proxy endpoint deprecated - use backend directly' });
+app.get('/api/quilometragem/:path(*)', async (req, res) => {
+    try {
+        const path = req.params.path || '';
+        const queryString = new URLSearchParams(req.query).toString();
+        const ituranUrl = `https://iweb.ituran.com.br/${path}${queryString ? '?' + queryString : ''}`;
+
+        console.log(`🔄 [PROXY] Redirecionando para Ituran: ${ituranUrl.substring(0, 100)}...`);
+
+        const response = await fetch(ituranUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/xml, text/xml, */*',
+                'Cache-Control': 'no-cache'
+            },
+            cache: 'no-store',
+            timeout: 120000
+        });
+
+        const text = await response.text();
+
+        res.set('Content-Type', 'application/xml');
+        res.set('Access-Control-Allow-Origin', '*');
+        res.send(text);
+
+    } catch (error) {
+        console.error('❌ [PROXY] Erro:', error.message);
+        res.status(500).set('Content-Type', 'application/xml');
+        res.send(`<?xml version="1.0"?><Error>${error.message}</Error>`);
+    }
 });
-*/
 
 // ===== ROTAS DA API =====
 
