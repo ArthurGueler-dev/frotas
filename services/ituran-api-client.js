@@ -9,13 +9,13 @@ class IturanAPIClient {
         this.isNode = typeof window === 'undefined';
 
         this.config = {
-            // Em produção: usar API diretamente
-            // Em desenvolvimento: pode usar proxy se configurado
+            // Em produção (Node.js): API Ituran direto (vem de config ou .env)
+            // Em desenvolvimento (Browser): /api/quilometragem do servidor (evita CORS)
             apiUrl: config.apiUrl || (this.isNode
                 ? 'https://iweb.ituran.com.br'
-                : 'http://localhost:5000/api/proxy/ituran'),
-            username: config.username || process.env?.ITURAN_USERNAME || 'api@i9tecnologia',
-            password: config.password || process.env?.ITURAN_PASSWORD || 'Api@In9Eng',
+                : '/api/quilometragem'),
+            username: config.username || (typeof process !== 'undefined' ? process.env?.ITURAN_USERNAME : undefined) || 'api@i9tecnologia',
+            password: config.password || (typeof process !== 'undefined' ? process.env?.ITURAN_PASSWORD : undefined) || 'Api@In9Eng',
             timeout: config.timeout || 120000 // 2 minutos
         };
 

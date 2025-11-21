@@ -4,22 +4,26 @@
 class IturanService {
     constructor() {
         // Configurações da API
-        // Se estiver no navegador (typeof window !== 'undefined'), usa o proxy do servidor
-        // Se estiver no Node.js (servidor), acessa direto localhost:8888
+        // Em produção: Backend consulta API Ituran diretamente
+        // Em desenvolvimento: Frontend consulta /api/quilometragem/* do server
         const isNode = typeof window === 'undefined';
 
         this.config = {
-            // Navegador: via proxy do servidor Node.js (evita CORS)
-            // Node.js: acesso direto ao proxy Ituran
+            // PRODUÇÃO (via servidor Express backend):
+            // - Dashboard faz requisição para /api/quilometragem/*
+            // - Server.js consulta API Ituran diretamente
+            //
+            // Este serviço é LEGADO e mantido para compatibilidade.
+            // Para produção, use os endpoints /api/quilometragem/* do servidor.
             apiUrl: isNode
-                ? 'http://localhost:8888/api/ituran'  // Node.js: acesso direto
-                : 'http://localhost:5000/api/proxy/ituran',  // Navegador: via servidor
+                ? 'https://iweb.ituran.com.br'  // Node.js: API Ituran direta (produção)
+                : '/api/quilometragem',  // Browser: endpoint do servidor (CORS seguro)
             username: 'api@i9tecnologia',
             password: 'Api@In9Eng',
             timeout: 120000 // 120 segundos (2 minutos - API pode demorar com 80+ veículos)
         };
 
-        console.log(`🔧 IturanService inicializado em: ${isNode ? 'Node.js' : 'Navegador'}`);
+        console.log(`🔧 IturanService inicializado em: ${isNode ? 'Node.js (API Ituran direta)' : 'Browser (via servidor)'}`);
         console.log(`🔗 API URL: ${this.config.apiUrl}`);
 
         // Cache para otimizar requisições
@@ -65,23 +69,27 @@ class IturanService {
     }
 
     /**
-     * Verifica se o proxy está rodando (ping rápido)
+     * Verifica se o servidor está rodando (health check)
+     * Em produção, verifica /api/stats (endpoint do servidor)
+     * Em desenvolvimento local, tenta localhost
      */
     async checkProxyStatus() {
         try {
-            // Faz um HEAD request ou um GET com abort rápido (500ms)
-            // Isso só verifica se o proxy está respondendo, não carrega dados
-            const response = await fetch('http://localhost:8888/api/ituran/health', {
+            const healthUrl = typeof window !== 'undefined'
+                ? '/api/stats'  // Browser: health check do servidor
+                : 'http://localhost:5000/api/stats';  // Node.js: health check local
+
+            const response = await fetch(healthUrl, {
                 method: 'GET',
                 signal: AbortSignal.timeout(1000) // 1 segundo é suficiente
             });
             this.proxyStatus = true;
-            console.log(`✅ Proxy está respondendo`);
+            console.log(`✅ Servidor está respondendo`);
             return true;
         } catch (error) {
-            // Se falhar, assume que pelo menos a porta está aberta
+            // Se falhar, assume que pelo menos o servidor está acessível
             // e deixa a requisição real acontecer
-            console.warn(`⚠️ Health check rápido falhou, mas tentando requisição real mesmo assim`);
+            console.warn(`⚠️ Health check falhou, mas tentando requisição real mesmo assim`);
             return true; // Retorna true para tentar a requisição real
         }
     }
@@ -309,7 +317,7 @@ class IturanService {
             console.error('❌ Erro ao buscar lista de veículos do Ituran:', error);
 
             // Retorna fallback com dados vazios em vez de lançar erro
-            console.log('⚠️ Retornando lista vazia. Verifique se o proxy está rodando em http://localhost:8888');
+            console.log('⚠️ Retornando lista vazia. Verifique se o servidor está rodando em http://localhost:5000');
             return [];
         }
     }
@@ -1247,14 +1255,14 @@ if (typeof window !== 'undefined') {
     window.ituranService = ituranService;
 
     /**
-     * Função para testar a conexão com o proxy direto do console
+     * Função para testar a conexão com o servidor do console
      */
-    window.testProxyConnection = async function() {
-    console.log('🧪 Testando conexão com proxy...');
+    window.testServerConnection = async function() {
+    console.log('🧪 Testando conexão com servidor...');
 
-    const url = 'http://localhost:8888/api/ituran/ituranwebservice3/Service3.asmx/GetAllPlatformsData?UserName=api@i9tecnologia&Password=Api@In9Eng&ShowAreas=true&ShowStatuses=true&ShowMileageInMeters=true&ShowDriver=true';
+    const url = '/api/stats';
 
-    console.log(`📡 Enviando requisição para: ${url.substring(0, 80)}...`);
+    console.log(`📡 Enviando requisição para: ${url}`);
 
     try {
         const response = await fetch(url, { method: 'GET' });

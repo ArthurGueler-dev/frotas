@@ -16,17 +16,20 @@ if (isNode) {
     MileageManager = require('./mileage-manager');
 
     // Inicializa os serviços
+    // Em produção, apiUrl será https://iweb.ituran.com.br (veja ituran-api-client.js)
+    // As credenciais podem vir de variáveis de ambiente (.env)
     const apiClient = new IturanAPIClient({
-        apiUrl: 'http://localhost:8888/api/ituran',
-        username: 'api@i9tecnologia',
-        password: 'Api@In9Eng',
-        timeout: 120000
+        apiUrl: process.env.ITURAN_API_URL || 'https://iweb.ituran.com.br',
+        username: process.env.ITURAN_USERNAME || 'api@i9tecnologia',
+        password: process.env.ITURAN_PASSWORD || 'Api@In9Eng',
+        timeout: parseInt(process.env.ITURAN_TIMEOUT || '120000')
     });
 
     const ituranMileage = new IturanMileageService(apiClient);
     mileageService = new MileageManager(ituranMileage);
 
     console.log('✅ Serviços de quilometragem inicializados (Node.js)');
+    console.log(`🔗 API URL: ${process.env.ITURAN_API_URL || 'https://iweb.ituran.com.br'}`);
 
     // Exporta para Node.js
     module.exports = {
@@ -42,6 +45,8 @@ if (isNode) {
 
     /**
      * Inicializa os serviços no browser
+     * Em produção, o frontend consulta /api/quilometragem/* do servidor
+     * O servidor é responsável por consultar API Ituran diretamente
      * Chame esta função após carregar todos os scripts necessários
      */
     window.initMileageServices = function() {
@@ -50,8 +55,10 @@ if (isNode) {
             return null;
         }
 
+        // Em produção: API do servidor que cuida de CORS
+        // O endpoint /api/quilometragem do servidor redireciona para Ituran
         const apiClient = new window.IturanAPIClient({
-            apiUrl: 'http://localhost:5000/api/proxy/ituran',
+            apiUrl: '/api/quilometragem',
             username: 'api@i9tecnologia',
             password: 'Api@In9Eng',
             timeout: 120000
@@ -60,6 +67,7 @@ if (isNode) {
         const ituranMileage = new window.IturanMileageService(apiClient);
 
         console.log('✅ Serviços de quilometragem inicializados (Browser)');
+        console.log('🔗 API URL: /api/quilometragem (servidor cuida de CORS)');
 
         return {
             apiClient,
