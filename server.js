@@ -6,6 +6,8 @@ const cors = require('cors');
 const path = require('path');
 const mysql = require('mysql2/promise');
 const cron = require('node-cron');
+const axios = require('axios');
+const { PHP_API_ENDPOINTS } = require('./php-api-config');
 
 const app = express();
 const PORT = 5000;
@@ -198,70 +200,23 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// GET - Listar todos os veículos (do banco de dados)
+// GET - Listar todos os veículos (via API PHP)
 app.get('/api/vehicles', async (req, res) => {
     try {
-        console.log('🔍 Buscando veículos do banco de dados...');
-        const [vehicles] = await pool.query(`
-            SELECT
-                v.Id as id,
-                v.LicensePlate as plate,
-                v.VehicleName as model,
-                v.VehicleYear as year,
-                v.DriverId as driverId,
-                v.LastSpeed as speed,
-                v.LastAddress as location,
-                v.EngineStatus as engineStatus,
-                v.IgnitionStatus as ignitionStatus,
-                v.Renavam as renavam,
-                v.ChassisNumber as chassisNumber,
-                v.EnginePower as enginePower,
-                v.EngineDisplacement as engineDisplacement,
-                v.is_munck as isMunck
-            FROM Vehicles v
-            ORDER BY v.LicensePlate
-        `);
-
-        console.log(`✅ ${vehicles.length} veículos encontrados no banco`);
-
-        // Formatar dados para o frontend
-        const formattedVehicles = vehicles.map(v => {
-            // Determinar status baseado no ignitionStatus
-            let status = 'Ativo';
-            if (v.ignitionStatus === 'ON') {
-                status = 'Ativo';
-            } else if (v.ignitionStatus === 'OFF') {
-                status = 'Ativo';
-            }
-
-            return {
-                id: v.id,
-                plate: v.plate,
-                model: v.model || 'N/A',
-                brand: 'N/A', // Pode ser extraído do VehicleName se necessário
-                year: v.year || 'N/A',
-                mileage: 0, // Não temos odômetro na tabela atual
-                status: status,
-                color: 'N/A',
-                fuel: 'N/A',
-                type: v.isMunck ? 'Munck' : 'N/A',
-                base: 'Serra', // Valor padrão
-                location: v.location || 'Localização desconhecida',
-                speed: v.speed || 0,
-                driverId: v.driverId,
-                renavam: v.renavam,
-                chassisNumber: v.chassisNumber,
-                enginePower: v.enginePower,
-                engineDisplacement: v.engineDisplacement,
-                engineStatus: v.engineStatus,
-                ignitionStatus: v.ignitionStatus
-            };
+        console.log('🔍 Buscando veículos via API PHP...');
+        const response = await axios.get(PHP_API_ENDPOINTS.vehicles, {
+            timeout: 10000,
+            headers: { 'Accept': 'application/json' }
         });
 
-        res.json(formattedVehicles);
+        if (response.data && response.data.success && response.data.data) {
+            console.log(`✅ ${response.data.data.length} veículos encontrados via API PHP`);
+            res.json(response.data.data);
+        } else {
+            throw new Error('Resposta inválida da API PHP');
+        }
     } catch (error) {
-        console.error('❌ ERRO ao buscar veículos do banco:', error.message);
-        console.error('Stack:', error.stack);
+        console.error('❌ ERRO ao buscar veículos via API PHP:', error.message);
         console.log('⚠️ Usando dados mockados como fallback');
         res.json(database.vehicles); // Fallback para dados mockados
     }
@@ -436,29 +391,23 @@ app.post('/api/maintenances', async (req, res) => {
     }
 });
 
-// GET - Listar motoristas (do banco de dados MySQL)
+// GET - Listar motoristas (via API PHP)
 app.get('/api/drivers', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT DriverID, FirstName, LastName FROM Drivers ORDER BY FirstName ASC');
+        console.log('🔍 Buscando motoristas via API PHP...');
+        const response = await axios.get(PHP_API_ENDPOINTS.drivers, {
+            timeout: 10000,
+            headers: { 'Accept': 'application/json' }
+        });
 
-        const driversList = rows.map(driver => ({
-            id: driver.DriverID,
-            firstName: driver.FirstName,
-            lastName: driver.LastName,
-            name: `${driver.FirstName} ${driver.LastName}`,
-            cpf: 'N/A',
-            cnhNumber: 'N/A',
-            status: 'Disponível',
-            cnhStatus: 'N/A',
-            cnhCategory: 'N/A',
-            cnhExpiry: 'N/A',
-            admissionDate: 'N/A',
-            birthDate: 'N/A'
-        }));
-
-        res.json(driversList);
+        if (response.data && response.data.success && response.data.data) {
+            console.log(`✅ ${response.data.data.length} motoristas encontrados via API PHP`);
+            res.json(response.data.data);
+        } else {
+            throw new Error('Resposta inválida da API PHP');
+        }
     } catch (error) {
-        console.error('Erro ao buscar motoristas do banco:', error);
+        console.error('❌ Erro ao buscar motoristas via API PHP:', error.message);
         res.status(500).json({ error: 'Erro ao buscar motoristas' });
     }
 });
@@ -466,30 +415,20 @@ app.get('/api/drivers', async (req, res) => {
 // GET - Endpoint compatível com get-drivers.php (formato esperado pelo api-client.js)
 app.get('/get-drivers.php', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT DriverID, FirstName, LastName FROM Drivers ORDER BY FirstName ASC');
-
-        const driversList = rows.map(driver => ({
-            id: driver.DriverID,
-            firstName: driver.FirstName,
-            lastName: driver.LastName,
-            name: `${driver.FirstName} ${driver.LastName}`,
-            cpf: 'N/A',
-            cnhNumber: 'N/A',
-            status: 'Disponível',
-            cnhStatus: 'N/A',
-            cnhCategory: 'N/A',
-            cnhExpiry: 'N/A',
-            admissionDate: 'N/A',
-            birthDate: 'N/A'
-        }));
-
-        res.json({
-            success: true,
-            count: driversList.length,
-            data: driversList
+        console.log('🔍 Buscando motoristas via API PHP (endpoint compatível)...');
+        const response = await axios.get(PHP_API_ENDPOINTS.drivers, {
+            timeout: 10000,
+            headers: { 'Accept': 'application/json' }
         });
+
+        if (response.data && response.data.success) {
+            console.log(`✅ ${response.data.count} motoristas encontrados`);
+            res.json(response.data);
+        } else {
+            throw new Error('Resposta inválida da API PHP');
+        }
     } catch (error) {
-        console.error('Erro ao buscar motoristas do banco:', error);
+        console.error('❌ Erro ao buscar motoristas via API PHP:', error.message);
         res.status(500).json({
             success: false,
             error: 'Erro ao buscar motoristas',
@@ -1010,49 +949,23 @@ app.post('/api/vehicles/:id/maintenance-plans/:planId/complete', async (req, res
 
 // ==================== ALERTAS DE MANUTENÇÃO ====================
 
-// GET - Listar alertas de manutenção ativos
+// GET - Listar alertas de manutenção ativos (via API PHP)
 app.get('/api/maintenance-alerts', async (req, res) => {
     try {
-        const { status, prioridade, vehicle_id } = req.query;
+        console.log('🔍 Buscando alertas via API PHP...');
+        const response = await axios.get(PHP_API_ENDPOINTS.alerts, {
+            timeout: 10000,
+            headers: { 'Accept': 'application/json' }
+        });
 
-        let query = `
-            SELECT
-                a.*,
-                v.LicensePlate,
-                v.VehicleName,
-                p.nome_plano
-            FROM FF_MaintenanceAlerts a
-            JOIN Vehicles v ON v.Id = a.vehicle_id
-            JOIN FF_MaintenancePlans p ON p.id = a.plano_id
-            WHERE 1=1
-        `;
-
-        const params = [];
-
-        if (status) {
-            query += ' AND a.status = ?';
-            params.push(status);
+        if (response.data && response.data.success && response.data.data) {
+            console.log(`✅ ${response.data.data.length} alertas encontrados via API PHP`);
+            res.json(response.data.data);
         } else {
-            query += ' AND a.status = "Ativo"';
+            throw new Error('Resposta inválida da API PHP');
         }
-
-        if (prioridade) {
-            query += ' AND a.prioridade = ?';
-            params.push(prioridade);
-        }
-
-        if (vehicle_id) {
-            query += ' AND a.vehicle_id = ?';
-            params.push(vehicle_id);
-        }
-
-        query += ' ORDER BY a.prioridade DESC, a.criado_em DESC';
-
-        const [alerts] = await pool.query(query, params);
-
-        res.json(alerts);
     } catch (error) {
-        console.error('Erro ao buscar alertas:', error);
+        console.error('❌ Erro ao buscar alertas via API PHP:', error.message);
         res.status(500).json({ error: 'Erro ao buscar alertas de manutenção' });
     }
 });
@@ -3421,45 +3334,27 @@ app.delete('/api/maintenance-plan-items/:id', async (req, res) => {
 // GET - Listar todas as ordens de serviço
 app.get('/api/ordens-servico', async (req, res) => {
     try {
-        const [ordens] = await pool.query(`
-            SELECT
-                os.id,
-                os.ordem_numero,
-                os.placa_veiculo as placa,
-                os.km_veiculo,
-                os.responsavel,
-                os.status,
-                os.observacoes,
-                os.data_criacao as data_abertura,
-                os.data_finalizacao as data_conclusao,
-                os.ocorrencia as tipo_servico,
-                COALESCE(
-                    (SELECT SUM(valor_total) FROM ordemservico_itens WHERE ordem_numero = os.ordem_numero),
-                    0
-                ) as custo_total
-            FROM ordemservico os
-            ORDER BY
-                CASE os.status
-                    WHEN 'Aberta' THEN 1
-                    WHEN 'Diagnóstico' THEN 2
-                    WHEN 'Orçamento' THEN 3
-                    WHEN 'Execução' THEN 4
-                    WHEN 'Finalizada' THEN 5
-                    WHEN 'Cancelada' THEN 6
-                END,
-                os.data_criacao DESC
-        `);
+        console.log('🔍 Buscando ordens de serviço via API PHP...');
+        const response = await axios.get(PHP_API_ENDPOINTS.workorders, {
+            timeout: 10000,
+            headers: { 'Accept': 'application/json' }
+        });
 
-        // Mapear status para formato esperado pelo frontend
-        const ordensFormatadas = ordens.map(os => ({
-            ...os,
-            status: mapearStatus(os.status),
-            prioridade: os.ocorrencia === 'Corretiva' ? 'Alta' : 'Normal'
-        }));
+        if (response.data && Array.isArray(response.data)) {
+            // Mapear status para formato esperado pelo frontend
+            const ordensFormatadas = response.data.map(os => ({
+                ...os,
+                status: mapearStatus(os.status),
+                prioridade: os.tipo_servico === 'Corretiva' ? 'Alta' : 'Normal'
+            }));
 
-        res.json(ordensFormatadas);
+            console.log(`✅ ${ordensFormatadas.length} ordens de serviço encontradas via API PHP`);
+            res.json(ordensFormatadas);
+        } else {
+            throw new Error('Resposta inválida da API PHP');
+        }
     } catch (error) {
-        console.error('❌ Erro ao listar ordens de serviço:', error);
+        console.error('❌ Erro ao listar ordens de serviço via API PHP:', error.message);
         res.status(500).json({ error: 'Erro ao listar ordens de serviço' });
     }
 });
