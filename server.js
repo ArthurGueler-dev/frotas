@@ -3977,9 +3977,25 @@ async function ensurePecasTables() {
 
 // Iniciar servidor
 app.listen(PORT, async () => {
-    // Criar tabelas se não existirem
-    await ensureMaintenancePlanItemsTable();
-    await ensurePecasTables();
+    // Criar tabelas se não existirem (sem bloquear se MySQL não responder)
+    try {
+        await Promise.race([
+            ensureMaintenancePlanItemsTable(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+        ]);
+    } catch (err) {
+        console.warn('⚠️  Não foi possível criar tabela de Maintenance Plans (MySQL offline?):',  err.message);
+    }
+
+    try {
+        await Promise.race([
+            ensurePecasTables(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+        ]);
+    } catch (err) {
+        console.warn('⚠️  Não foi possível criar tabelas de Peças (MySQL offline?):', err.message);
+    }
+
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
 ║                                                           ║
