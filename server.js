@@ -10,6 +10,12 @@ const cron = require('node-cron');
 const app = express();
 const PORT = 5000;
 
+// Handler global para rejeições não tratadas
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️  Rejeição não tratada:', reason);
+    // Não encerrar o processo - deixar o servidor continuar rodando
+});
+
 // Configuração do banco de dados MySQL (servidor remoto)
 const dbConfig = {
     host: '187.49.226.10',
@@ -3977,27 +3983,28 @@ async function ensurePecasTables() {
 
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', async () => {
-    // Criar tabelas se não existirem (sem bloquear se MySQL não responder)
-    // ⚠️  COMENTADO: MySQL remoto não está respondendo. Será ativado quando MySQL for restaurado.
-    /*
     try {
-        await Promise.race([
-            ensureMaintenancePlanItemsTable(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-        ]);
-    } catch (err) {
-        console.warn('⚠️  Não foi possível criar tabela de Maintenance Plans (MySQL offline?):',  err.message);
-    }
+        // Criar tabelas se não existirem (sem bloquear se MySQL não responder)
+        // ⚠️  COMENTADO: MySQL remoto não está respondendo. Será ativado quando MySQL for restaurado.
+        /*
+        try {
+            await Promise.race([
+                ensureMaintenancePlanItemsTable(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
+        } catch (err) {
+            console.warn('⚠️  Não foi possível criar tabela de Maintenance Plans (MySQL offline?):',  err.message);
+        }
 
-    try {
-        await Promise.race([
-            ensurePecasTables(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-        ]);
-    } catch (err) {
-        console.warn('⚠️  Não foi possível criar tabelas de Peças (MySQL offline?):', err.message);
-    }
-    */
+        try {
+            await Promise.race([
+                ensurePecasTables(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]);
+        } catch (err) {
+            console.warn('⚠️  Não foi possível criar tabelas de Peças (MySQL offline?):', err.message);
+        }
+        */
 
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
@@ -4182,4 +4189,8 @@ app.listen(PORT, '0.0.0.0', async () => {
     });
 
     console.log('⏰ Cron job configurado: Verificação de alertas de manutenção todos os dias às 06:00h\n');
+    } catch (err) {
+        console.error('❌ Erro ao iniciar servidor:', err);
+        // Não encerrar - servidor deve continuar rodando
+    }
 });
