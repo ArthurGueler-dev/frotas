@@ -3976,7 +3976,7 @@ async function ensurePecasTables() {
 }
 
 // Iniciar servidor
-app.listen(PORT, async () => {
+app.listen(PORT, '0.0.0.0', async () => {
     // Criar tabelas se não existirem (sem bloquear se MySQL não responder)
     // ⚠️  COMENTADO: MySQL remoto não está respondendo. Será ativado quando MySQL for restaurado.
     /*
