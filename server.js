@@ -3978,6 +3978,8 @@ async function ensurePecasTables() {
 // Iniciar servidor
 app.listen(PORT, async () => {
     // Criar tabelas se não existirem (sem bloquear se MySQL não responder)
+    // ⚠️  COMENTADO: MySQL remoto não está respondendo. Será ativado quando MySQL for restaurado.
+    /*
     try {
         await Promise.race([
             ensureMaintenancePlanItemsTable(),
@@ -3995,6 +3997,7 @@ app.listen(PORT, async () => {
     } catch (err) {
         console.warn('⚠️  Não foi possível criar tabelas de Peças (MySQL offline?):', err.message);
     }
+    */
 
     console.log(`
 ╔═══════════════════════════════════════════════════════════╗
