@@ -1,3 +1,6 @@
+// Carregar variáveis de ambiente
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -77,37 +80,15 @@ function calculateStats() {
 }
 
 // ===== PROXY ITURAN API =====
-// Endpoint proxy para evitar problemas de CORS/Mixed Content do navegador
+// EM PRODUÇÃO: As requisições são feitas direto do backend (veja ituran-api-client.js)
+// EM DESENVOLVIMENTO: Descomente o código abaixo se ainda quiser usar um proxy separado
 
+/*
 app.get('/api/proxy/ituran/*', async (req, res) => {
-    try {
-        // Pega o caminho após /api/proxy/ituran/
-        const ituranPath = req.params[0];
-        const queryString = Object.keys(req.query).length > 0
-            ? '?' + new URLSearchParams(req.query).toString()
-            : '';
-
-        const proxyUrl = `http://localhost:8888/api/ituran/${ituranPath}${queryString}`;
-
-        console.log(`🔄 [PROXY] Redirecionando: ${proxyUrl.substring(0, 100)}...`);
-
-        const response = await fetch(proxyUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': '*/*'
-            }
-        });
-
-        const text = await response.text();
-
-        res.set('Content-Type', 'application/xml');
-        res.send(text);
-
-    } catch (error) {
-        console.error('❌ [PROXY] Erro:', error.message);
-        res.status(500).send(`<?xml version="1.0"?><Error>${error.message}</Error>`);
-    }
+    // Endpoint proxy obsoleto - usar diretamente no backend
+    res.status(410).json({ error: 'Proxy endpoint deprecated - use backend directly' });
 });
+*/
 
 // ===== ROTAS DA API =====
 

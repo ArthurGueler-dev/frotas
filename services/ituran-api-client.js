@@ -6,21 +6,21 @@
 
 class IturanAPIClient {
     constructor(config = {}) {
+        this.isNode = typeof window === 'undefined';
+
         this.config = {
-            apiUrl: config.apiUrl || 'http://localhost:8888/api/ituran',
-            username: config.username || 'api@i9tecnologia',
-            password: config.password || 'Api@In9Eng',
+            // Em produção: usar API diretamente
+            // Em desenvolvimento: pode usar proxy se configurado
+            apiUrl: config.apiUrl || (this.isNode
+                ? 'https://iweb.ituran.com.br'
+                : 'http://localhost:5000/api/proxy/ituran'),
+            username: config.username || process.env?.ITURAN_USERNAME || 'api@i9tecnologia',
+            password: config.password || process.env?.ITURAN_PASSWORD || 'Api@In9Eng',
             timeout: config.timeout || 120000 // 2 minutos
         };
 
-        this.isNode = typeof window === 'undefined';
-
-        // Ajusta URL para navegador (via proxy do servidor)
-        if (!this.isNode) {
-            this.config.apiUrl = config.apiUrl || 'http://localhost:5000/api/proxy/ituran';
-        }
-
         console.log(`🔧 IturanAPIClient inicializado - ${this.isNode ? 'Node.js' : 'Browser'}`);
+        console.log(`   API URL: ${this.config.apiUrl.split('?')[0]}`);
     }
 
     /**
