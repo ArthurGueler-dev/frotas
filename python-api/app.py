@@ -312,6 +312,20 @@ def get_osrm_distance_matrix(coords: List[Tuple[float, float]]) -> Optional[np.n
     Returns:
         Matriz NxN com distâncias em metros, ou None se erro
     """
+    result = get_osrm_matrices(coords)
+    return result['distances'] if result else None
+
+
+def get_osrm_matrices(coords: List[Tuple[float, float]]) -> Optional[Dict]:
+    """
+    Obter matrizes de distâncias E durações reais via OSRM local.
+
+    Args:
+        coords: Lista de (lat, lon)
+
+    Returns:
+        Dict com 'distances' (metros) e 'durations' (segundos), ou None se erro
+    """
     try:
         # Formato OSRM: lon,lat;lon,lat;...
         coordinates_str = ";".join([f"{lon},{lat}" for lat, lon in coords])
@@ -327,9 +341,11 @@ def get_osrm_distance_matrix(coords: List[Tuple[float, float]]) -> Optional[np.n
         data = response.json()
 
         if data['code'] == 'Ok':
-            # Matriz de distâncias em metros
-            distances = np.array(data['distances'])
-            return distances
+            # Retornar AMBAS as matrizes
+            return {
+                'distances': np.array(data['distances']),  # metros
+                'durations': np.array(data['durations'])   # segundos
+            }
         else:
             print(f"⚠️ OSRM error: {data.get('message', 'Unknown')}")
             return None
@@ -357,16 +373,20 @@ def solve_cvrp(depot_coords: Tuple[float, float],
         # Preparar coordenadas (depot primeiro)
         all_coords = [depot_coords] + [(loc['lat'], loc['lon']) for loc in locations]
 
-        # OSRM OBRIGATÓRIO - distâncias reais por rodovias
-        print(f"🚗 Calculando distâncias OSRM (real) para {len(all_coords)} pontos...")
-        distance_matrix = get_osrm_distance_matrix(all_coords)
+        # OSRM OBRIGATÓRIO - distâncias E durações reais por rodovias
+        print(f"🚗 Calculando distâncias e tempos OSRM (real) para {len(all_coords)} pontos...")
+        osrm_data = get_osrm_matrices(all_coords)
 
-        if distance_matrix is None:
-            print("❌ OSRM falhou - não é possível prosseguir sem distâncias reais")
+        if osrm_data is None:
+            print("❌ OSRM falhou - não é possível prosseguir sem dados reais")
             return None
+
+        distance_matrix = osrm_data['distances']  # metros
+        duration_matrix = osrm_data['durations']  # segundos
 
         # Converter para inteiros (PyVRP trabalha com inteiros)
         distance_matrix_int = distance_matrix.astype(int)
+        duration_matrix_int = duration_matrix.astype(int)
 
         # Criar modelo PyVRP
         model = Model()
@@ -415,6 +435,7 @@ def solve_cvrp(depot_coords: Tuple[float, float],
         # Extrair rotas
         routes = []
         total_distance = 0
+        total_duration = 0  # segundos
 
         for route_idx, route in enumerate(result.best.routes()):
             # route.visits() retorna lista de índices dos clientes (não inclui depot)
@@ -428,8 +449,9 @@ def solve_cvrp(depot_coords: Tuple[float, float],
             if not route_visits:
                 continue
 
-            # Calcular distância da rota (depot -> locais -> depot)
+            # Calcular distância E duração da rota (depot -> locais -> depot)
             route_distance = 0
+            route_duration = 0  # segundos de viagem
             prev_idx = 0  # depot
 
             route_location_ids = []
@@ -438,26 +460,36 @@ def solve_cvrp(depot_coords: Tuple[float, float],
                 # Na matriz de distância: depot=0, client1=1, client2=2, etc
                 # Então visit_idx JÁ É o índice correto na matriz
                 route_distance += distance_matrix_int[prev_idx][visit_idx]
+                route_duration += duration_matrix_int[prev_idx][visit_idx]
                 prev_idx = visit_idx
                 # Para pegar o location correto, precisa ser visit_idx - 1 (converter para 0-based)
                 route_location_ids.append(locations[visit_idx - 1]['id'])
 
             # Retorno ao depot
             route_distance += distance_matrix_int[prev_idx][0]
+            route_duration += duration_matrix_int[prev_idx][0]
+
+            # Adicionar tempo de parada (5 minutos por local = 300 segundos)
+            route_duration_with_stops = route_duration + (len(route_visits) * 300)
 
             total_distance += route_distance
+            total_duration += route_duration_with_stops
 
             routes.append({
                 'route_id': route_idx + 1,
                 'locations': route_location_ids,
                 'sequence': route_visits,
                 'distance_meters': int(route_distance),
-                'distance_km': round(route_distance / 1000, 2)
+                'distance_km': round(route_distance / 1000, 2),
+                'duration_seconds': int(route_duration),  # tempo só de viagem
+                'duration_minutes': round(route_duration / 60, 1),  # tempo só de viagem
+                'duration_with_stops_minutes': round(route_duration_with_stops / 60, 1)  # com paradas
             })
 
         return {
             'routes': routes,
             'total_distance_km': round(total_distance / 1000, 2),
+            'total_duration_minutes': round(total_duration / 60, 1),  # com paradas incluídas
             'num_vehicles': len(routes)
         }
 
@@ -789,13 +821,14 @@ def otimizar_rotas():
                     'num_locais': len(cluster_locations),
                     'num_rotas': cvrp_result['num_vehicles'],
                     'distancia_total_km': cvrp_result['total_distance_km'],
+                    'tempo_total_min': cvrp_result['total_duration_minutes'],  # ✅ TEMPO REAL DO OSRM
                     'rotas': cvrp_result['routes'],
                     'mapa_url': f"/maps/{map_filename}"
                 })
 
                 mapas_gerados.append(map_filename)
 
-                print(f"  ✅ {cvrp_result['num_vehicles']} rotas, {cvrp_result['total_distance_km']}km total")
+                print(f"  ✅ {cvrp_result['num_vehicles']} rotas, {cvrp_result['total_distance_km']}km, {cvrp_result['total_duration_minutes']}min total")
             else:
                 print(f"  ❌ Falha ao otimizar bloco {bloco_idx}")
 

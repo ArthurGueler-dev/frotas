@@ -442,13 +442,19 @@ async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota,
                     }
                     console.log(`Bloco ${i + 1}: ${locationIds.length} location IDs extraídos:`, locationIds);
 
-                    // Calcular tempo estimado baseado em distância e paradas
-                    // Velocidade média urbana: 25 km/h + 5 min por parada
+                    // Usar tempo REAL do OSRM (já vem calculado com paradas)
                     const distanciaKm = bloco.distancia_total_km || 0;
-                    const numLocais = bloco.num_locais || 0;
-                    const tempoViagem = (distanciaKm / 25) * 60; // minutos de viagem
-                    const tempoParadas = numLocais * 5; // 5 min por parada
-                    const tempoTotalEstimado = Math.round(tempoViagem + tempoParadas);
+                    const tempoTotalReal = bloco.tempo_total_min || 0; // ✅ TEMPO REAL DO OSRM + paradas
+
+                    // Se por algum motivo não vier tempo, calcular estimativa (fallback)
+                    let tempoFinal = tempoTotalReal;
+                    if (!tempoTotalReal) {
+                        const numLocais = bloco.num_locais || 0;
+                        const tempoViagem = (distanciaKm / 25) * 60; // minutos de viagem
+                        const tempoParadas = numLocais * 5; // 5 min por parada
+                        tempoFinal = Math.round(tempoViagem + tempoParadas);
+                        console.warn(`⚠️ Tempo não retornado pela API Python, usando estimativa: ${tempoFinal}min`);
+                    }
 
                     blocks.push({
                         id: bloco.bloco_id,
@@ -459,7 +465,7 @@ async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota,
                         locationsCount: bloco.num_locais,
                         routesCount: bloco.num_rotas,
                         totalDistanceKm: distanciaKm,
-                        totalDurationMin: tempoTotalEstimado, // ✅ Adicionar tempo estimado
+                        totalDurationMin: tempoFinal, // ✅ TEMPO REAL DO OSRM
                         importBatch: importBatch,
                         algorithm: 'python',
                         routes: bloco.rotas,
