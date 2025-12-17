@@ -442,6 +442,14 @@ async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota,
                     }
                     console.log(`Bloco ${i + 1}: ${locationIds.length} location IDs extraídos:`, locationIds);
 
+                    // Calcular tempo estimado baseado em distância e paradas
+                    // Velocidade média urbana: 25 km/h + 5 min por parada
+                    const distanciaKm = bloco.distancia_total_km || 0;
+                    const numLocais = bloco.num_locais || 0;
+                    const tempoViagem = (distanciaKm / 25) * 60; // minutos de viagem
+                    const tempoParadas = numLocais * 5; // 5 min por parada
+                    const tempoTotalEstimado = Math.round(tempoViagem + tempoParadas);
+
                     blocks.push({
                         id: bloco.bloco_id,
                         name: `Bloco Python #${i + 1}`,
@@ -450,7 +458,8 @@ async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota,
                         diameterKm: bloco.diameter_km,
                         locationsCount: bloco.num_locais,
                         routesCount: bloco.num_rotas,
-                        totalDistanceKm: bloco.distancia_total_km,
+                        totalDistanceKm: distanciaKm,
+                        totalDurationMin: tempoTotalEstimado, // ✅ Adicionar tempo estimado
                         importBatch: importBatch,
                         algorithm: 'python',
                         routes: bloco.rotas,
