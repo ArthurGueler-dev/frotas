@@ -221,7 +221,7 @@
 </div>
 
 <script>
-const API_URL = '/api';
+const API_URL = 'https://floripa.in9automacao.com.br';
 const API_PLANOS_URL = 'https://floripa.in9automacao.com.br/planos-manutencao-api.php';
 let currentModelId = null;
 let currentModeloNome = null;
@@ -236,7 +236,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Carregar modelos
 async function carregarModelos() {
     try {
-        const response = await fetch(`${API_URL}/modelos`);
+        const response = await fetch(`${API_URL}/modelos.php`);
         const modelos = await response.json();
 
         const select = document.getElementById('modelSelect');
@@ -267,7 +267,8 @@ async function carregarModelos() {
                 const marca = selectedOption.dataset.marca;
                 const modelo = selectedOption.dataset.modelo;
                 const ano = selectedOption.dataset.ano;
-                carregarPlano(modeloId, `${marca} ${modelo} (${ano})`);
+                // Buscar apenas pelo nome do modelo (sem marca e ano)
+                carregarPlano(modeloId, modelo, `${marca} ${modelo} (${ano})`);
             }
         });
     } catch (error) {
@@ -277,17 +278,21 @@ async function carregarModelos() {
 }
 
 // Carregar plano do modelo
-async function carregarPlano(modeloId, modeloNome) {
+async function carregarPlano(modeloId, modeloNome, modeloCompleto) {
     try {
-        currentModeloNome = modeloNome;
+        currentModeloNome = modeloCompleto || modeloNome;
 
-        // Buscar da API local primeiro
-        const response = await fetch(`${API_URL}/maintenance-plan-items?modelo_id=${modeloId}`);
-        planItems = await response.json();
+        // Buscar da API PHP usando apenas o nome do modelo
+        console.log('🔍 Buscando planos para:', modeloNome);
+        const response = await fetch(`${API_PLANOS_URL}?modelo=${encodeURIComponent(modeloNome)}`);
+        const result = await response.json();
+        console.log('📦 Resposta da API:', result);
+        planItems = result.data || [];
+        console.log('📋 Planos encontrados:', planItems.length);
         expandedItems.clear();
 
         document.getElementById('planSection').classList.remove('hidden');
-        document.getElementById('planTitle').textContent = `Plano para ${modeloNome}`;
+        document.getElementById('planTitle').textContent = `Plano para ${currentModeloNome}`;
         document.getElementById('planCount').textContent = `${planItems.length} ${planItems.length === 1 ? 'item cadastrado' : 'itens cadastrados'}`;
 
         const statusBadge = document.getElementById('planStatus');
@@ -329,7 +334,7 @@ async function carregarPecasExpandido(itemId) {
     if (!container) return;
 
     try {
-        const response = await fetch(`${API_URL}/plano-pecas/${itemId}`);
+        const response = await fetch(`${API_URL}/plano-pecas-api.php?plano_item_id=${itemId}`);
         const result = await response.json();
 
         const pecas = result.data || result;
@@ -397,17 +402,17 @@ function renderizarItens() {
     container.innerHTML = planItems.map(item => {
         const isExpanded = expandedItems.has(item.id);
 
+        const criticidade = (item.criticidade || '').toLowerCase();
         const criticidadeClass = {
             'alta': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300',
+            'média': 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300',
             'media': 'bg-orange-100 dark:bg-orange-900/50 text-orange-800 dark:text-orange-300',
-            'baixa': 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300'
-        }[item.criticidade] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
+            'baixa': 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300',
+            'crítica': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300',
+            'critica': 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300'
+        }[criticidade] || 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300';
 
-        const criticidadeLabel = {
-            'alta': 'Alta Criticidade',
-            'media': 'Média Criticidade',
-            'baixa': 'Baixa Criticidade'
-        }[item.criticidade] || 'Criticidade';
+        const criticidadeLabel = item.criticidade || 'Sem Criticidade';
 
         const borderClass = isExpanded ? 'border-primary/50 dark:border-primary/50 ring-2 ring-primary/20' : 'border-gray-200 dark:border-gray-700';
         const expandIcon = isExpanded ? 'expand_less' : 'expand_more';
@@ -417,11 +422,11 @@ function renderizarItens() {
             <div class="bg-white dark:bg-gray-800/50 border ${borderClass} rounded-xl overflow-hidden">
                 <div class="p-4 flex flex-col md:flex-row items-start md:items-center gap-4 ${isExpanded ? 'border-b border-gray-200 dark:border-gray-700' : ''}">
                     <div class="flex-1">
-                        <p class="font-bold text-lg text-gray-900 dark:text-white">${item.nome}</p>
+                        <p class="font-bold text-lg text-gray-900 dark:text-white">${item.descricao_titulo || item.nome || 'Sem título'}</p>
                         <div class="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2 text-sm text-gray-600 dark:text-gray-300">
-                            ${item.intervalo_km ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">speed</span> <span>${Number(item.intervalo_km).toLocaleString('pt-BR')} KM</span></div>` : ''}
-                            ${item.intervalo_meses ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">calendar_month</span> <span>${item.intervalo_meses} ${item.intervalo_meses === 1 ? 'Mês' : 'Meses'}</span></div>` : ''}
-                            <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">payments</span> <span>Custo: R$ ${Number(item.custo_estimado).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
+                            ${item.km_recomendado ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">speed</span> <span>${Number(item.km_recomendado).toLocaleString('pt-BR')} KM</span></div>` : ''}
+                            ${item.intervalo_tempo ? `<div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">calendar_month</span> <span>${item.intervalo_tempo}</span></div>` : ''}
+                            <div class="flex items-center gap-2"><span class="material-symbols-outlined text-base">payments</span> <span>Custo: R$ ${Number(item.custo_estimado || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span></div>
                         </div>
                     </div>
                     <div class="flex items-center gap-3 w-full md:w-auto justify-end">
@@ -440,8 +445,8 @@ function renderizarItens() {
                 ${isExpanded ? `
                 <div class="p-6 bg-background-light dark:bg-gray-800">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
-                        ${item.intervalo_km ? `<div><p class="font-medium text-gray-500 dark:text-gray-400">Intervalo KM</p><p class="font-semibold text-gray-800 dark:text-gray-200">${Number(item.intervalo_km).toLocaleString('pt-BR')} KM</p></div>` : ''}
-                        ${item.intervalo_meses ? `<div><p class="font-medium text-gray-500 dark:text-gray-400">Intervalo Tempo</p><p class="font-semibold text-gray-800 dark:text-gray-200">${item.intervalo_meses} ${item.intervalo_meses === 1 ? 'Mês' : 'Meses'}</p></div>` : ''}
+                        ${(item.km_recomendado || item.intervalo_km) ? `<div><p class="font-medium text-gray-500 dark:text-gray-400">Intervalo KM</p><p class="font-semibold text-gray-800 dark:text-gray-200">${Number(item.km_recomendado || item.intervalo_km).toLocaleString('pt-BR')} KM</p></div>` : ''}
+                        ${(item.intervalo_tempo || item.intervalo_meses) ? `<div><p class="font-medium text-gray-500 dark:text-gray-400">Intervalo Tempo</p><p class="font-semibold text-gray-800 dark:text-gray-200">${Number(item.intervalo_tempo || item.intervalo_meses)} ${(Number(item.intervalo_tempo || item.intervalo_meses)) === 1 ? 'Mês' : 'Meses'}</p></div>` : ''}
                         <div><p class="font-medium text-gray-500 dark:text-gray-400">Custo Estimado</p><p class="font-semibold text-gray-800 dark:text-gray-200">R$ ${Number(item.custo_estimado).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p></div>
                         <div><p class="font-medium text-gray-500 dark:text-gray-400">Criticidade</p><p class="font-semibold text-gray-800 dark:text-gray-200">${criticidadeLabel}</p></div>
                         ${item.descricao ? `<div class="col-span-1 md:col-span-2 lg:col-span-4"><p class="font-medium text-gray-500 dark:text-gray-400">Descrição</p><p class="text-gray-800 dark:text-gray-200">${item.descricao}</p></div>` : ''}
@@ -495,9 +500,9 @@ async function editarItem(itemId) {
 
     document.getElementById('modalTitle').textContent = 'Editar Item de Manutenção';
     document.getElementById('itemId').value = item.id;
-    document.getElementById('itemNome').value = item.nome;
-    document.getElementById('itemKm').value = item.intervalo_km || '';
-    document.getElementById('itemMeses').value = item.intervalo_meses || '';
+    document.getElementById('itemNome').value = item.descricao_titulo || item.nome || '';
+    document.getElementById('itemKm').value = item.km_recomendado || item.intervalo_km || '';
+    document.getElementById('itemMeses').value = item.intervalo_tempo || item.intervalo_meses || '';
     document.getElementById('itemCusto').value = item.custo_estimado;
     document.getElementById('itemCriticidade').value = item.criticidade;
     document.getElementById('itemDescricao').value = item.descricao || '';
@@ -519,17 +524,21 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
 
     const itemId = document.getElementById('itemId').value;
     const data = {
-        modelo_id: currentModelId,
-        nome: document.getElementById('itemNome').value,
-        intervalo_km: document.getElementById('itemKm').value || null,
-        intervalo_meses: document.getElementById('itemMeses').value || null,
+        descricao_titulo: document.getElementById('itemNome').value,
+        km_recomendado: document.getElementById('itemKm').value || null,
+        intervalo_tempo: document.getElementById('itemMeses').value || null,
         custo_estimado: parseFloat(document.getElementById('itemCusto').value),
         criticidade: document.getElementById('itemCriticidade').value,
-        descricao: document.getElementById('itemDescricao').value || null
+        descricao_observacao: document.getElementById('itemDescricao').value || null
     };
 
+    // Adicionar modelo_carro apenas para POST (criar novo)
+    if (!itemId) {
+        data.modelo_carro = currentModelName;
+    }
+
     try {
-        const url = itemId ? `${API_URL}/maintenance-plan-items/${itemId}` : `${API_URL}/maintenance-plan-items`;
+        const url = itemId ? `${API_PLANOS_URL}?id=${itemId}` : API_PLANOS_URL;
         const method = itemId ? 'PUT' : 'POST';
 
         const response = await fetch(url, {
@@ -546,7 +555,7 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
             const marca = selectedOption.dataset.marca;
             const modelo = selectedOption.dataset.modelo;
             const ano = selectedOption.dataset.ano;
-            await carregarPlano(currentModelId, `${marca} ${modelo} (${ano})`);
+            await carregarPlano(currentModelId, modelo, `${marca} ${modelo} (${ano})`);
         } else {
             throw new Error('Erro ao salvar item');
         }
@@ -561,7 +570,7 @@ async function excluirItem(itemId) {
     if (!confirm('Deseja realmente excluir este item?')) return;
 
     try {
-        const response = await fetch(`${API_URL}/maintenance-plan-items/${itemId}`, {
+        const response = await fetch(`${API_PLANOS_URL}?id=${itemId}`, {
             method: 'DELETE'
         });
 
@@ -572,7 +581,7 @@ async function excluirItem(itemId) {
             const marca = selectedOption.dataset.marca;
             const modelo = selectedOption.dataset.modelo;
             const ano = selectedOption.dataset.ano;
-            await carregarPlano(currentModelId, `${marca} ${modelo} (${ano})`);
+            await carregarPlano(currentModelId, modelo, `${marca} ${modelo} (${ano})`);
         } else {
             throw new Error('Erro ao excluir item');
         }
@@ -598,7 +607,7 @@ function formatarMoeda(valor) {
 // Carregar peças disponíveis
 async function carregarPecasDisponiveis() {
     try {
-        const response = await fetch(`${API_URL}/pecas`);
+        const response = await fetch(`${API_URL}/pecas-api.php`);
         const result = await response.json();
         pecasDisponiveis = Array.isArray(result) ? result : (result.data || []);
         popularSelectPecas();
@@ -652,7 +661,7 @@ async function carregarPecasItem(itemId) {
     tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-gray-500">Carregando...</td></tr>';
 
     try {
-        const response = await fetch(`${API_URL}/plano-pecas/${itemId}`);
+        const response = await fetch(`${API_URL}/plano-pecas-api.php?plano_item_id=${itemId}`);
         const result = await response.json();
 
         const pecas = result.data || result;
@@ -709,7 +718,7 @@ async function adicionarPecaItem() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/plano-pecas`, {
+        const response = await fetch(`${API_URL}/plano-pecas-api.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -738,7 +747,7 @@ async function removerPecaItem(associacaoId) {
     if (!confirm('Remover esta peça?')) return;
 
     try {
-        const response = await fetch(`${API_URL}/plano-pecas/${associacaoId}`, {
+        const response = await fetch(`${API_URL}/plano-pecas-api.php?id=${associacaoId}`, {
             method: 'DELETE'
         });
 
@@ -768,7 +777,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 
 </body>
 </html>

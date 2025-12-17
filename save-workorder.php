@@ -18,6 +18,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// Definir timezone para Brasil
+date_default_timezone_set('America/Sao_Paulo');
+
 // Incluir configuração do banco
 require_once 'db-config.php';
 
@@ -29,17 +32,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
+    $startTime = microtime(true);
+
     // Pegar dados JSON do corpo da requisição
     $json = file_get_contents('php://input');
+
+    // Debug: log do JSON recebido
+    error_log('save-workorder: JSON recebido: ' . substr($json, 0, 200));
+    error_log('save-workorder: Tamanho do JSON: ' . strlen($json) . ' bytes');
+
     $data = json_decode($json, true);
 
     if (!$data) {
-        throw new Exception('Dados JSON inválidos');
+        $jsonError = json_last_error_msg();
+        error_log('save-workorder: Erro ao decodificar JSON: ' . $jsonError);
+        throw new Exception('Dados JSON inválidos: ' . $jsonError);
     }
 
+    error_log('save-workorder: Dados recebidos em ' . (microtime(true) - $startTime) . 's');
+
     // Validar campos obrigatórios
-    if (empty($data['ordem_numero']) || empty($data['placa_veiculo']) || empty($data['km_veiculo'])) {
-        throw new Exception('Campos obrigatórios faltando: ordem_numero, placa_veiculo, km_veiculo');
+    if (empty($data['placa_veiculo']) || empty($data['km_veiculo'])) {
+        throw new Exception('Campos obrigatórios faltando: placa_veiculo, km_veiculo');
     }
 
     // Conectar ao banco
@@ -51,136 +65,91 @@ try {
     // Começar transação
     $pdo->beginTransaction();
 
-    // Verificar se ordem já existe
-    $sqlCheck = "SELECT id FROM ordemservico WHERE ordem_numero = :ordem_numero";
-    $stmtCheck = $pdo->prepare($sqlCheck);
-    $stmtCheck->execute([':ordem_numero' => $data['ordem_numero']]);
+    error_log('save-workorder: Transação iniciada em ' . (microtime(true) - $startTime) . 's');
 
-    if ($stmtCheck->fetch()) {
-        throw new Exception('Número de ordem já existe: ' . $data['ordem_numero']);
-    }
+    // Calcular data/hora atual no horário de Brasília
+    $tz = new DateTimeZone('America/Sao_Paulo');
+    $now = new DateTime('now', $tz);
+    $dataCriacao = $now->format('Y-m-d H:i:s');
 
-    // Buscar veiculo_id pela placa
-    $veiculo_id = null;
-    if (!empty($data['placa_veiculo'])) {
-        $sqlVeiculo = "SELECT id FROM veiculos WHERE placa = :placa LIMIT 1";
-        $stmtVeiculo = $pdo->prepare($sqlVeiculo);
-        $stmtVeiculo->execute([':placa' => $data['placa_veiculo']]);
-        $veiculoResult = $stmtVeiculo->fetch();
-        if ($veiculoResult) {
-            $veiculo_id = $veiculoResult['id'];
-        }
-    }
+    error_log("save-workorder: Timezone: America/Sao_Paulo, Data/Hora: {$dataCriacao}");
 
-    // Inserir ordem de serviço
+    // Gerar seq_number único com lock para evitar race conditions
+    // Usar FOR UPDATE para lock pessimista
+    $seqQuery = "SELECT COALESCE(MAX(seq_number), 0) + 1 as next_seq FROM ordemservico FOR UPDATE";
+    $seqStmt = $pdo->query($seqQuery);
+    $seq_number = $seqStmt->fetchColumn();
+
+    // Gerar ordem_numero baseado no seq_number
+    $year = date('Y');
+    $ordem_numero = sprintf('OS-%d-%05d', $year, $seq_number);
+
+    // Preparar SQL de INSERT (COM seq_number e ordem_numero)
     $sql = "INSERT INTO ordemservico
-            (ordem_numero, veiculo_id, placa_veiculo, motorista_id, km_veiculo,
-             responsavel, oficina, status, prioridade, ocorrencia, tipo_servico,
-             defeito_reclamado, defeito_constatado, solucao_executada, observacoes,
-             data_criacao, prazo_estimado, valor_orcado, criado_por)
+            (seq_number, ordem_numero, placa_veiculo, km_veiculo,
+             responsavel, status, ocorrencia, observacoes,
+             data_criacao)
             VALUES
-            (:ordem_numero, :veiculo_id, :placa_veiculo, :motorista_id, :km_veiculo,
-             :responsavel, :oficina, :status, :prioridade, :ocorrencia, :tipo_servico,
-             :defeito_reclamado, :defeito_constatado, :solucao_executada, :observacoes,
-             NOW(), :prazo_estimado, :valor_orcado, :criado_por)";
+            (:seq_number, :ordem_numero, :placa_veiculo, :km_veiculo,
+             :responsavel, :status, :ocorrencia, :observacoes,
+             :data_criacao)";
 
     $stmt = $pdo->prepare($sql);
+
+    // Inserir com seq_number e ordem_numero já definidos
     $stmt->execute([
-        ':ordem_numero' => $data['ordem_numero'],
-        ':veiculo_id' => $veiculo_id,
+        ':seq_number' => $seq_number,
+        ':ordem_numero' => $ordem_numero,
         ':placa_veiculo' => $data['placa_veiculo'],
-        ':motorista_id' => $data['motorista_id'] ?? null,
         ':km_veiculo' => $data['km_veiculo'],
-        ':responsavel' => $data['responsavel'] ?? null,
-        ':oficina' => $data['oficina'] ?? null,
-        ':status' => $data['status'] ?? 'Aberta',
-        ':prioridade' => $data['prioridade'] ?? 'Média',
-        ':ocorrencia' => $data['ocorrencia'] ?? 'Corretiva',
-        ':tipo_servico' => $data['tipo_servico'] ?? null,
-        ':defeito_reclamado' => $data['defeito_reclamado'] ?? null,
-        ':defeito_constatado' => $data['defeito_constatado'] ?? null,
-        ':solucao_executada' => $data['solucao_executada'] ?? null,
-        ':observacoes' => $data['observacoes'] ?? null,
-        ':prazo_estimado' => $data['prazo_estimado'] ?? null,
-        ':valor_orcado' => $data['valor_orcado'] ?? 0.00,
-        ':criado_por' => $data['criado_por'] ?? 'Sistema Web'
+        ':responsavel' => isset($data['responsavel']) ? $data['responsavel'] : null,
+        ':status' => isset($data['status']) ? $data['status'] : 'Aberta',
+        ':ocorrencia' => isset($data['ocorrencia']) ? $data['ocorrencia'] : 'Corretiva',
+        ':observacoes' => isset($data['observacoes']) ? $data['observacoes'] : null,
+        ':data_criacao' => $dataCriacao
     ]);
 
+    // Obter ID gerado
     $os_id = $pdo->lastInsertId();
 
-    // Inserir itens da OS se houver
-    if (!empty($data['itens']) && is_array($data['itens'])) {
-        $sqlItem = "INSERT INTO ordemservico_itens
-                    (os_id, servico_id, tipo, codigo, descricao, quantidade,
-                     unidade, valor_unitario, desconto_percentual, desconto_valor,
-                     fornecedor, numero_nota, observacoes)
-                    VALUES
-                    (:os_id, :servico_id, :tipo, :codigo, :descricao, :quantidade,
-                     :unidade, :valor_unitario, :desconto_percentual, :desconto_valor,
-                     :fornecedor, :numero_nota, :observacoes)";
+    // Atualizar $data para usar nos itens
+    $data['ordem_numero'] = $ordem_numero;
 
-        $stmtItem = $pdo->prepare($sqlItem);
+    error_log('save-workorder: OS inserida (ID: ' . $os_id . ', Número: ' . $ordem_numero . ', Seq: ' . $seq_number . ') em ' . (microtime(true) - $startTime) . 's');
+
+    // Inserir itens da OS se houver (usando Batch INSERT para melhor performance)
+    if (!empty($data['itens']) && is_array($data['itens'])) {
+        $numItens = count($data['itens']);
+
+        // Construir VALUES placeholders para batch insert
+        $valuesPlaceholders = [];
+        $valuesData = [];
 
         foreach ($data['itens'] as $item) {
-            // Buscar servico_id se houver código
-            $servico_id = null;
-            if (!empty($item['codigo'])) {
-                $sqlServico = "SELECT id FROM servicos WHERE codigo = :codigo LIMIT 1";
-                $stmtServico = $pdo->prepare($sqlServico);
-                $stmtServico->execute([':codigo' => $item['codigo']]);
-                $servicoResult = $stmtServico->fetch();
-                if ($servicoResult) {
-                    $servico_id = $servicoResult['id'];
-                }
-            }
-
-            $stmtItem->execute([
-                ':os_id' => $os_id,
-                ':servico_id' => $servico_id,
-                ':tipo' => $item['tipo'] ?? 'Serviço',
-                ':codigo' => $item['codigo'] ?? null,
-                ':descricao' => $item['descricao'] ?? '',
-                ':quantidade' => $item['quantidade'] ?? 1,
-                ':unidade' => $item['unidade'] ?? 'UN',
-                ':valor_unitario' => $item['valor_unitario'] ?? 0.00,
-                ':desconto_percentual' => $item['desconto_percentual'] ?? 0.00,
-                ':desconto_valor' => $item['desconto_valor'] ?? 0.00,
-                ':fornecedor' => $item['fornecedor'] ?? null,
-                ':numero_nota' => $item['numero_nota'] ?? null,
-                ':observacoes' => $item['observacoes'] ?? null
-            ]);
+            $valuesPlaceholders[] = "(?, ?, ?, ?, ?)";
+            $valuesData[] = $data['ordem_numero'];
+            $valuesData[] = isset($item['tipo']) ? $item['tipo'] : 'Serviço';
+            $valuesData[] = isset($item['descricao']) ? $item['descricao'] : '';
+            $valuesData[] = isset($item['quantidade']) ? $item['quantidade'] : 1;
+            $valuesData[] = isset($item['valor_unitario']) ? $item['valor_unitario'] : 0.00;
         }
 
-        // Calcular total da OS baseado nos itens
-        $sqlTotal = "SELECT
-                        COALESCE(SUM(valor_total), 0) as total,
-                        COALESCE(SUM(CASE WHEN tipo = 'Produto' THEN valor_total ELSE 0 END), 0) as total_pecas,
-                        COALESCE(SUM(CASE WHEN tipo IN ('Serviço', 'Mão de Obra') THEN valor_total ELSE 0 END), 0) as total_mao_obra
-                     FROM ordemservico_itens
-                     WHERE os_id = :os_id";
+        // Executar batch insert (1 query para todos os itens)
+        $sqlItem = "INSERT INTO ordemservico_itens
+                    (ordem_numero, tipo, descricao, quantidade, valor_unitario)
+                    VALUES " . implode(", ", $valuesPlaceholders);
 
-        $stmtTotal = $pdo->prepare($sqlTotal);
-        $stmtTotal->execute([':os_id' => $os_id]);
-        $totais = $stmtTotal->fetch();
+        $stmtItem = $pdo->prepare($sqlItem);
+        $stmtItem->execute($valuesData);
 
-        // Atualizar valores na OS
-        $sqlUpdateOS = "UPDATE ordemservico
-                        SET valor_total = :valor_total,
-                            valor_pecas = :valor_pecas,
-                            valor_mao_obra = :valor_mao_obra
-                        WHERE id = :os_id";
-
-        $stmtUpdateOS = $pdo->prepare($sqlUpdateOS);
-        $stmtUpdateOS->execute([
-            ':os_id' => $os_id,
-            ':valor_total' => $totais['total'],
-            ':valor_pecas' => $totais['total_pecas'],
-            ':valor_mao_obra' => $totais['total_mao_obra']
-        ]);
+        error_log('save-workorder: ' . $numItens . ' itens inseridos em batch em ' . (microtime(true) - $startTime) . 's');
     }
 
     // Commit da transação
     $pdo->commit();
+
+    $totalTime = microtime(true) - $startTime;
+    error_log('save-workorder: OS criada com sucesso em ' . $totalTime . 's');
 
     // Retornar sucesso
     http_response_code(201);
@@ -188,7 +157,8 @@ try {
         'success' => true,
         'message' => 'Ordem de serviço criada com sucesso',
         'id' => $os_id,
-        'ordem_numero' => $data['ordem_numero']
+        'ordem_numero' => $data['ordem_numero'],
+        'tempo' => round($totalTime, 2) . 's'
     ]);
 
 } catch (Exception $e) {

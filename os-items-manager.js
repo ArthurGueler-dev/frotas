@@ -15,25 +15,49 @@ class OSItemsManager {
 
     async loadServicesData() {
         try {
+            // Carregar dados do JSON estático
             const response = await fetch('services-data.json');
             this.servicesData = await response.json();
 
-            // Carregar itens customizados do localStorage
-            const storageKey = 'fleetflow_custom_items';
-            const customItems = JSON.parse(localStorage.getItem(storageKey) || '{"services": [], "products": []}');
+            // Carregar itens do banco de dados via API
+            try {
+                const apiResponse = await fetch('https://floripa.in9automacao.com.br/api-servicos.php');
+                const apiData = await apiResponse.json();
 
-            // Adicionar itens customizados aos arrays
-            if (customItems.services && customItems.services.length > 0) {
-                this.servicesData.services = [...this.servicesData.services, ...customItems.services];
-                console.log(`✅ ${customItems.services.length} serviços customizados carregados`);
-            }
+                if (apiData.success && apiData.data) {
+                    // Converter formato do banco para formato do sistema
+                    const dbServices = apiData.data
+                        .filter(item => item.tipo === 'Serviço' && item.ativo == 1)
+                        .map(item => ({
+                            id: `db-srv-${item.id}`,
+                            name: item.nome,
+                            category: 'geral', // categoria padrão
+                            defaultPrice: parseFloat(item.valor_padrao)
+                        }));
 
-            if (customItems.products && customItems.products.length > 0) {
-                this.servicesData.products = [...this.servicesData.products, ...customItems.products];
-                console.log(`✅ ${customItems.products.length} produtos customizados carregados`);
+                    const dbProducts = apiData.data
+                        .filter(item => item.tipo === 'Produto' && item.ativo == 1)
+                        .map(item => ({
+                            id: `db-prd-${item.id}`,
+                            name: item.nome,
+                            category: 'geral', // categoria padrão
+                            defaultPrice: parseFloat(item.valor_padrao)
+                        }));
+
+                    // Adicionar itens do banco aos arrays
+                    this.servicesData.services = [...this.servicesData.services, ...dbServices];
+                    this.servicesData.products = [...this.servicesData.products, ...dbProducts];
+
+                    console.log(`✅ ${dbServices.length} serviços do banco carregados`);
+                    console.log(`✅ ${dbProducts.length} produtos do banco carregados`);
+                }
+            } catch (apiError) {
+                console.warn('⚠️ Não foi possível carregar itens do banco:', apiError);
             }
 
             console.log('✅ Dados de serviços e produtos carregados');
+            console.log('📊 Total de serviços:', this.servicesData.services.length);
+            console.log('📊 Total de produtos:', this.servicesData.products.length);
         } catch (error) {
             console.error('❌ Erro ao carregar dados:', error);
         }
@@ -110,11 +134,16 @@ class OSItemsManager {
     }
 
     onTypeChange(selectElement) {
+        console.log('🔵 onTypeChange chamado');
+
         const row = selectElement.closest('tr');
         const type = selectElement.value;
         const descriptionInput = row.querySelector('.item-description');
         const categorySelect = row.querySelector('.item-category');
         const dropdown = row.querySelector('.item-dropdown');
+
+        console.log('🔵 Tipo selecionado:', type);
+        console.log('🔵 servicesData disponível:', !!this.servicesData);
 
         if (!type) {
             descriptionInput.disabled = true;
@@ -129,12 +158,18 @@ class OSItemsManager {
         descriptionInput.placeholder = `Digite para buscar ${type === 'service' ? 'serviço' : 'produto'}...`;
         descriptionInput.value = '';
 
+        console.log('🔵 Campo de descrição habilitado');
+
         // Habilita campo de categoria
         categorySelect.disabled = false;
         this.populateCategories(categorySelect);
 
+        console.log('🔵 Categorias populadas');
+
         // Configura autocomplete
         this.setupAutocomplete(row, type);
+
+        console.log('🔵 Autocomplete configurado');
     }
 
     populateCategories(selectElement) {
@@ -166,17 +201,49 @@ class OSItemsManager {
     }
 
     setupAutocomplete(row, type) {
+        console.log('🟦 setupAutocomplete iniciado para tipo:', type);
+
         const input = row.querySelector('.item-description');
         const dropdown = row.querySelector('.item-dropdown');
         const categorySelect = row.querySelector('.item-category');
         const dropdownBtn = row.querySelector('.item-dropdown-btn');
 
+        console.log('🟦 Elementos encontrados:', {
+            input: !!input,
+            dropdown: !!dropdown,
+            categorySelect: !!categorySelect,
+            dropdownBtn: !!dropdownBtn
+        });
+
+        // Remover event listeners antigos para evitar duplicação
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+
+        const newDropdownBtn = dropdownBtn ? dropdownBtn.cloneNode(true) : null;
+        if (dropdownBtn && newDropdownBtn) {
+            dropdownBtn.parentNode.replaceChild(newDropdownBtn, dropdownBtn);
+        }
+
+        // Atualizar referências
+        const finalInput = row.querySelector('.item-description');
+        const finalDropdown = row.querySelector('.item-dropdown');
+        const finalDropdownBtn = row.querySelector('.item-dropdown-btn');
+
+        console.log('🟦 Event listeners limpos e prontos para reconfiguração');
+
         // Evento de digitação - sempre mostra dropdown ao digitar
-        input.addEventListener('input', () => {
-            const searchTerm = input.value.trim().toLowerCase();
+        finalInput.addEventListener('input', () => {
+            console.log('🟦 Input event disparado');
+            const searchTerm = finalInput.value.trim().toLowerCase();
             const selectedCategory = categorySelect.value;
 
+            if (!this.servicesData) {
+                console.error('❌ servicesData está undefined!');
+                return;
+            }
+
             let items = type === 'service' ? this.servicesData.services : this.servicesData.products;
+            console.log(`🟦 Total de ${type === 'service' ? 'serviços' : 'produtos'}:`, items.length);
 
             // Filtrar por categoria se selecionada
             if (selectedCategory) {
@@ -190,27 +257,30 @@ class OSItemsManager {
                 );
             }
 
-            this.renderDropdown(dropdown, items, input, row);
+            this.renderDropdown(finalDropdown, items, finalInput, row);
         });
 
         // Evento de clique no botão dropdown
-        if (dropdownBtn) {
-            dropdownBtn.addEventListener('click', (e) => {
+        if (finalDropdownBtn) {
+            finalDropdownBtn.addEventListener('click', (e) => {
+                console.log('🟦 Botão dropdown clicado');
                 e.preventDefault();
                 e.stopPropagation();
 
                 const selectedCategory = categorySelect.value;
                 let items = type === 'service' ? this.servicesData.services : this.servicesData.products;
 
+                console.log(`🟦 Items disponíveis para dropdown: ${items.length}`);
+
                 if (selectedCategory) {
                     items = items.filter(item => item.category === selectedCategory);
                 }
 
                 // Toggle dropdown
-                if (dropdown.classList.contains('hidden')) {
-                    this.renderDropdown(dropdown, items, input, row);
+                if (finalDropdown.classList.contains('hidden')) {
+                    this.renderDropdown(finalDropdown, items, finalInput, row);
                 } else {
-                    dropdown.classList.add('hidden');
+                    finalDropdown.classList.add('hidden');
                 }
             });
         }
@@ -218,14 +288,14 @@ class OSItemsManager {
         // Fechar ao clicar fora
         document.addEventListener('click', (e) => {
             if (!row.contains(e.target)) {
-                dropdown.classList.add('hidden');
+                finalDropdown.classList.add('hidden');
             }
         });
 
         // Evento de mudança de categoria
         categorySelect.addEventListener('change', () => {
-            if (input.value) {
-                input.dispatchEvent(new Event('input'));
+            if (finalInput.value) {
+                finalInput.dispatchEvent(new Event('input'));
             }
         });
     }
@@ -280,6 +350,8 @@ class OSItemsManager {
     }
 
     showAddNewModal(type) {
+        console.log('🔵 showAddNewModal chamado com tipo:', type);
+
         // Fechar todos os dropdowns abertos antes de abrir o modal
         const allDropdowns = document.querySelectorAll('.item-dropdown');
         allDropdowns.forEach(dropdown => {
@@ -291,8 +363,15 @@ class OSItemsManager {
         const categorySelect = document.getElementById('modal-item-category');
         const form = document.getElementById('new-item-form');
 
+        console.log('🔵 Elementos encontrados:', { modal: !!modal, form: !!form });
+
         if (!modal) {
             console.error('❌ Modal não encontrado');
+            return;
+        }
+
+        if (!form) {
+            console.error('❌ Formulário não encontrado');
             return;
         }
 
@@ -314,12 +393,175 @@ class OSItemsManager {
         document.getElementById('modal-item-name').value = '';
         document.getElementById('modal-item-category').value = '';
         document.getElementById('modal-item-price').value = '';
+        document.getElementById('modal-item-occurrence').value = '';
 
-        // Configurar evento de submit
-        form.onsubmit = (e) => {
-            e.preventDefault();
-            this.saveNewItem();
-        };
+        // Configurar evento de submit apenas se ainda não foi configurado
+        if (!form.dataset.listenerConfigured) {
+            form.dataset.listenerConfigured = 'true';
+
+            let isSubmitting = false; // Flag para prevenir submits duplos
+
+            form.addEventListener('submit', async (e) => {
+                console.log('🟢 Form submit disparado!');
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Prevenir submits duplos
+                if (isSubmitting) {
+                    console.warn('⚠️ Submit já em andamento, ignorando...');
+                    return;
+                }
+
+                isSubmitting = true;
+
+                // Toda a lógica inline para evitar problemas com 'this'
+                const type = modal.dataset.itemType;
+                const name = document.getElementById('modal-item-name').value.trim();
+                const category = document.getElementById('modal-item-category').value;
+                const priceStr = document.getElementById('modal-item-price').value.trim();
+                const occurrence = document.getElementById('modal-item-occurrence').value;
+
+                console.log('🟡 Dados coletados:', { type, name, category, priceStr, occurrence });
+
+                // Validações
+                if (!name) {
+                    console.warn('⚠️ Nome não informado');
+                    alert('Por favor, informe o nome do item!');
+                    return;
+                }
+
+                if (!category) {
+                    console.warn('⚠️ Categoria não selecionada');
+                    alert('Por favor, selecione uma categoria!');
+                    return;
+                }
+
+                if (!priceStr) {
+                    console.warn('⚠️ Preço não informado');
+                    alert('Por favor, informe o preço padrão!');
+                    return;
+                }
+
+                if (!occurrence) {
+                    console.warn('⚠️ Ocorrência não selecionada');
+                    alert('Por favor, selecione o tipo de ocorrência!');
+                    return;
+                }
+
+                // Converter preço
+                const price = parseFloat(priceStr.replace(',', '.'));
+                if (isNaN(price) || price <= 0) {
+                    console.warn('⚠️ Preço inválido:', price);
+                    alert('Por favor, informe um preço válido!');
+                    return;
+                }
+
+                const requestData = {
+                    codigo: `${type === 'service' ? 'SRV' : 'PRD'}${Date.now()}`,
+                    nome: name,
+                    tipo: type === 'service' ? 'Serviço' : 'Produto',
+                    valor_padrao: price,
+                    ocorrencia_padrao: occurrence,
+                    ativo: 1
+                };
+
+                console.log('🟡 Dados a serem enviados:', requestData);
+
+                try {
+                    console.log('🟡 Fazendo requisição POST para API...');
+
+                    // Salvar no banco de dados via API
+                    const response = await fetch('https://floripa.in9automacao.com.br/api-servicos.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    console.log('🟡 Resposta recebida, status:', response.status);
+
+                    const result = await response.json();
+                    console.log('🟡 Resposta JSON:', result);
+
+                    if (result.success) {
+                        console.log('✅ Item cadastrado no banco com sucesso! ID:', result.id);
+
+                        // Salvar no localStorage para cache
+                        const storageKey = 'fleetflow_custom_items';
+                        const customItems = JSON.parse(localStorage.getItem(storageKey) || '{"services": [], "products": []}');
+
+                        const newItem = {
+                            id: result.id || `${type === 'service' ? 'srv' : 'prd'}${Date.now()}`,
+                            name,
+                            category,
+                            defaultPrice: price
+                        };
+
+                        if (type === 'service') {
+                            customItems.services.push(newItem);
+                        } else {
+                            customItems.products.push(newItem);
+                        }
+
+                        localStorage.setItem(storageKey, JSON.stringify(customItems));
+
+                        // Fechar modal
+                        modal.classList.add('hidden');
+                        document.getElementById('new-item-form').reset();
+
+                        // Mostrar mensagem de sucesso
+                        if (typeof showToast === 'function') {
+                            showToast('success', 'Sucesso', `${type === 'service' ? 'Serviço' : 'Produto'} "${name}" cadastrado com sucesso!`);
+                        } else {
+                            alert(`${type === 'service' ? 'Serviço' : 'Produto'} "${name}" cadastrado com sucesso!`);
+                        }
+
+                        // Liberar flag
+                        isSubmitting = false;
+                    } else {
+                        isSubmitting = false;
+                        throw new Error(result.error || 'Erro ao salvar no banco de dados');
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao salvar item:', error);
+
+                    // Salvar localmente como fallback
+                    const storageKey = 'fleetflow_custom_items';
+                    const customItems = JSON.parse(localStorage.getItem(storageKey) || '{"services": [], "products": []}');
+
+                    const newItem = {
+                        id: `${type === 'service' ? 'srv' : 'prd'}${Date.now()}`,
+                        name,
+                        category,
+                        defaultPrice: price
+                    };
+
+                    if (type === 'service') {
+                        customItems.services.push(newItem);
+                    } else {
+                        customItems.products.push(newItem);
+                    }
+
+                    localStorage.setItem(storageKey, JSON.stringify(customItems));
+
+                    // Fechar modal
+                    modal.classList.add('hidden');
+                    document.getElementById('new-item-form').reset();
+
+                    if (typeof showToast === 'function') {
+                        showToast('warning', 'Aviso', `Item salvo apenas localmente. Erro ao salvar no banco: ${error.message}`);
+                    } else {
+                        alert(`⚠️ Item salvo apenas localmente. Erro: ${error.message}`);
+                    }
+
+                    // Liberar flag
+                    isSubmitting = false;
+                }
+            });
+
+            console.log('🔵 Evento de submit configurado pela primeira vez');
+        } else {
+            console.log('🔵 Evento de submit já estava configurado');
+        }
 
         // Mostrar modal
         modal.classList.remove('hidden');
@@ -333,80 +575,164 @@ class OSItemsManager {
     }
 
     async saveNewItem() {
+        console.log('🟡 saveNewItem iniciado');
+
         const modal = document.getElementById('new-item-modal');
         const type = modal.dataset.itemType;
         const name = document.getElementById('modal-item-name').value.trim();
         const category = document.getElementById('modal-item-category').value;
         const priceStr = document.getElementById('modal-item-price').value.trim();
+        const occurrence = document.getElementById('modal-item-occurrence').value;
+
+        console.log('🟡 Dados coletados:', { type, name, category, priceStr, occurrence });
 
         // Validações
         if (!name) {
+            console.warn('⚠️ Nome não informado');
             alert('Por favor, informe o nome do item!');
             return;
         }
 
         if (!category) {
+            console.warn('⚠️ Categoria não selecionada');
             alert('Por favor, selecione uma categoria!');
             return;
         }
 
         if (!priceStr) {
+            console.warn('⚠️ Preço não informado');
             alert('Por favor, informe o preço padrão!');
+            return;
+        }
+
+        if (!occurrence) {
+            console.warn('⚠️ Ocorrência não selecionada');
+            alert('Por favor, selecione o tipo de ocorrência!');
             return;
         }
 
         // Converter preço
         const price = parseFloat(priceStr.replace(',', '.'));
         if (isNaN(price) || price <= 0) {
+            console.warn('⚠️ Preço inválido:', price);
             alert('Por favor, informe um preço válido!');
             return;
         }
 
-        // Criar novo item
-        const newItem = {
-            id: `${type === 'service' ? 'srv' : 'prd'}${Date.now()}`,
-            name,
-            category,
-            defaultPrice: price
+        const requestData = {
+            codigo: `${type === 'service' ? 'SRV' : 'PRD'}${Date.now()}`,
+            nome: name,
+            tipo: type === 'service' ? 'Serviço' : 'Produto',
+            valor_padrao: price,
+            ocorrencia_padrao: occurrence,
+            ativo: 1
         };
 
-        // Adicionar ao array apropriado
-        if (type === 'service') {
-            this.servicesData.services.push(newItem);
-        } else {
-            this.servicesData.products.push(newItem);
+        console.log('🟡 Dados a serem enviados:', requestData);
+
+        try {
+            console.log('🟡 Fazendo requisição POST para API...');
+
+            // Salvar no banco de dados via API
+            const response = await fetch('https://floripa.in9automacao.com.br/api-servicos.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
+            });
+
+            console.log('🟡 Resposta recebida, status:', response.status);
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Criar novo item para adicionar localmente
+                const newItem = {
+                    id: result.id || `${type === 'service' ? 'srv' : 'prd'}${Date.now()}`,
+                    name,
+                    category,
+                    defaultPrice: price
+                };
+
+                // Adicionar ao array apropriado
+                if (type === 'service') {
+                    this.servicesData.services.push(newItem);
+                } else {
+                    this.servicesData.products.push(newItem);
+                }
+
+                // Salvar no localStorage (como cache temporário)
+                const storageKey = 'fleetflow_custom_items';
+                const customItems = JSON.parse(localStorage.getItem(storageKey) || '{"services": [], "products": []}');
+
+                if (type === 'service') {
+                    customItems.services.push(newItem);
+                } else {
+                    customItems.products.push(newItem);
+                }
+
+                localStorage.setItem(storageKey, JSON.stringify(customItems));
+
+                console.log('✅ Novo item cadastrado no banco e localmente:', newItem);
+
+                // Fechar modal
+                this.closeAddNewModal();
+
+                // Auto-selecionar o item criado na linha atual
+                const activeRow = document.querySelector('.item-row:has(.item-type:focus), .item-row:has(.item-description:focus)');
+                if (activeRow) {
+                    const descriptionInput = activeRow.querySelector('.item-description');
+                    const valueInput = activeRow.querySelector('.item-value');
+
+                    descriptionInput.value = name;
+                    valueInput.value = price.toFixed(2).replace('.', ',');
+                    this.calculateRowTotal(valueInput);
+                }
+
+                // Mostrar mensagem de sucesso
+                if (typeof showToast === 'function') {
+                    showToast('success', 'Sucesso', `${type === 'service' ? 'Serviço' : 'Produto'} "${name}" cadastrado com sucesso!`);
+                } else {
+                    alert(`${type === 'service' ? 'Serviço' : 'Produto'} "${name}" cadastrado com sucesso!`);
+                }
+            } else {
+                throw new Error(result.error || 'Erro ao salvar no banco de dados');
+            }
+        } catch (error) {
+            console.error('❌ Erro ao salvar item:', error);
+
+            // Em caso de erro, salvar apenas localmente como fallback
+            const newItem = {
+                id: `${type === 'service' ? 'srv' : 'prd'}${Date.now()}`,
+                name,
+                category,
+                defaultPrice: price
+            };
+
+            if (type === 'service') {
+                this.servicesData.services.push(newItem);
+            } else {
+                this.servicesData.products.push(newItem);
+            }
+
+            const storageKey = 'fleetflow_custom_items';
+            const customItems = JSON.parse(localStorage.getItem(storageKey) || '{"services": [], "products": []}');
+
+            if (type === 'service') {
+                customItems.services.push(newItem);
+            } else {
+                customItems.products.push(newItem);
+            }
+
+            localStorage.setItem(storageKey, JSON.stringify(customItems));
+
+            this.closeAddNewModal();
+
+            if (typeof showToast === 'function') {
+                showToast('warning', 'Aviso', `Item salvo apenas localmente. Erro: ${error.message}`);
+            } else {
+                alert(`⚠️ Item salvo apenas localmente. Erro ao salvar no banco: ${error.message}`);
+            }
         }
-
-        // Salvar no localStorage (como cache temporário)
-        const storageKey = 'fleetflow_custom_items';
-        const customItems = JSON.parse(localStorage.getItem(storageKey) || '{"services": [], "products": []}');
-
-        if (type === 'service') {
-            customItems.services.push(newItem);
-        } else {
-            customItems.products.push(newItem);
-        }
-
-        localStorage.setItem(storageKey, JSON.stringify(customItems));
-
-        console.log('✅ Novo item cadastrado:', newItem);
-
-        // Fechar modal
-        this.closeAddNewModal();
-
-        // Auto-selecionar o item criado na linha atual
-        const activeRow = document.querySelector('.item-row:has(.item-type:focus), .item-row:has(.item-description:focus)');
-        if (activeRow) {
-            const descriptionInput = activeRow.querySelector('.item-description');
-            const valueInput = activeRow.querySelector('.item-value');
-
-            descriptionInput.value = name;
-            valueInput.value = price.toFixed(2).replace('.', ',');
-            this.calculateRowTotal(valueInput);
-        }
-
-        // Mostrar mensagem de sucesso
-        alert(`${type === 'service' ? 'Serviço' : 'Produto'} "${name}" cadastrado com sucesso!`);
     }
 
     calculateRowTotal(input) {

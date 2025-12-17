@@ -1,134 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
-    <title>Limpar Cache - FleetFlow</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            padding: 40px;
-            background: #f0f0f0;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        .button {
-            background: #ff4444;
-            color: white;
-            padding: 15px 30px;
-            font-size: 18px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px 5px;
-        }
-        .button:hover {
-            background: #cc0000;
-        }
-        .success {
-            background: #44ff44;
-        }
-        .success:hover {
-            background: #00cc00;
-        }
-        .result {
-            background: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 5px;
-            border-left: 4px solid #4444ff;
-        }
-        h1 { color: #333; }
-        code {
-            background: #eee;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <h1>🧹 Limpar Cache do FleetFlow</h1>
-
-    <div class="result">
-        <h3>Cache Atual:</h3>
-        <div id="cache-info">Verificando...</div>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="bg-white p-8 rounded-lg shadow-md max-w-md w-full">
+        <h1 class="text-2xl font-bold mb-4 text-center">Limpar Cache</h1>
+        <p class="text-gray-600 mb-4 text-center">Clique no botão abaixo para limpar o cache e recarregar</p>
+        <button id="clearCacheBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
+            Limpar Cache e Recarregar
+        </button>
+        <div id="result" class="mt-4 text-center"></div>
     </div>
-
-    <button class="button" onclick="clearAll()">
-        🗑️ LIMPAR TODO O CACHE
-    </button>
-
-    <button class="button success" onclick="recalculate()">
-        🔄 RECALCULAR DADOS
-    </button>
-
-    <div class="result" id="result"></div>
-
     <script>
-        // Mostra informações do cache
-        function showCacheInfo() {
-            const cacheKeys = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.includes('fleetflow')) {
-                    const size = localStorage.getItem(key).length;
-                    cacheKeys.push(`<div>• <code>${key}</code> (${(size / 1024).toFixed(2)} KB)</div>`);
-                }
+        document.getElementById('clearCacheBtn').addEventListener('click', async function() {
+            const resultDiv = document.getElementById('result');
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)));
+                resultDiv.innerHTML = '<p class="text-green-600">Cache limpo!</p>';
             }
-
-            document.getElementById('cache-info').innerHTML = cacheKeys.length > 0
-                ? cacheKeys.join('')
-                : '<div style="color: #999;">Nenhum cache encontrado</div>';
-        }
-
-        // Limpa todo o cache
-        function clearAll() {
-            const confirmed = confirm('⚠️ Isso vai limpar TODOS os dados em cache. Continuar?');
-            if (!confirmed) return;
-
-            const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.includes('fleetflow') || key.includes('ituran')) {
-                    keysToRemove.push(key);
-                }
-            }
-
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-
-            document.getElementById('result').innerHTML = `
-                <h3 style="color: #00cc00;">✅ Cache limpo com sucesso!</h3>
-                <div>${keysToRemove.length} itens removidos:</div>
-                ${keysToRemove.map(k => `<div>• <code>${k}</code></div>`).join('')}
-                <div style="margin-top: 20px; padding: 15px; background: #ffffcc; border-radius: 5px;">
-                    <strong>⚠️ Importante:</strong> Agora recarregue a página principal (Ctrl+F5) para recalcular tudo.
-                </div>
-            `;
-
-            showCacheInfo();
-        }
-
-        // Recalcula sem limpar
-        function recalculate() {
-            document.getElementById('result').innerHTML = `
-                <h3 style="color: #0088ff;">🔄 Recalculando...</h3>
-                <div>Abrindo dashboard com recálculo forçado...</div>
-            `;
-
-            // Limpa apenas o cache de tempo real
-            localStorage.removeItem('fleetflow_dashboard_stats_cache_realtime');
-
-            // Abre dashboard em nova aba
             setTimeout(() => {
-                window.open('/', '_blank');
-                document.getElementById('result').innerHTML = `
-                    <h3 style="color: #00cc00;">✅ Aberto!</h3>
-                    <div>Dashboard aberto em nova aba. Aguarde 30-60 segundos para calcular os KM.</div>
-                `;
-            }, 500);
-        }
-
-        // Mostra cache ao carregar
-        showCacheInfo();
+                window.location.href = '/manutencao.html?v=' + Date.now();
+            }, 1000);
+        });
     </script>
 </body>
 </html>

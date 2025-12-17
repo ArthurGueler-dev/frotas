@@ -8,6 +8,9 @@ const mysql = require('mysql2/promise');
 const cron = require('node-cron');
 const axios = require('axios');
 const { PHP_API_ENDPOINTS } = require('./php-api-config');
+const multer = require('multer');
+const XLSX = require('xlsx');
+const fs = require('fs').promises;
 
 const app = express();
 const PORT = 5000;
@@ -55,6 +58,12 @@ pool.on('error', (err) => {
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Configuração do Multer para upload de arquivos
+const upload = multer({
+    dest: 'uploads/',
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+});
 
 // Banco de dados em memória
 let database = {
@@ -107,6 +116,130 @@ function calculateStats() {
         }
     };
 }
+
+// ===== ROTAS DO OTIMIZADOR DE BLOCOS =====
+
+// POST /api/locations/upload - Upload de planilha Excel e criação de blocos
+app.post('/api/locations/upload', upload.single('file'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'Nenhum arquivo enviado'
+            });
+        }
+
+        const {
+            autoClustering = 'true',
+            maxLocationsPerBlock = '5',
+            maxDistanceKm = '5'
+        } = req.body;
+
+        console.log('📁 Arquivo recebido:', req.file.originalname);
+
+        // Ler arquivo Excel
+        const workbook = XLSX.readFile(req.file.path);
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const data = XLSX.utils.sheet_to_json(worksheet);
+
+        console.log(`📊 ${data.length} linhas encontradas na planilha`);
+
+        // Gerar identificador único para este lote
+        const importBatch = `batch_${Date.now()}`;
+
+        // Preparar locais para inserção
+        const locations = [];
+        for (const row of data) {
+            // Validar dados obrigatórios
+            if (!row.Nome || !row.Latitude || !row.Longitude) {
+                console.warn('⚠️  Linha ignorada - dados incompletos:', row);
+                continue;
+            }
+
+            locations.push({
+                name: row.Nome,
+                address: row['Endereço'] || row.Endereco || '',
+                latitude: parseFloat(row.Latitude),
+                longitude: parseFloat(row.Longitude),
+                category: row.Camada || row.Categoria || null,
+                importBatch
+            });
+        }
+
+        if (locations.length === 0) {
+            await fs.unlink(req.file.path);
+            return res.status(400).json({
+                success: false,
+                error: 'Nenhum local válido encontrado na planilha'
+            });
+        }
+
+        // Enviar para API PHP locations-api.php
+        console.log(`📤 Enviando ${locations.length} locais para API PHP...`);
+        const locationsResponse = await axios.post(
+            'https://floripa.in9automacao.com.br/locations-api.php',
+            { locations }
+        );
+
+        if (!locationsResponse.data.success) {
+            throw new Error(locationsResponse.data.error || 'Erro ao inserir locais');
+        }
+
+        const insertedIds = locationsResponse.data.insertedIds;
+        console.log(`✅ ${insertedIds.length} locais inseridos no banco`);
+
+        let blocks = [];
+
+        // Se clustering automático estiver ativado
+        if (autoClustering === 'true' && insertedIds.length > 0) {
+            console.log('🔄 Iniciando clustering automático...');
+
+            const blocksResponse = await axios.post(
+                'https://floripa.in9automacao.com.br/blocks-api.php',
+                {
+                    locationIds: insertedIds,
+                    maxLocationsPerBlock: parseInt(maxLocationsPerBlock),
+                    maxDistanceKm: parseFloat(maxDistanceKm),
+                    importBatch
+                }
+            );
+
+            if (blocksResponse.data.success) {
+                blocks = blocksResponse.data.blocks;
+                console.log(`✅ ${blocks.length} blocos criados`);
+            }
+        }
+
+        // Remover arquivo temporário
+        await fs.unlink(req.file.path);
+
+        res.json({
+            success: true,
+            totalImported: insertedIds.length,
+            totalBlocks: blocks.length,
+            importBatch,
+            blocks
+        });
+
+    } catch (error) {
+        console.error('❌ Erro no upload:', error);
+
+        // Tentar remover arquivo temporário em caso de erro
+        if (req.file && req.file.path) {
+            try {
+                await fs.unlink(req.file.path);
+            } catch (e) {
+                // Ignorar erro ao deletar arquivo
+            }
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.message || 'Erro ao processar arquivo'
+        });
+    }
+});
 
 // ===== PROXY ITURAN API (PARA FRONTEND) =====
 // Frontend chama /api/quilometragem/ituranwebservice3/* que redireciona para API Ituran
@@ -3875,6 +4008,33 @@ async function ensurePecasTables() {
         console.error('❌ Erro ao criar tabelas de peças:', error);
     }
 }
+
+// Proxy para enviar WhatsApp via Evolution API (VPS em produção)
+app.post("/enviar-rota-whatsapp", async (req, res) => {
+    try {
+        // Usar proxy de produção no VPS
+        const PROXY_URL = process.env.WHATSAPP_PROXY_URL || "http://31.97.169.36:3001/enviar-rota-whatsapp";
+
+        console.log(`📤 Enviando para proxy WhatsApp: ${PROXY_URL}`);
+
+        const response = await axios.post(PROXY_URL, req.body, {
+            headers: { "Content-Type": "application/json" },
+            timeout: 30000
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error("❌ Erro ao enviar WhatsApp:", error.message);
+        if (error.response) {
+            console.error("   Response data:", error.response.data);
+            console.error("   Response status:", error.response.status);
+        }
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            details: error.response?.data
+        });
+    }
+});
 
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', async () => {

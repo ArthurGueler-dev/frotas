@@ -288,12 +288,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function carregarModeloEPlano(modeloId) {
     try {
         // Carregar dados do modelo
-        const modeloResponse = await fetch(`/api/modelos/${modeloId}`);
+        const modeloResponse = await fetch(`https://floripa.in9automacao.com.br/modelos.php?id=${modeloId}`);
         const modelo = await modeloResponse.json();
 
-        // Carregar planos de manutenção do modelo
-        const planosResponse = await fetch(`/api/maintenance-plan-items?modelo_id=${modeloId}`);
-        const planos = await planosResponse.json();
+        // Carregar planos de manutenção do modelo (buscar por nome do modelo)
+        const modeloNome = `${modelo.marca} ${modelo.modelo}`;
+        const planosResponse = await fetch(`https://floripa.in9automacao.com.br/planos-manutencao-api.php?modelo=${encodeURIComponent(modelo.modelo)}`);
+        const result = await planosResponse.json();
+        const planos = result.data || [];
 
         // Atualizar UI com informações do modelo
         const tituloPlano = document.getElementById('titulo-plano');
@@ -361,7 +363,7 @@ function renderizarItensPlano(modelo, planos) {
             <div class="border-b dark:border-slate-700 ${index % 2 === 1 ? 'bg-gray-50 dark:bg-slate-800/50' : ''}">
                 <div class="grid grid-cols-[1fr_auto] items-center p-4">
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                        <div class="font-semibold text-gray-900 dark:text-white">${item.nome || item.categoria || 'Item de Manutenção'}</div>
+                        <div class="font-semibold text-gray-900 dark:text-white">${item.descricao_titulo || item.nome || item.categoria || 'Item de Manutenção'}</div>
                         <div class="text-gray-600 dark:text-gray-400">${intervalo}</div>
                         <div class="text-gray-600 dark:text-gray-400">${custo}</div>
                         <div><span class="px-2 py-1 text-xs font-medium text-white ${corCriticidade} rounded-full">${criticidade}</span></div>
@@ -388,8 +390,8 @@ function renderizarItensPlano(modelo, planos) {
                         <div><p class="text-sm text-gray-500 dark:text-gray-400">Categoria</p><p class="font-medium">${item.categoria || '-'}</p></div>
                         <div><p class="text-sm text-gray-500 dark:text-gray-400">Criticidade</p><p class="font-medium">${criticidade}</p></div>
                         <div class="md:col-span-3"><p class="text-sm text-gray-500 dark:text-gray-400">Descrição</p><p class="font-medium">${item.descricao || '-'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por KM</p><p class="font-medium">${item.intervalo_km ? item.intervalo_km.toLocaleString('pt-BR') : 'N/A'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por Tempo</p><p class="font-medium">${item.intervalo_meses ? item.intervalo_meses + ' meses' : 'N/A'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por KM</p><p class="font-medium">${(item.km_recomendado || item.intervalo_km) ? parseInt(item.km_recomendado || item.intervalo_km).toLocaleString('pt-BR') + ' km' : 'N/A'}</p></div>
+                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por Tempo</p><p class="font-medium">${(item.intervalo_tempo || item.intervalo_meses) ? parseInt(item.intervalo_tempo || item.intervalo_meses) + ' meses' : 'N/A'}</p></div>
                         <div><p class="text-sm text-gray-500 dark:text-gray-400">Critério de Ativação</p><p class="font-medium">${item.criterio || 'Qual vier primeiro'}</p></div>
                     </div>
                     ${renderizarTabelaPecas(item.pecas || [])}
@@ -410,11 +412,15 @@ function renderizarItensPlano(modelo, planos) {
 // Formatar intervalo para exibição
 function formatarIntervalo(item) {
     const partes = [];
-    if (item.intervalo_km) {
-        partes.push(`${item.intervalo_km.toLocaleString('pt-BR')} KM`);
+    const km = item.km_recomendado || item.intervalo_km;
+    const tempo = item.intervalo_tempo || item.intervalo_meses;
+
+    if (km) {
+        partes.push(`${parseInt(km).toLocaleString('pt-BR')} KM`);
     }
-    if (item.intervalo_meses) {
-        partes.push(`${item.intervalo_meses} meses`);
+    if (tempo) {
+        const meses = parseInt(tempo);
+        partes.push(`${meses} ${meses === 1 ? 'mês' : 'meses'}`);
     }
     if (partes.length === 0) return 'Sob demanda';
     if (partes.length === 1) return `A cada ${partes[0]}`;
@@ -540,12 +546,12 @@ async function editarItem(itemId) {
 
     console.log('Editando item:', item);
 
-    // Preencher formulário
+    // Preencher formulário com os campos corretos da API
     document.getElementById('edit-item-id').value = item.id;
-    document.getElementById('edit-nome').value = item.nome || '';
+    document.getElementById('edit-nome').value = item.descricao_titulo || item.nome || '';
     document.getElementById('edit-descricao').value = item.descricao || '';
-    document.getElementById('edit-intervalo-km').value = item.intervalo_km || '';
-    document.getElementById('edit-intervalo-meses').value = item.intervalo_meses || '';
+    document.getElementById('edit-intervalo-km').value = item.km_recomendado || item.intervalo_km || '';
+    document.getElementById('edit-intervalo-meses').value = item.intervalo_tempo || item.intervalo_meses || '';
     document.getElementById('edit-custo').value = item.custo_estimado || 0;
 
     // Definir criticidade
@@ -606,7 +612,7 @@ async function carregarPecasItemEdicao(itemId) {
     tbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-gray-500 text-xs">Carregando...</td></tr>';
 
     try {
-        const response = await fetch(`${API_PLANO_PECAS_URL}/${itemId}`);
+        const response = await fetch(`${API_PLANO_PECAS_URL}?plano_item_id=${itemId}`);
         const result = await response.json();
 
         const pecas = result.data || result;
@@ -689,7 +695,7 @@ async function removerPecaEdicao(associacaoId) {
     if (!confirm('Remover esta peça?')) return;
 
     try {
-        const response = await fetch(`${API_PLANO_PECAS_URL}/${associacaoId}`, {
+        const response = await fetch(`${API_PLANO_PECAS_URL}?id=${associacaoId}`, {
             method: 'DELETE'
         });
 
@@ -715,15 +721,15 @@ function fecharModalEditar() {
 async function salvarEdicaoItem() {
     const itemId = document.getElementById('edit-item-id').value;
     const dados = {
-        nome: document.getElementById('edit-nome').value,
-        descricao: document.getElementById('edit-descricao').value,
-        intervalo_km: document.getElementById('edit-intervalo-km').value ? parseInt(document.getElementById('edit-intervalo-km').value) : null,
-        intervalo_meses: document.getElementById('edit-intervalo-meses').value ? parseInt(document.getElementById('edit-intervalo-meses').value) : null,
+        descricao_titulo: document.getElementById('edit-nome').value,
+        descricao_observacao: document.getElementById('edit-descricao').value,
+        km_recomendado: document.getElementById('edit-intervalo-km').value ? parseInt(document.getElementById('edit-intervalo-km').value) : null,
+        intervalo_tempo: document.getElementById('edit-intervalo-meses').value ? parseInt(document.getElementById('edit-intervalo-meses').value) : null,
         custo_estimado: parseFloat(document.getElementById('edit-custo').value) || 0,
         criticidade: document.getElementById('edit-criticidade').value
     };
 
-    if (!dados.nome || !dados.custo_estimado) {
+    if (!dados.descricao_titulo || !dados.custo_estimado) {
         alert('Preencha os campos obrigatórios: Nome e Custo Estimado');
         return;
     }
@@ -731,13 +737,15 @@ async function salvarEdicaoItem() {
     try {
         console.log('Salvando item:', itemId, dados);
 
-        const response = await fetch(`/api/maintenance-plan-items/${itemId}`, {
+        const response = await fetch(`https://floripa.in9automacao.com.br/planos-manutencao-api.php?id=${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dados)
         });
 
-        if (response.ok) {
+        const result = await response.json();
+
+        if (result.success) {
             alert('Item atualizado com sucesso!');
             fecharModalEditar();
 
@@ -748,8 +756,7 @@ async function salvarEdicaoItem() {
                 await carregarModeloEPlano(modeloId);
             }
         } else {
-            const error = await response.json();
-            alert('Erro ao atualizar: ' + (error.error || 'Erro desconhecido'));
+            alert('Erro ao atualizar: ' + (result.error || 'Erro desconhecido'));
         }
     } catch (error) {
         console.error('Erro ao salvar:', error);
@@ -769,11 +776,13 @@ async function excluirItem(itemId) {
     try {
         console.log('Excluindo item:', itemId);
 
-        const response = await fetch(`/api/maintenance-plan-items/${itemId}`, {
+        const response = await fetch(`https://floripa.in9automacao.com.br/planos-manutencao-api.php?id=${itemId}`, {
             method: 'DELETE'
         });
 
-        if (response.ok) {
+        const result = await response.json();
+
+        if (result.success) {
             alert('Item excluído com sucesso!');
 
             // Recarregar planos
@@ -794,10 +803,9 @@ async function excluirItem(itemId) {
 
 // ==================== GERENCIAMENTO DE PEÇAS ====================
 
-// URL base da API de peças (ajuste conforme seu ambiente)
-const API_PECAS_URL = '/api/pecas'; // Para servidor local
-const API_PLANO_PECAS_URL = '/api/plano-pecas'; // Para associação peças-plano
-// const API_PECAS_URL = 'https://seudominio.com/api/pecas-api.php'; // Para cPanel
+// URL base da API de peças
+const API_PECAS_URL = 'https://floripa.in9automacao.com.br/pecas-api.php';
+const API_PLANO_PECAS_URL = 'https://floripa.in9automacao.com.br/plano-pecas-api.php';
 
 let pecasDisponiveis = [];
 
@@ -807,12 +815,17 @@ async function carregarPecasDisponiveis() {
         const response = await fetch(`${API_PECAS_URL}`);
         const result = await response.json();
 
+        // Tratar resposta da API
         if (result.success !== false) {
-            pecasDisponiveis = result.data || result;
-            atualizarSelectPecas();
+            pecasDisponiveis = result.data || [];
+        } else {
+            pecasDisponiveis = [];
         }
+
+        atualizarSelectPecas();
     } catch (error) {
         console.error('Erro ao carregar peças:', error);
+        pecasDisponiveis = [];
     }
 }
 
@@ -859,7 +872,7 @@ async function gerenciarPecas(itemId) {
     console.log('Gerenciando peças do item:', item);
 
     // Atualizar título do modal
-    document.getElementById('modalPecasTitulo').textContent = `Peças: ${item.nome || 'Item de Manutenção'}`;
+    document.getElementById('modalPecasTitulo').textContent = `Peças: ${item.descricao_titulo || item.nome || 'Item de Manutenção'}`;
     document.getElementById('pecas-item-id').value = itemId;
 
     // Carregar peças disponíveis se ainda não carregou
@@ -882,7 +895,7 @@ async function carregarPecasDoItem(itemId) {
     tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-8 text-center text-gray-500">Carregando...</td></tr>';
 
     try {
-        const response = await fetch(`${API_PLANO_PECAS_URL}/${itemId}`);
+        const response = await fetch(`${API_PLANO_PECAS_URL}?plano_item_id=${itemId}`);
         const result = await response.json();
 
         const pecas = result.data || result;
@@ -978,7 +991,7 @@ async function removerPecaDoItem(associacaoId) {
     }
 
     try {
-        const response = await fetch(`${API_PLANO_PECAS_URL}/${associacaoId}`, {
+        const response = await fetch(`${API_PLANO_PECAS_URL}?id=${associacaoId}`, {
             method: 'DELETE'
         });
 
@@ -1033,7 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 
 </body>
 </html>

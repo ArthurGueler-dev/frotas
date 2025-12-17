@@ -116,7 +116,7 @@ class FleetAPI {
 
             // PRIMEIRO: Tentar buscar do PHP (banco de dados MySQL)
             try {
-                const url = 'get-drivers.php';
+                const url = 'https://floripa.in9automacao.com.br/get-drivers.php';
                 console.log('🌐 Tentando acessar:', url);
 
                 const response = await fetch(url);

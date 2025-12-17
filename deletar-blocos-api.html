@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Deletar Blocos</title>
+</head>
+<body>
+    <h1>Deletar Blocos</h1>
+    <button onclick="deletarBlocos()" style="padding: 20px; font-size: 18px; background: red; color: white; cursor: pointer;">
+        DELETAR TODOS OS BLOCOS
+    </button>
+    <div id="resultado" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+    async function deletarBlocos() {
+        if (!confirm('Tem certeza que deseja deletar TODOS os blocos?')) return;
+
+        document.getElementById('resultado').innerHTML = 'Deletando...';
+
+        try {
+            const response = await fetch('https://floripa.in9automacao.com.br/blocks-api.php', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deleteAll: true })
+            });
+
+            const data = await response.json();
+            document.getElementById('resultado').innerHTML = '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+
+            if (data.success) {
+                alert('✅ Blocos deletados com sucesso!');
+            }
+        } catch (error) {
+            document.getElementById('resultado').innerHTML = 'ERRO: ' + error.message;
+        }
+    }
+    </script>
+</body>
+</html>

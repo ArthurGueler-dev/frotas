@@ -12,6 +12,17 @@
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Definir timezone para Brasil
+date_default_timezone_set('America/Sao_Paulo');
 
 require_once 'db-config.php';
 
@@ -19,6 +30,75 @@ try {
     $pdo = getDBConnection();
     if (!$pdo) {
         throw new Exception('Erro ao conectar com o banco de dados');
+    }
+
+    // Tratar métodos PUT e DELETE
+    if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+        $json = file_get_contents('php://input');
+        $data = json_decode($json, true);
+
+        if (!$data || !isset($_GET['id'])) {
+            throw new Exception('Dados inválidos para atualização');
+        }
+
+        $id = intval($_GET['id']);
+
+        // Validar status (valores aceitos no ENUM)
+        $statusValidos = array('Aberta', 'Diagnóstico', 'Orçamento', 'Execução', 'Finalizada', 'Cancelada');
+        $status = isset($data['status']) ? $data['status'] : 'Aberta';
+        if (!in_array($status, $statusValidos)) {
+            $status = 'Aberta';
+        }
+
+        // Validar ocorrencia
+        $ocorrenciaValidas = array('Corretiva', 'Preventiva', 'Garantia');
+        $ocorrencia = isset($data['ocorrencia']) ? $data['ocorrencia'] : 'Corretiva';
+        if (!in_array($ocorrencia, $ocorrenciaValidas)) {
+            $ocorrencia = 'Corretiva';
+        }
+
+        // Atualizar apenas campos que existem na tabela
+        $sql = "UPDATE ordemservico SET
+                    km_veiculo = :km_veiculo,
+                    responsavel = :responsavel,
+                    status = :status,
+                    ocorrencia = :ocorrencia,
+                    observacoes = :observacoes
+                WHERE id = :id";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([
+            ':id' => $id,
+            ':km_veiculo' => isset($data['km_veiculo']) ? $data['km_veiculo'] : 0,
+            ':responsavel' => isset($data['responsavel']) ? $data['responsavel'] : null,
+            ':status' => $status,
+            ':ocorrencia' => $ocorrencia,
+            ':observacoes' => isset($data['observacoes']) ? $data['observacoes'] : null
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'OS atualizada com sucesso']);
+        exit;
+    }
+
+    if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
+        if (!isset($_GET['ordem_numero'])) {
+            throw new Exception('Número da ordem não informado');
+        }
+
+        $ordem_numero = $_GET['ordem_numero'];
+
+        // Deletar itens primeiro
+        $sqlItens = "DELETE FROM ordemservico_itens WHERE ordem_numero = :ordem_numero";
+        $stmtItens = $pdo->prepare($sqlItens);
+        $stmtItens->execute([':ordem_numero' => $ordem_numero]);
+
+        // Deletar OS
+        $sql = "DELETE FROM ordemservico WHERE ordem_numero = :ordem_numero";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([':ordem_numero' => $ordem_numero]);
+
+        echo json_encode(['success' => true, 'message' => 'OS deletada com sucesso']);
+        exit;
     }
 
     // Parâmetros de filtro
@@ -34,13 +114,10 @@ try {
     if ($id) {
         $sql = "SELECT
                     os.*,
-                    v.nome as veiculo_nome,
-                    v.marca as veiculo_marca,
-                    m.nome as motorista_nome,
-                    m.celular as motorista_celular
+                    v.VehicleName as veiculo_nome,
+                    v.LicensePlate as veiculo_placa
                 FROM ordemservico os
-                LEFT JOIN veiculos v ON os.veiculo_id = v.id
-                LEFT JOIN motoristas m ON os.motorista_id = m.id
+                LEFT JOIN Vehicles v ON os.placa_veiculo = v.LicensePlate
                 WHERE os.id = :id";
 
         $stmt = $pdo->prepare($sql);
@@ -55,18 +132,21 @@ try {
 
         // Buscar itens da OS
         if ($with_items) {
-            $sqlItens = "SELECT
-                            osi.*,
-                            s.nome as servico_nome,
-                            s.categoria as servico_categoria
-                         FROM ordemservico_itens osi
-                         LEFT JOIN servicos s ON osi.servico_id = s.id
-                         WHERE osi.os_id = :os_id
-                         ORDER BY osi.id ASC";
+            $sqlItens = "SELECT *
+                         FROM ordemservico_itens
+                         WHERE ordem_numero = :ordem_numero
+                         ORDER BY id ASC";
 
             $stmtItens = $pdo->prepare($sqlItens);
-            $stmtItens->execute([':os_id' => $id]);
+            $stmtItens->execute([':ordem_numero' => $os['ordem_numero']]);
             $os['itens'] = $stmtItens->fetchAll();
+
+            // Calcular total baseado nos itens
+            $total = 0;
+            foreach ($os['itens'] as $item) {
+                $total += floatval($item['valor_total']);
+            }
+            $os['valor_total'] = $total;
         }
 
         echo json_encode(['success' => true, 'data' => $os]);
@@ -77,13 +157,10 @@ try {
     if ($ordem_numero) {
         $sql = "SELECT
                     os.*,
-                    v.nome as veiculo_nome,
-                    v.marca as veiculo_marca,
-                    m.nome as motorista_nome,
-                    m.celular as motorista_celular
+                    v.VehicleName as veiculo_nome,
+                    v.LicensePlate as veiculo_placa
                 FROM ordemservico os
-                LEFT JOIN veiculos v ON os.veiculo_id = v.id
-                LEFT JOIN motoristas m ON os.motorista_id = m.id
+                LEFT JOIN Vehicles v ON os.placa_veiculo = v.LicensePlate
                 WHERE os.ordem_numero = :ordem_numero";
 
         $stmt = $pdo->prepare($sql);
@@ -98,18 +175,21 @@ try {
 
         // Buscar itens da OS
         if ($with_items) {
-            $sqlItens = "SELECT
-                            osi.*,
-                            s.nome as servico_nome,
-                            s.categoria as servico_categoria
-                         FROM ordemservico_itens osi
-                         LEFT JOIN servicos s ON osi.servico_id = s.id
-                         WHERE osi.os_id = :os_id
-                         ORDER BY osi.id ASC";
+            $sqlItens = "SELECT *
+                         FROM ordemservico_itens
+                         WHERE ordem_numero = :ordem_numero
+                         ORDER BY id ASC";
 
             $stmtItens = $pdo->prepare($sqlItens);
-            $stmtItens->execute([':os_id' => $os['id']]);
+            $stmtItens->execute([':ordem_numero' => $ordem_numero]);
             $os['itens'] = $stmtItens->fetchAll();
+
+            // Calcular total baseado nos itens
+            $total = 0;
+            foreach ($os['itens'] as $item) {
+                $total += floatval($item['valor_total']);
+            }
+            $os['valor_total'] = $total;
         }
 
         echo json_encode(['success' => true, 'data' => $os]);
@@ -123,22 +203,19 @@ try {
                 os.placa_veiculo,
                 os.km_veiculo,
                 os.status,
-                os.prioridade,
                 os.ocorrencia,
                 os.responsavel,
-                os.oficina,
                 os.data_criacao,
+                os.data_diagnostico,
+                os.data_orcamento,
+                os.data_execucao,
                 os.data_finalizacao,
-                os.valor_total,
-                os.valor_pecas,
-                os.valor_mao_obra,
-                v.nome as veiculo_nome,
-                v.marca as veiculo_marca,
-                m.nome as motorista_nome,
-                (SELECT COUNT(*) FROM ordemservico_itens WHERE os_id = os.id) as total_itens
+                os.observacoes,
+                v.VehicleName as veiculo_nome,
+                v.LicensePlate as veiculo_placa,
+                (SELECT COUNT(*) FROM ordemservico_itens WHERE ordem_numero = os.ordem_numero) as total_itens
             FROM ordemservico os
-            LEFT JOIN veiculos v ON os.veiculo_id = v.id
-            LEFT JOIN motoristas m ON os.motorista_id = m.id
+            LEFT JOIN Vehicles v ON os.placa_veiculo = v.LicensePlate
             WHERE 1=1";
 
     $params = [];
@@ -170,22 +247,43 @@ try {
     $stmt->execute($params);
     $workOrders = $stmt->fetchAll();
 
-    // Se solicitado, incluir itens de cada OS
-    if ($with_items && !empty($workOrders)) {
-        $sqlItens = "SELECT
-                        osi.*,
-                        s.nome as servico_nome,
-                        s.categoria as servico_categoria
-                     FROM ordemservico_itens osi
-                     LEFT JOIN servicos s ON osi.servico_id = s.id
-                     WHERE osi.os_id = :os_id
-                     ORDER BY osi.id ASC";
+    // Calcular valor total para cada OS baseado nos itens (usando batch query para evitar N+1)
+    if (!empty($workOrders)) {
+        // Buscar todos os números de OS em um array
+        $osNumbers = array_column($workOrders, 'ordem_numero');
+
+        // Batch query: buscar todos os itens de uma vez
+        $placeholders = implode(',', array_fill(0, count($osNumbers), '?'));
+        $sqlItens = "SELECT *
+                     FROM ordemservico_itens
+                     WHERE ordem_numero IN ($placeholders)
+                     ORDER BY ordem_numero ASC, id ASC";
 
         $stmtItens = $pdo->prepare($sqlItens);
+        $stmtItens->execute($osNumbers);
+        $allItens = $stmtItens->fetchAll();
 
+        // Agrupar itens por ordem_numero
+        $itensByOS = [];
+        foreach ($allItens as $item) {
+            $itensByOS[$item['ordem_numero']][] = $item;
+        }
+
+        // Associar itens às OS e calcular total
         foreach ($workOrders as &$os) {
-            $stmtItens->execute([':os_id' => $os['id']]);
-            $os['itens'] = $stmtItens->fetchAll();
+            $itens = isset($itensByOS[$os['ordem_numero']]) ? $itensByOS[$os['ordem_numero']] : [];
+
+            // Calcular total
+            $total = 0;
+            foreach ($itens as $item) {
+                $total += floatval($item['valor_total']);
+            }
+            $os['valor_total'] = $total;
+
+            // Se with_items, incluir os itens
+            if ($with_items) {
+                $os['itens'] = $itens;
+            }
         }
     }
 
@@ -197,8 +295,7 @@ try {
                     SUM(CASE WHEN status = 'Orçamento' THEN 1 ELSE 0 END) as orcamento,
                     SUM(CASE WHEN status = 'Execução' THEN 1 ELSE 0 END) as execucao,
                     SUM(CASE WHEN status = 'Finalizada' THEN 1 ELSE 0 END) as finalizadas,
-                    SUM(CASE WHEN status = 'Cancelada' THEN 1 ELSE 0 END) as canceladas,
-                    COALESCE(SUM(valor_total), 0) as valor_total_geral
+                    SUM(CASE WHEN status = 'Cancelada' THEN 1 ELSE 0 END) as canceladas
                  FROM ordemservico
                  WHERE 1=1";
 

@@ -1,0 +1,28 @@
+
+    // GET /api/ituran/full-report - Buscar relatório completo do Ituran
+    app.get('/api/ituran/full-report', async (req, res) => {
+        try {
+            const { plate, start, end } = req.query;
+
+            if (!plate || !start || !end) {
+                return res.status(400).json({
+                    success: false,
+                    error: 'Parâmetros obrigatórios: plate, start, end'
+                });
+            }
+
+            console.log(`📡 Buscando relatório Ituran: ${plate} (${start} até ${end})`);
+
+            // Usar o ituranService que já está disponível no server.js
+            const report = await ituranService.getFullReport(plate, start, end);
+
+            res.json(report);
+
+        } catch (error) {
+            console.error('❌ Erro ao buscar relatório Ituran:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message || 'Erro ao buscar relatório'
+            });
+        }
+    });

@@ -1,35 +1,33 @@
 <!DOCTYPE html>
-
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>FleetFlow - Dashboard</title>
+<title>Fleet Management Dashboard</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Scripts do FleetFlow -->
+<script src="ituran-service.js?v=20251208-1420"></script>
+<script src="dashboard-stats.js?v=20251208-1750"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        "primary": "#1E3A8A",
-                        "background-light": "#F3F4F6",
-                        "background-dark": "#1F2937",
-                        "text-light": "#1F2937",
-                        "text-dark": "#F3F4F6",
-                        "success": "#10B981",
-                        "warning": "#F59E0B",
-                        "danger": "#EF4444",
-                        "info": "#3B82F6",
+                        "primary": "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
                     },
                     fontFamily: {
                         "display": ["Inter", "sans-serif"]
                     },
                     borderRadius: {
-                        "DEFAULT": "0.5rem",
-                        "lg": "0.75rem",
-                        "xl": "1rem",
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
                         "full": "9999px"
                     },
                 },
@@ -46,7 +44,7 @@
         }
     </style>
 </head>
-<body class="bg-background-light dark:bg-background-dark font-display text-[#333333] dark:text-white">
+<body class="bg-background-light dark:bg-gray-900 font-display text-[#333333] dark:text-white">
 <div class="relative flex h-auto min-h-screen w-full flex-col">
 <div class="flex h-full grow flex-row">
 <!-- Sidebar Unificado -->
@@ -54,170 +52,117 @@
 <main class="flex-1 p-6 lg:p-8 bg-background-light dark:bg-gray-900">
 <div class="flex flex-wrap justify-between gap-4 items-center mb-6">
 <div class="flex flex-col gap-1">
-<h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Visão Geral da Frota</h1>
-<p class="text-gray-500 dark:text-gray-400 text-base font-normal">Filtro de data: Últimos 30 dias</p>
+<h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Dashboard da Frota</h1>
+<p class="text-gray-500 dark:text-gray-400 text-base font-normal">Visão geral da sua frota em tempo real.</p>
 </div>
-<div class="flex items-center gap-2">
-<select class="rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 focus:border-primary focus:ring-primary text-sm">
-<option>Últimos 30 dias</option>
-<option>Este Mês</option>
-<option>Últimos 90 dias</option>
-</select>
+<div class="flex items-center gap-2 flex-wrap justify-end">
+<button id="btn-sync-km" onclick="sincronizarKmManual()" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="material-symbols-outlined">sync</span>
+<span class="truncate">Sincronizar KM</span>
+</button>
+<button onclick="limparCacheKm()" class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="material-symbols-outlined">delete</span>
+<span class="truncate">Limpar Cache</span>
+</button>
 <button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
 <span class="material-symbols-outlined">download</span>
 <span class="truncate">Exportar</span>
 </button>
 </div>
 </div>
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
-<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-<p class="text-base font-medium text-[#111418] dark:text-gray-300">Total de Veículos</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white">150</p>
-<p class="text-[#28A745] text-sm font-medium">+2% vs mês anterior</p>
+<div id="sync-progress-bar" class="mb-6 p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hidden">
+<div class="flex items-center justify-between mb-4">
+<p class="text-base font-medium text-gray-700 dark:text-gray-300" id="sync-progress-text">Sincronizando KM (0%)</p>
+<p class="text-sm text-gray-500 dark:text-gray-400" id="sync-status-text">Iniciando...</p>
 </div>
-<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-<p class="text-base font-medium text-[#111418] dark:text-gray-300">Em Manutenção</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white">12</p>
-<p class="text-[#FFC107] text-sm font-medium">+5% vs mês anterior</p>
+<div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-4">
+<div id="sync-progress-fill" class="bg-primary h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
 </div>
-<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-<p class="text-base font-medium text-[#111418] dark:text-gray-300">Motoristas Disponíveis</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white">45</p>
-<p class="text-[#DC3545] text-sm font-medium">-3% vs mês anterior</p>
-</div>
-<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-<p class="text-base font-medium text-[#111418] dark:text-gray-300">Custo Total (Mês)</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white">R$ 120.000</p>
-<p class="text-xs text-gray-500 dark:text-gray-400">Combustível + Manutenção + Seguro</p>
+<div class="flex flex-col">
+<p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Veículos analisados:</p>
+<div id="syncPlatesContainer" class="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+<!-- Placas serão adicionadas dinamicamente aqui -->
 </div>
 </div>
-<!-- Barra de Progresso de Sincronização -->
-<div id="sync-progress-bar" class="hidden mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-    <div class="flex justify-between items-center mb-3">
-        <span class="text-base font-semibold text-[#1173d4] dark:text-blue-400">🔄 Sincronizando Quilometragem...</span>
-        <span id="sync-progress-text" class="text-sm font-bold text-[#111418] dark:text-gray-300">0%</span>
-    </div>
-    <div class="bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
-        <div id="sync-progress-fill" class="bg-gradient-to-r from-[#1173d4] to-[#28A745] h-full transition-all duration-300" style="width: 0%"></div>
-    </div>
-    <div id="sync-status-text" class="mt-3 text-xs text-gray-500 dark:text-gray-400"></div>
 </div>
-
-<!-- Card de Sincronização de Quilometragem -->
-<div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-    <div class="flex items-center justify-between mb-4">
-        <div>
-            <p class="text-lg font-semibold text-[#111418] dark:text-white">Sincronização de Quilometragem</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Atualizar dados em tempo real dos veículos</p>
-        </div>
-    </div>
-    <div class="flex gap-3">
-        <button id="btn-sync-km" onclick="sincronizarKmManual()"
-                class="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-[#1173d4] hover:bg-[#0d5fb5] text-white font-medium rounded-lg transition-colors">
-            <span class="material-symbols-outlined">sync</span>
-            <span>Sincronizar KM Agora</span>
-        </button>
-        <button onclick="limparCacheKm()"
-                class="flex items-center justify-center gap-2 px-4 py-3 bg-gray-500 hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 text-white font-medium rounded-lg transition-colors">
-            <span class="material-symbols-outlined">delete</span>
-            <span>Limpar Cache</span>
-        </button>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
 <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
 <p class="text-base font-medium text-[#111418] dark:text-gray-300">KM Rodados Hoje</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white" id="stat-km-today">-</p>
-<p class="text-xs text-gray-500 dark:text-gray-400">Atualizado em tempo real</p>
+<p id="stat-km-today" class="text-3xl font-bold text-[#111418] dark:text-white">0 km</p>
+<p id="stat-km-today-meta" class="text-gray-500 dark:text-gray-400 text-sm font-medium">
+    <span id="last-sync-time">Carregando...</span>
+</p>
 </div>
 <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
 <p class="text-base font-medium text-[#111418] dark:text-gray-300">KM Rodados Ontem</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white" id="stat-km-yesterday">-</p>
-<p class="text-xs text-gray-500 dark:text-gray-400" id="stat-variation-display">Comparação com hoje</p>
-</div>
-<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-<p class="text-base font-medium text-[#111418] dark:text-gray-300">KM Rodados no Mês</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white" id="stat-km-month">-</p>
-<p class="text-xs text-gray-500 dark:text-gray-400">Total acumulado do mês atual</p>
+<p id="stat-km-yesterday" class="text-3xl font-bold text-[#111418] dark:text-white">0 km</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Total do dia anterior</p>
 </div>
 <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
 <p class="text-base font-medium text-[#111418] dark:text-gray-300">Veículos em Movimento</p>
-<p class="text-3xl font-bold text-[#111418] dark:text-white" id="stat-vehicles-moving">-</p>
-<p class="text-xs text-gray-500 dark:text-gray-400">Veículos ativos no momento</p>
+<p id="stat-vehicles-moving" class="text-3xl font-bold text-[#111418] dark:text-white">0</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Atualizado agora</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+<p class="text-base font-medium text-[#111418] dark:text-gray-300">KM do Mês</p>
+<p id="stat-km-month" class="text-3xl font-bold text-[#111418] dark:text-white">0 km</p>
+<p id="stat-km-month-meta" class="text-[#28A745] text-sm font-medium">Carregando...</p>
+</div>
+<div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+<p class="text-base font-medium text-[#111418] dark:text-gray-300">Total de Veículos</p>
+<p id="stat-total-vehicles" class="text-3xl font-bold text-[#111418] dark:text-white">0</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-medium">Ativos na frota</p>
 </div>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 <div class="lg:col-span-2 flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+<div class="flex flex-wrap items-start justify-between gap-4">
+<div class="flex flex-col">
 <p class="text-lg font-semibold text-[#111418] dark:text-white">Análise de Custos</p>
-<div class="h-80">
-<svg height="100%" preserveaspectratio="xMidYMid meet" viewbox="0 0 500 300" width="100%" xmlns="http://www.w3.org/2000/svg">
-<line stroke="#dbe0e6" stroke-width="1" x1="50" x2="480" y1="250" y2="250"></line>
-<line stroke="#dbe0e6" stroke-width="1" x1="50" x2="50" y1="50" y2="250"></line>
-<text fill="#617589" font-family="Inter" font-size="12" x="20" y="255">0</text>
-<text fill="#617589" font-family="Inter" font-size="12" x="20" y="155">5k</text>
-<text fill="#617589" font-family="Inter" font-size="12" x="15" y="55">10k</text>
-<g class="bar-group">
-<rect fill="#1173d4" height="100" width="30" x="80" y="150"></rect>
-<rect fill="#28A745" height="50" width="30" x="120" y="200"></rect>
-<rect fill="#FFC107" height="70" width="30" x="160" y="180"></rect>
-<text fill="#617589" font-family="Inter" font-size="12" text-anchor="middle" x="110" y="270">Sem 1</text>
-</g>
-<g class="bar-group">
-<rect fill="#1173d4" height="150" width="30" x="220" y="100"></rect>
-<rect fill="#28A745" height="80" width="30" x="260" y="170"></rect>
-<rect fill="#FFC107" height="40" width="30" x="300" y="210"></rect>
-<text fill="#617589" font-family="Inter" font-size="12" text-anchor="middle" x="270" y="270">Sem 2</text>
-</g>
-<g class="bar-group">
-<rect fill="#1173d4" height="130" width="30" x="360" y="120"></rect>
-<rect fill="#28A745" height="60" width="30" x="400" y="190"></rect>
-<rect fill="#FFC107" height="90" width="30" x="440" y="160"></rect>
-<text fill="#617589" font-family="Inter" font-size="12" text-anchor="middle" x="410" y="270">Sem 3</text>
-</g>
-<g transform="translate(480, 50)">
-<rect fill="#1173d4" height="10" width="10" y="0"></rect><text fill="#617589" font-size="12" x="15" y="9">Combustível</text>
-<rect fill="#28A745" height="10" width="10" y="20"></rect><text fill="#617589" font-size="12" x="15" y="29">Manutenção</text>
-<rect fill="#FFC107" height="10" width="10" y="40"></rect><text fill="#617589" font-size="12" x="15" y="49">Outros</text>
-</g>
-</svg>
+<p class="text-sm text-gray-500 dark:text-gray-400">Detalhes de custos por categoria e veículo.</p>
 </div>
+<div class="flex flex-wrap justify-end gap-2">
+<div class="relative">
+<select class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40">
+<option selected="">Mês Atual</option>
+<option>Hoje</option>
+<option>Últimos 7 Dias</option>
+<option>Customizado</option>
+</select>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">calendar_today</span>
 </div>
-<div class="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-<p class="text-lg font-semibold text-[#111418] dark:text-white">Status dos Veículos</p>
-<div class="h-80 flex items-center justify-center">
-<svg height="100%" viewbox="0 0 200 200" width="100%" xmlns="http://www.w3.org/2000/svg">
-<circle cx="100" cy="100" fill="transparent" r="80" stroke="#28A745" stroke-dasharray="calc(70 * 3.14159 * 1.6) 999" stroke-width="25"></circle>
-<circle cx="100" cy="100" fill="transparent" r="80" stroke="#FFC107" stroke-dasharray="calc(20 * 3.14159 * 1.6) 999" stroke-width="25" transform="rotate(252, 100, 100)"></circle>
-<circle cx="100" cy="100" fill="transparent" r="80" stroke="#DC3545" stroke-dasharray="calc(10 * 3.14159 * 1.6) 999" stroke-width="25" transform="rotate(324, 100, 100)"></circle>
-<text class="dark:fill-white" fill="#111418" font-size="24" font-weight="bold" text-anchor="middle" x="100" y="105">150</text>
-<text class="dark:fill-gray-400" fill="#617589" font-size="12" text-anchor="middle" x="100" y="125">Total</text>
-</svg>
+<div class="relative">
+<select class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40">
+<option selected="">Todos Veículos</option>
+<option>ABC-1234</option>
+<option>DEF-5678</option>
+</select>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">local_shipping</span>
 </div>
-<div class="flex justify-center gap-4 text-sm">
-<div class="flex items-center gap-2"><div class="size-3 rounded-full bg-[#28A745]"></div><span>Ativo (70%)</span></div>
-<div class="flex items-center gap-2"><div class="size-3 rounded-full bg-[#FFC107]"></div><span>Manutenção (20%)</span></div>
-<div class="flex items-center gap-2"><div class="size-3 rounded-full bg-[#DC3545]"></div><span>Inativo (10%)</span></div>
+<div class="relative">
+<select class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40">
+<option selected="">Todos Centros de Custo</option>
+<option>Operações SP</option>
+<option>Vendas RJ</option>
+</select>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">corporate_fare</span>
 </div>
 </div>
 </div>
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-<div class="flex flex-col gap-2 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-<h3 class="text-lg font-semibold text-[#111418] dark:text-white p-4 pb-0">Alertas Importantes</h3>
-<div class="divide-y divide-gray-200 dark:divide-gray-700">
-<div id="alerts-container"></div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/10 text-primary dark:bg-primary/20">Manutenção</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Abastecimento</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Pedágio</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Rastreamento</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Depreciação</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Locação</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Higienização</button>
+<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Seguro</button>
 </div>
+<div class="h-80"><canvas id="costChart"></canvas></div>
 </div>
-<div class="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-<h3 class="text-lg font-semibold text-[#111418] dark:text-white">Localização da Frota</h3>
-<div class="h-full min-h-[250px] rounded-lg bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-<img class="w-full h-full object-cover rounded-lg" data-alt="Map showing vehicle locations" data-location="Brazil" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCcXE9RfRodSCXZz-dLYgjVrmdYR3cUpg7VDGnNcaGSpWF1zdd4h34a3nK-WqEzpXeZmBrV4UZroDjjyDARsrvZawgukEhJcKm6BPBrOUhbis2BaeEe8LgtIQ5KoFpwJZUl62N-8Xnd1t5DRIRIjsjtECIx3vohvtIY9RjF95QgSOVl5lGPZQQe4HGTrAGegpVQI2pHZ5WSaGYq1YBCkD5LoDZQ4bYShQOGTzaiu4GJA68-K992Ps8-GikdIEVWRFMPAG4t1uoaiTg"/>
-</div>
-</div>
-</div>
-<div class="grid grid-cols-1 gap-6 mt-8">
-<div class="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-<h3 class="text-lg font-semibold text-[#111418] dark:text-white">Top 10 Veículos - KM Rodados Hoje</h3>
+<div class="flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+<h3 class="text-lg font-semibold text-[#111418] dark:text-white p-6 pb-2">Top 10 Veículos - KM Rodados Hoje</h3>
 <div id="top-vehicles-container" class="overflow-x-auto">
 <table class="w-full text-sm">
 <thead class="border-b border-gray-200 dark:border-gray-700">
@@ -237,237 +182,210 @@
 </div>
 </div>
 </div>
+<div class="flex flex-col gap-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+<div class="flex flex-wrap items-start justify-between gap-4">
+<div class="flex flex-col">
+<h3 class="text-lg font-semibold text-[#111418] dark:text-white">Quilometragem Detalhada</h3>
+<p class="text-sm text-gray-500 dark:text-gray-400">Explore a quilometragem com filtros avançados.</p>
+</div>
+<div class="flex items-center gap-2 p-1 rounded-lg bg-gray-100 dark:bg-gray-700">
+<button data-period="today" class="px-3 py-1 rounded text-sm font-medium bg-white dark:bg-gray-800 text-primary shadow-sm">Hoje</button>
+<button data-period="week" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300">7 Dias</button>
+<button data-period="month" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300">Mês</button>
+<button data-period="custom" class="px-3 py-1 rounded text-sm font-medium text-gray-600 dark:text-gray-300 flex items-center gap-1">
+<span class="material-symbols-outlined text-base">calendar_month</span> Customizado
+</button>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+<div class="relative">
+<input data-filter="plate" class="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Buscar Veículo..." type="text"/>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+</div>
+<div class="relative">
+<input data-filter="driver" class="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary" placeholder="Buscar Motorista..." type="text"/>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">search</span>
+</div>
+<div class="relative">
+<select id="vehicleTypeSelect" data-filter-select="vehicleType" class="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+<option selected="">Tipo de Veículo</option>
+</select>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">local_shipping</span>
+</div>
+<div class="relative">
+<select id="baseSelect" data-filter-select="base" class="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+<option selected="">Centro de Custo</option>
+</select>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">corporate_fare</span>
+</div>
+<div class="relative">
+<select id="statusSelect" data-filter-select="status" class="w-full pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+<option selected="">Status do Veículo</option>
+</select>
+<span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">circle</span>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<div class="lg:col-span-2 overflow-x-auto">
+<table class="w-full text-left text-sm">
+<thead class="border-b border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400">
+<tr>
+<th class="p-4 font-medium">Veículo</th>
+<th class="p-4 font-medium">Motorista</th>
+<th class="p-4 font-medium">KM Rodado</th>
+<th class="p-4 font-medium">Consumo (km/l)</th>
+<th class="p-4 font-medium">Custo por KM</th>
+</tr>
+</thead>
+<tbody id="detailedTableBody" class="divide-y divide-gray-200 dark:divide-gray-700">
+<tr>
+<td colspan="5" class="p-8 text-center text-gray-500 dark:text-gray-400">
+Carregando dados...
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="flex flex-col gap-4">
+<p class="text-base font-semibold text-[#111418] dark:text-white">Evolução da Quilometragem</p>
+<div class="h-64"><canvas id="mileageChart"></canvas></div>
+</div>
+</div>
+</div>
 </main>
 </div>
 </div>
-<script src="api-client.js"></script>
-<script src="dashboard-real-data.js"></script>
-<!-- dashboard-quilometragem-db.js DESATIVADO: Usa banco de dados -->
-<!-- dashboard-stats.js FAZ CÁLCULO EM TEMPO REAL da API Ituran -->
 <script>
-// Sistema de gerenciamento de dados da frota
-class FleetDataManager {
-    constructor() {
-        this.storageKey = 'fleetflow_data';
-        this.initializeData();
-    }
-
-    initializeData() {
-        if (!localStorage.getItem(this.storageKey)) {
-            const defaultData = {
-                vehicles: [
-                    { plate: 'ABC-1234', model: 'Volkswagen Gol', year: 2022, mileage: 50000, status: 'Ativo', color: 'Branco' },
-                    { plate: 'JKL-3456', model: 'Renault Kwid', year: 2023, mileage: 25000, status: 'Ativo', color: 'Prata' },
-                    { plate: 'MNO-7890', model: 'Honda Civic', year: 2021, mileage: 70000, status: 'Ativo', color: 'Preto' },
-                    { plate: 'DEF-5678', model: 'Fiat Strada', year: 2020, mileage: 85000, status: 'Manutenção', color: 'Vermelho' },
-                    { plate: 'QWE-1122', model: 'Ford Ka', year: 2022, mileage: 45000, status: 'Manutenção', color: 'Azul' },
-                    { plate: 'RST-3344', model: 'VW Saveiro', year: 2021, mileage: 60000, status: 'Manutenção', color: 'Branco' },
-                    { plate: 'UVW-5566', model: 'Hyundai HB20', year: 2023, mileage: 15000, status: 'Ativo', color: 'Cinza' },
-                    { plate: 'GHI-9012', model: 'Chevrolet Onix', year: 2019, mileage: 120000, status: 'Arquivado', color: 'Prata' },
-                    { plate: 'ZXY-6789', model: 'Mercedes Sprinter', year: 2018, mileage: 150000, status: 'Arquivado', color: 'Branco' }
-                ],
-                stats: {
-                    totalVehicles: 150,
-                    inMaintenance: 12,
-                    availableDrivers: 45,
-                    monthlyCost: 120000
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+    const textColor = isDarkMode ? '#f9fafb' : '#374151';
+    // Cost Chart
+    const costCtx = document.getElementById('costChart');
+    if (costCtx) {
+        new Chart(costCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
+                datasets: [{
+                    label: 'Manutenção',
+                    data: [1200, 1900, 3000, 2500, 2200, 3000],
+                    backgroundColor: '#1173d4',
+                    borderRadius: 4,
+                }, {
+                    label: 'Abastecimento',
+                    data: [8000, 8200, 7800, 9000, 8500, 9200],
+                    backgroundColor: '#28A745',
+                    borderRadius: 4,
+                }, {
+                    label: 'Pedágio',
+                    data: [300, 320, 280, 400, 350, 420],
+                    backgroundColor: '#FFC107',
+                    borderRadius: 4,
+                }, {
+                    label: 'Rastreamento',
+                    data: [150, 150, 150, 150, 150, 150],
+                    backgroundColor: '#fd7e14',
+                    borderRadius: 4,
+                }, {
+                    label: 'Depreciação',
+                    data: [500, 500, 500, 500, 500, 500],
+                    backgroundColor: '#6f42c1',
+                    borderRadius: 4,
+                }, {
+                    label: 'Locação',
+                    data: [0, 0, 0, 1200, 1200, 1200],
+                    backgroundColor: '#dc3545',
+                    borderRadius: 4,
+                }, {
+                    label: 'Higienização',
+                    data: [50, 0, 50, 0, 100, 50],
+                    backgroundColor: '#20c997',
+                    borderRadius: 4,
+                }, {
+                    label: 'Seguro',
+                    data: [400, 400, 400, 400, 400, 400],
+                    backgroundColor: '#0dcaf0',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                           color: textColor
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { color: textColor },
+                        grid: { color: gridColor, drawOnChartArea: false }
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: { color: textColor },
+                        grid: { color: gridColor }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
                 }
-            };
-            this.saveData(defaultData);
-        }
+            }
+        });
     }
-
-    getData() {
-        return JSON.parse(localStorage.getItem(this.storageKey) || '{}');
-    }
-
-    saveData(data) {
-        localStorage.setItem(this.storageKey, JSON.stringify(data));
-    }
-
-    getVehicles() {
-        return this.getData().vehicles || [];
-    }
-
-    async getStats() {
-        // Calcular estatísticas REAIS baseadas em dados reais
-        try {
-            // 1. Total de Veículos - do vehicles-data.json
-            const vehiclesResponse = await fetch('vehicles-data.json');
-            const vehicles = await vehiclesResponse.json();
-            const totalVehicles = vehicles.length;
-
-            // 2. Em Manutenção - baseado em OS abertas (não finalizadas)
-            const serviceOrders = JSON.parse(localStorage.getItem('serviceOrders') || '[]');
-
-            // Pegar placas únicas de OS não finalizadas
-            const vehiclesInMaintenance = new Set();
-            serviceOrders.forEach(os => {
-                if (os.status !== 'Finalizada') {
-                    vehiclesInMaintenance.add(os.plate);
+    // Mileage Chart
+    const mileageCtx = document.getElementById('mileageChart');
+    if (mileageCtx) {
+        new Chart(mileageCtx, {
+            type: 'line',
+            data: {
+                labels: ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'],
+                datasets: [{
+                    label: 'KM Total',
+                    data: [1200, 1900, 1500, 2100, 1800, 2300, 2000],
+                    borderColor: '#1173d4',
+                    backgroundColor: 'rgba(17, 115, 212, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: textColor },
+                        grid: { color: gridColor, drawOnChartArea: false }
+                    },
+                    y: {
+                        ticks: { color: textColor },
+                        grid: { color: gridColor }
+                    }
                 }
-            });
-            const maintenanceVehicles = vehiclesInMaintenance.size;
-
-            // 3. Custo Total do Mês - somar OS finalizadas do mês atual
-            const now = new Date();
-            const currentMonth = now.getMonth();
-            const currentYear = now.getFullYear();
-
-            let monthlyCost = 0;
-            serviceOrders.forEach(os => {
-                const osDate = new Date(os.dateTime);
-                if (osDate.getMonth() === currentMonth &&
-                    osDate.getFullYear() === currentYear) {
-                    monthlyCost += os.totalGeral || 0;
-                }
-            });
-
-            // 4. Motoristas Disponíveis - calcular baseado em motoristas cadastrados
-            const drivers = JSON.parse(localStorage.getItem('drivers') || '[]');
-            const availableDrivers = drivers.filter(d => d.status === 'Disponível').length;
-
-            // 5. Percentuais para o gráfico
-            const activeVehicles = totalVehicles - maintenanceVehicles;
-            const inactiveVehicles = 0; // Por enquanto zero
-
-            const activePercent = totalVehicles > 0 ? Math.round((activeVehicles / totalVehicles) * 100) : 0;
-            const maintenancePercent = totalVehicles > 0 ? Math.round((maintenanceVehicles / totalVehicles) * 100) : 0;
-            const inactivePercent = 100 - activePercent - maintenancePercent;
-
-            return {
-                totalVehicles,
-                maintenanceVehicles,
-                availableDrivers: availableDrivers || 0, // Default 0 se não houver motoristas
-                monthlyCost,
-                percentages: {
-                    active: activePercent,
-                    maintenance: maintenancePercent,
-                    inactive: Math.max(0, inactivePercent)
-                }
-            };
-        } catch (error) {
-            console.error('❌ Erro ao calcular estatísticas:', error);
-            return {
-                totalVehicles: 0,
-                maintenanceVehicles: 0,
-                availableDrivers: 0,
-                monthlyCost: 0,
-                percentages: { active: 100, maintenance: 0, inactive: 0 }
-            };
-        }
+            }
+        });
     }
-
-    addVehicle(vehicle) {
-        const data = this.getData();
-        data.vehicles.push(vehicle);
-        this.saveData(data);
-        this.updateStats();
-    }
-
-    updateStats() {
-        const data = this.getData();
-        const vehicles = data.vehicles;
-        data.stats.totalVehicles = vehicles.filter(v => v.status !== 'Arquivado').length;
-        data.stats.inMaintenance = vehicles.filter(v => v.status === 'Manutenção').length;
-        this.saveData(data);
-    }
-}
-
-// Inicializar gerenciador de dados
-const fleetManager = new FleetDataManager();
-
-// REMOVIDO: calculateKmStats() - Agora usa dados REAIS do dashboard-stats.js
-
-// Atualizar estatísticas do dashboard com dados da API
-async function updateDashboard() {
-    try {
-        // Buscar estatísticas da API
-        const stats = await FleetAPI.getStats();
-        const alerts = await FleetAPI.getAlerts();
-
-        if (!stats) return;
-
-        // Atualizar cards de estatísticas
-        const statCards = document.querySelectorAll('.grid.grid-cols-1.sm\\:grid-cols-2.lg\\:grid-cols-4 > div');
-        if (statCards.length >= 4) {
-            // Total de Veículos
-            statCards[0].querySelector('.text-3xl').textContent = stats.totalVehicles;
-
-            // Em Manutenção
-            statCards[1].querySelector('.text-3xl').textContent = stats.maintenanceVehicles;
-
-            // Motoristas Disponíveis
-            statCards[2].querySelector('.text-3xl').textContent = stats.availableDrivers;
-
-            // Custo Total
-            statCards[3].querySelector('.text-3xl').textContent = `R$ ${stats.monthlyCost.toLocaleString('pt-BR')}`;
-        }
-
-        // KM Estatísticas são atualizadas pelo dashboard-stats.js
-        // que usa dados REAIS do Ituran
-
-        // Atualizar gráfico de pizza (percentuais)
-        const activePercent = stats.percentages.active;
-        const maintenancePercent = stats.percentages.maintenance;
-        const inactivePercent = stats.percentages.inactive;
-
-        // Atualizar texto do gráfico
-        const chartLabels = document.querySelectorAll('.flex.justify-center.gap-4.text-sm span');
-        if (chartLabels.length >= 3) {
-            chartLabels[0].textContent = `Ativo (${activePercent}%)`;
-            chartLabels[1].textContent = `Manutenção (${maintenancePercent}%)`;
-            chartLabels[2].textContent = `Inativo (${inactivePercent}%)`;
-        }
-
-        // Atualizar total no centro do gráfico
-        const chartCenter = document.querySelector('svg text[font-size="24"]');
-        if (chartCenter) {
-            chartCenter.textContent = stats.totalVehicles;
-        }
-
-        // Gerar alertas dinâmicos da API
-        const alertsContainer = document.getElementById('alerts-container');
-        if (alertsContainer && alerts.length > 0) {
-            let alertsHTML = '';
-
-            alerts.forEach(alert => {
-                alertsHTML += `
-                    <div class="flex items-center gap-4 p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <div class="text-${alert.color}-500 flex items-center justify-center rounded-lg bg-${alert.color}-500/10 shrink-0 size-12">
-                            <span class="material-symbols-outlined text-2xl">${alert.icon}</span>
-                        </div>
-                        <div class="flex flex-col justify-center flex-1">
-                            <p class="text-[#111418] dark:text-white text-base font-medium leading-normal line-clamp-1">${alert.title}</p>
-                            <p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal line-clamp-2">${alert.description}</p>
-                        </div>
-                        <div class="shrink-0"><p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">${alert.time}</p></div>
-                    </div>
-                `;
-            });
-
-            alertsContainer.innerHTML = alertsHTML;
-        }
-
-        console.log('✅ Dashboard atualizado com sucesso!');
-    } catch (error) {
-        console.error('❌ Erro ao atualizar dashboard:', error);
-    }
-}
-
-// Inicializar dashboard quando a página carregar
-document.addEventListener('DOMContentLoaded', async () => {
-    // Atualizar com dados reais primeiro
-    const realData = new DashboardRealData();
-    await realData.updateDashboard();
-
-    // Depois atualizar dados dinâmicos da API
-    updateDashboard();
-
-    // REMOVIDO: setInterval - Os dados de KM agora são gerenciados pelo dashboard-stats.js
-    // que usa cache diário e dados REAIS do Ituran
-});
-
+</script>
+<script src="api-client.js?v=20251125"></script>
+<script src="dashboard-real-data.js"></script>
+<script src="vehicles-data.js"></script>
+<script src="novo-dashboard.js?v=20251202-002"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script>
 /**
  * Sincronização Manual de Quilometragem
  * Força recálculo dos dados de KM de todos os veículos
@@ -476,10 +394,10 @@ async function sincronizarKmManual() {
     console.log('🔄 SINCRONIZAÇÃO MANUAL iniciada pelo usuário');
 
     const btnSync = document.getElementById('btn-sync-km');
-    const progressBar = document.getElementById('sync-progress-bar');
-    const progressFill = document.getElementById('sync-progress-fill');
-    const progressText = document.getElementById('sync-progress-text');
-    const statusText = document.getElementById('sync-status-text');
+    const progressBar = document.getElementById('syncProgressBar');
+    const progressFill = document.getElementById('syncProgressFill');
+    const progressText = document.getElementById('syncProgressText');
+    const statusText = document.getElementById('syncStatusText');
 
     try {
         // Desabilita botão
@@ -493,47 +411,105 @@ async function sincronizarKmManual() {
             progressBar.classList.remove('hidden');
         }
 
-        // Limpa TODOS os caches para forçar recálculo COMPLETO (incluindo KM mensal)
-        console.log('🗑️ Limpando TODOS os caches para forçar recálculo completo...');
-        localStorage.removeItem('fleetflow_daily_km_data');
-        localStorage.removeItem('fleetflow_dashboard_stats_cache_realtime');
-        localStorage.removeItem('fleetflow_dashboard_stats_cache_month'); // IMPORTANTE: Limpa cache mensal!
+        // Verifica se já existe sincronização em andamento
+        const existingCache = localStorage.getItem('fleetflow_daily_km_data');
+        let startFrom = 0;
+        let initialData = null;
+        let continuingSync = false;
 
-        if (statusText) {
-            statusText.textContent = 'Preparando sincronização...';
+        if (existingCache) {
+            try {
+                const cacheData = JSON.parse(existingCache);
+                const today = new Date().toISOString().split('T')[0];
+
+                // Se o cache é de hoje E está incompleto, continua de onde parou
+                if (cacheData.date === today && cacheData.isComplete === false) {
+                    startFrom = cacheData.progress || 0;
+                    initialData = {
+                        todayTotal: cacheData.todayTotal || 0,
+                        yesterdayTotal: cacheData.yesterdayTotal || 0,
+                        monthTotal: cacheData.monthTotal || 0,
+                        vehiclesData: cacheData.vehiclesData || [],
+                        vehiclesMoving: cacheData.vehiclesData?.filter(v => v.kmToday > 0).length || 0
+                    };
+                    continuingSync = true;
+                    console.log(`🔄 CONTINUANDO sincronização do veículo ${startFrom}...`);
+                } else {
+                    // Cache completo ou de outro dia - limpa tudo
+                    console.log('🗑️ Limpando caches para nova sincronização...');
+                    localStorage.removeItem('fleetflow_daily_km_data');
+                    localStorage.removeItem('fleetflow_dashboard_stats_cache_realtime');
+                    localStorage.removeItem('fleetflow_dashboard_stats_cache_month');
+                    localStorage.removeItem('fleetflow_km_cache_v2');
+                    localStorage.removeItem('fleetflow_odometer_snapshots');
+                }
+            } catch (e) {
+                console.warn('⚠️ Erro ao ler cache, limpando...', e);
+                localStorage.removeItem('fleetflow_daily_km_data');
+            }
+        } else {
+            // Sem cache - limpa tudo para garantir
+            console.log('🗑️ Limpando TODOS os caches para sincronização completa...');
+            localStorage.removeItem('fleetflow_dashboard_stats_cache_realtime');
+            localStorage.removeItem('fleetflow_dashboard_stats_cache_month');
+            localStorage.removeItem('fleetflow_km_cache_v2');
+            localStorage.removeItem('fleetflow_odometer_snapshots');
         }
 
-        // Aguarda 500ms para dar tempo da interface atualizar
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Atualiza progresso
+        const initialProgress = continuingSync ? Math.round((startFrom / (initialData?.vehiclesData?.length || 1)) * 100) : 0;
+        if (progressText) progressText.textContent = continuingSync ? `Continuando sincronização (${initialProgress}%)` : 'Sincronizando KM (0%)';
+        if (statusText) statusText.textContent = continuingSync ? `Retomando do veículo ${startFrom}...` : 'Preparando...';
 
-        // Chama a função calculateInBackground que já existe no dashboard-stats.js
-        // Ela já tem toda a lógica de progresso e atualização da interface
+        // Verifica se dashboard-stats.js carregou
         if (typeof calculateInBackground === 'function') {
-            console.log('✅ Chamando calculateInBackground() do dashboard-stats.js');
+            console.log(continuingSync ? '🔄 Continuando cálculo em background...' : '✅ Iniciando cálculo em background...');
 
-            if (statusText) {
-                statusText.textContent = 'Buscando lista de veículos...';
+            const platesContainer = document.getElementById('syncPlatesContainer');
+            if (platesContainer && !continuingSync) {
+                platesContainer.innerHTML = ''; // Limpa placas apenas se for nova sincronização
             }
 
-            await calculateInBackground(0, null);
-
-            console.log('✅ Sincronização concluída!');
-
-            if (statusText) {
-                statusText.textContent = 'Sincronização concluída com sucesso!';
-            }
-            if (progressFill) {
-                progressFill.style.width = '100%';
-            }
-            if (progressText) {
-                progressText.textContent = '100%';
-            }
-
-            // Esconde barra após 3 segundos
-            setTimeout(() => {
-                if (progressBar) {
-                    progressBar.classList.add('hidden');
+            // Chama função de cálculo em background
+            await calculateInBackground(startFrom, initialData, (progress, currentPlate) => {
+                if (progressFill) {
+                    progressFill.style.width = `${progress}%`;
                 }
+                if (progressText) {
+                    progressText.textContent = `Sincronizando KM (${Math.round(progress)}%)`;
+                }
+                if (statusText) {
+                    if (progress < 50) {
+                        statusText.textContent = 'Calculando KM de hoje...';
+                    } else if (progress < 100) {
+                        statusText.textContent = 'Calculando KM do mês...';
+                    } else {
+                        statusText.textContent = 'Finalizado!';
+                    }
+                }
+
+                // Adicionar placa processada
+                if (currentPlate && platesContainer) {
+                    const plateSpan = document.createElement('span');
+                    plateSpan.className = 'px-2 py-1 bg-primary/10 text-primary text-xs font-mono rounded-md';
+                    plateSpan.textContent = currentPlate;
+                    platesContainer.appendChild(plateSpan);
+
+                    // Auto-scroll para o final
+                    platesContainer.scrollTop = platesContainer.scrollHeight;
+                }
+            });
+
+            // Sucesso
+            if (statusText) {
+                statusText.textContent = '✅ Sincronização concluída com sucesso!';
+                statusText.classList.remove('text-red-600', 'dark:text-red-400');
+                statusText.classList.add('text-green-600', 'dark:text-green-400');
+            }
+
+            // Oculta barra após 3s
+            setTimeout(() => {
+                if (progressBar) progressBar.classList.add('hidden');
             }, 3000);
 
         } else {
@@ -561,7 +537,6 @@ async function sincronizarKmManual() {
 
 /**
  * Limpar Cache de Quilometragem
- * Remove todos os caches de KM armazenados
  */
 function limparCacheKm() {
     if (!confirm('Tem certeza que deseja limpar TODOS os caches de quilometragem?\n\nIsso forçará o recálculo de todos os dados na próxima atualização.')) {
@@ -571,7 +546,6 @@ function limparCacheKm() {
     console.log('🗑️ Limpando TODOS os caches de KM...');
 
     try {
-        // Remove todos os caches relacionados a quilometragem
         localStorage.removeItem('fleetflow_daily_km_data');
         localStorage.removeItem('fleetflow_dashboard_stats_cache_realtime');
         localStorage.removeItem('fleetflow_dashboard_stats_cache_month');
@@ -581,7 +555,6 @@ function limparCacheKm() {
         console.log('✅ Todos os caches foram removidos!');
         alert('Cache limpo com sucesso!\n\nA página será recarregada para recalcular os dados.');
 
-        // Recarrega a página
         window.location.reload();
 
     } catch (error) {
@@ -594,8 +567,4 @@ function limparCacheKm() {
 window.sincronizarKmManual = sincronizarKmManual;
 window.limparCacheKm = limparCacheKm;
 </script>
-<script src="ituran-service.js"></script>
-<script src="vehicles-data.js"></script>
-<script src="dashboard-stats.js"></script>
-<script src="sidebar.js"></script>
 </body></html>

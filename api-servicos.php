@@ -12,7 +12,7 @@
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Cache-Control');
 
 // Handle preflight OPTIONS request
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -20,15 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once 'db-config.php';
+require_once 'config-db.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 
 try {
-    $pdo = getDBConnection();
-    if (!$pdo) {
-        throw new Exception('Erro ao conectar com o banco de dados');
-    }
+    // Conectar ao banco usando PDO
+    $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+        PDO::ATTR_TIMEOUT => 3
+    ];
+
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
 
     switch ($method) {
         case 'GET':
@@ -163,29 +169,19 @@ function handlePost($pdo) {
         return;
     }
 
-    // Inserir serviço
+    // Inserir serviço (apenas campos que existem na tabela)
     $sql = "INSERT INTO servicos
-            (codigo, nome, tipo, categoria, descricao, valor_padrao,
-             ocorrencia_padrao, unidade_medida, estoque_minimo,
-             estoque_atual, fornecedor, ativo)
+            (codigo, nome, tipo, valor_padrao, ocorrencia_padrao, ativo)
             VALUES
-            (:codigo, :nome, :tipo, :categoria, :descricao, :valor_padrao,
-             :ocorrencia_padrao, :unidade_medida, :estoque_minimo,
-             :estoque_atual, :fornecedor, :ativo)";
+            (:codigo, :nome, :tipo, :valor_padrao, :ocorrencia_padrao, :ativo)";
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
         ':codigo' => $data['codigo'],
         ':nome' => $data['nome'],
         ':tipo' => $data['tipo'],
-        ':categoria' => $data['categoria'] ?? null,
-        ':descricao' => $data['descricao'] ?? null,
         ':valor_padrao' => $data['valor_padrao'] ?? 0.00,
         ':ocorrencia_padrao' => $data['ocorrencia_padrao'] ?? 'Corretiva',
-        ':unidade_medida' => $data['unidade_medida'] ?? 'UN',
-        ':estoque_minimo' => $data['estoque_minimo'] ?? 0,
-        ':estoque_atual' => $data['estoque_atual'] ?? 0,
-        ':fornecedor' => $data['fornecedor'] ?? null,
         ':ativo' => $data['ativo'] ?? 1
     ]);
 
@@ -221,19 +217,13 @@ function handlePut($pdo) {
         return;
     }
 
-    // Atualizar serviço
+    // Atualizar serviço (apenas campos que existem na tabela)
     $sql = "UPDATE servicos SET
             codigo = :codigo,
             nome = :nome,
             tipo = :tipo,
-            categoria = :categoria,
-            descricao = :descricao,
             valor_padrao = :valor_padrao,
             ocorrencia_padrao = :ocorrencia_padrao,
-            unidade_medida = :unidade_medida,
-            estoque_minimo = :estoque_minimo,
-            estoque_atual = :estoque_atual,
-            fornecedor = :fornecedor,
             ativo = :ativo
             WHERE id = :id";
 
@@ -243,14 +233,8 @@ function handlePut($pdo) {
         ':codigo' => $data['codigo'],
         ':nome' => $data['nome'],
         ':tipo' => $data['tipo'],
-        ':categoria' => $data['categoria'] ?? null,
-        ':descricao' => $data['descricao'] ?? null,
         ':valor_padrao' => $data['valor_padrao'] ?? 0.00,
         ':ocorrencia_padrao' => $data['ocorrencia_padrao'] ?? 'Corretiva',
-        ':unidade_medida' => $data['unidade_medida'] ?? 'UN',
-        ':estoque_minimo' => $data['estoque_minimo'] ?? 0,
-        ':estoque_atual' => $data['estoque_atual'] ?? 0,
-        ':fornecedor' => $data['fornecedor'] ?? null,
         ':ativo' => $data['ativo'] ?? 1
     ]);
 

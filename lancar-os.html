@@ -10,8 +10,7 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<script src="ituran-service.js"></script>
-<script src="os-items-manager.js"></script>
+<script src="os-items-manager.js?v=20251126-1940"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
@@ -374,6 +373,8 @@
 let vehicles = [];
 let osItems = [];
 
+// osManager é carregado do os-items-manager.js
+
 // Função de Toast Notification
 function showToast(type, title, message, duration = 5000) {
     // Criar container se não existir
@@ -430,7 +431,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log('✅ Veículos carregados e combobox configurado');
 
         // Gerar número da OS
-        generateOSNumber();
+        await generateOSNumber();
 
         // Configurar data/hora atual
         setCurrentDateTime();
@@ -586,15 +587,47 @@ function setupVehicleCombobox() {
     console.log('👉 Clique no botão azul para abrir o dropdown');
 }
 
-function generateOSNumber() {
-    const year = new Date().getFullYear();
-    const lastOS = parseInt(localStorage.getItem('lastOSNumber') || '0');
-    const nextOS = lastOS + 1;
-    const osNumber = `OS-${year}-${String(nextOS).padStart(5, '0')}`;
+async function generateOSNumber() {
+    try {
+        // Buscar próximo número do banco de dados (com cache-busting)
+        const timestamp = new Date().getTime();
+        const response = await fetch(`https://floripa.in9automacao.com.br/get-next-os-number.php?t=${timestamp}`, {
+            cache: 'no-cache',
+            headers: {
+                'Cache-Control': 'no-cache'
+            }
+        });
 
-    const osInput = document.getElementById('os-number-input');
-    if (osInput) {
-        osInput.value = osNumber;
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (data.success && data.next_os_number) {
+            const osInput = document.getElementById('os-number-input');
+            if (osInput) {
+                osInput.value = data.next_os_number;
+                console.log('✅ Próximo número de OS:', data.next_os_number);
+            }
+        } else {
+            throw new Error(data.error || 'Erro ao obter número de OS');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao gerar número de OS:', error);
+
+        // Fallback: usar localStorage como antes
+        const year = new Date().getFullYear();
+        const lastOS = parseInt(localStorage.getItem('lastOSNumber') || '0');
+        const nextOS = lastOS + 1;
+        const osNumber = `OS-${year}-${String(nextOS).padStart(5, '0')}`;
+
+        const osInput = document.getElementById('os-number-input');
+        if (osInput) {
+            osInput.value = osNumber;
+        }
+
+        showToast('warning', 'Aviso', 'Usando numeração local. Verifique o número antes de salvar.');
     }
 }
 
@@ -629,6 +662,13 @@ function setupEventListeners() {
         console.log('✅ Event listener do botão Cancelar configurado');
     } else {
         console.error('❌ Botão Cancelar não encontrado');
+    }
+
+    // Formulário de cadastro de novo item
+    const newItemForm = document.getElementById('new-item-form');
+    if (newItemForm) {
+        newItemForm.addEventListener('submit', osManager.saveNewItem);
+        console.log('✅ Event listener do formulário de novo item configurado');
     }
 }
 
@@ -725,7 +765,7 @@ async function saveServiceOrder() {
         let vehicleFromDB = null;
         try {
             // Tentar buscar do PHP primeiro
-            const response = await fetch('get-vehicles.php');
+            const response = await fetch('https://floripa.in9automacao.com.br/get-vehicles.php');
             if (response.ok) {
                 const result = await response.json();
                 const allVehicles = result.data || result;
@@ -818,10 +858,10 @@ async function saveServiceOrder() {
             }))
         };
 
-        // Enviar para API Node.js (que agora usa as novas tabelas)
-        console.log('📤 Enviando dados para /api/workorders:', requestData);
+        // Enviar para API PHP do cPanel
+        console.log('📤 Enviando dados para save-workorder.php:', requestData);
 
-        fetch('/api/workorders', {
+        fetch('https://floripa.in9automacao.com.br/save-workorder.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -845,9 +885,7 @@ async function saveServiceOrder() {
                 existingOrders.push(serviceOrder);
                 localStorage.setItem('serviceOrders', JSON.stringify(existingOrders));
 
-                // Atualizar contador de OS
-                const lastOS = parseInt(osNumber.split('-')[2]);
-                localStorage.setItem('lastOSNumber', lastOS.toString());
+                // Não precisa mais salvar o contador no localStorage pois agora vem do banco
 
                 // Mostrar toast de sucesso e redirecionar imediatamente
                 showToast('success', 'OS Criada com Sucesso!', `Número: ${osNumber}<br>Veículo ${plate} em manutenção`, 0);
@@ -913,6 +951,19 @@ Element.prototype.matches = (function(proto) {
                        placeholder="Ex: 150,00"/>
             </div>
 
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Tipo de Ocorrência <span class="text-red-500">*</span>
+                </label>
+                <select id="modal-item-occurrence" required
+                        class="form-select w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-sm">
+                    <option value="">Selecione...</option>
+                    <option value="Corretiva">Corretiva</option>
+                    <option value="Preventiva">Preventiva</option>
+                    <option value="Garantia">Garantia</option>
+                </select>
+            </div>
+
             <div class="flex justify-end gap-3 pt-4">
                 <button type="button" onclick="osManager.closeAddNewModal()"
                         class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600">
@@ -928,6 +979,6 @@ Element.prototype.matches = (function(proto) {
 </div>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 
 </body></html>

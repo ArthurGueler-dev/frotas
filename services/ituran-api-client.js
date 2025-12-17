@@ -4,6 +4,18 @@
  * Não contém lógica de negócio
  */
 
+// Import DOMParser para Node.js
+const isNodeEnv = typeof window === 'undefined';
+if (isNodeEnv) {
+    try {
+        const { DOMParser } = require('@xmldom/xmldom');
+        global.DOMParser = DOMParser;
+    } catch (e) {
+        console.error('❌ @xmldom/xmldom não está instalado. Execute: npm install @xmldom/xmldom');
+        throw e;
+    }
+}
+
 class IturanAPIClient {
     constructor(config = {}) {
         this.isNode = typeof window === 'undefined';

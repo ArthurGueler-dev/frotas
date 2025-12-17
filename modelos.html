@@ -171,9 +171,9 @@ const modal = document.getElementById('model-modal');
 
 // Detectar ambiente e definir URL da API
 const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-const API_BASE_URL = isLocalhost ? '/api/modelos' : '/cpanel-api/modelos.php';
+const API_BASE_URL = isLocalhost ? '/api/modelos' : 'https://floripa.in9automacao.com.br/modelos.php';
 
-console.log('🌐 Ambiente:', isLocalhost ? 'Localhost (Node.js)' : 'Produção (PHP)');
+console.log('🌐 Ambiente:', isLocalhost ? 'Localhost (Node.js)' : 'Produção (PHP - floripa)');
 console.log('🔗 API URL:', API_BASE_URL);
 
 // Carregar ao iniciar
@@ -284,25 +284,35 @@ async function carregarModelos() {
 // Buscar planos de manutenção para os modelos
 async function buscarPlanosParaModelos() {
     try {
-        // Buscar planos para cada modelo
-        const promises = modelos.map(modelo =>
-            fetch(`/api/maintenance-plan-items?modelo_id=${modelo.id}`)
-                .then(res => res.json())
-                .then(planos => ({
-                    modelo_id: modelo.id,
-                    qtd: Array.isArray(planos) ? planos.length : 0
-                }))
-                .catch(() => ({ modelo_id: modelo.id, qtd: 0 }))
-        );
+        // Buscar todos os planos de uma vez
+        const response = await fetch(`https://floripa.in9automacao.com.br/planos-manutencao-api.php`);
+        const result = await response.json();
+        const todosPlanos = result.data || [];
 
-        const resultados = await Promise.all(promises);
+        console.log(`📋 Total de planos encontrados: ${todosPlanos.length}`);
 
-        // Adicionar informação de planos aos modelos
-        resultados.forEach(({ modelo_id, qtd }) => {
-            const modelo = modelos.find(m => m.id === modelo_id);
-            if (modelo) {
-                modelo.temPlano = qtd > 0;
-                modelo.qtdPlanos = qtd;
+        // Contar planos por modelo (modelo_carro pode ser "Chevrolet CELTA" ou só "CELTA")
+        const planosPorModelo = {};
+        todosPlanos.forEach(plano => {
+            const modeloCarro = plano.modelo_carro || '';
+            if (!planosPorModelo[modeloCarro]) {
+                planosPorModelo[modeloCarro] = 0;
+            }
+            planosPorModelo[modeloCarro]++;
+        });
+
+        console.log('📊 Planos por modelo:', planosPorModelo);
+
+        // Atualizar informação nos modelos
+        modelos.forEach(modelo => {
+            // Tentar match com apenas o nome do modelo ou com "Marca Modelo"
+            const chaveModelo = modelo.modelo;
+            const chaveMarcaModelo = `${modelo.marca} ${modelo.modelo}`;
+            const qtd = planosPorModelo[chaveModelo] || planosPorModelo[chaveMarcaModelo] || 0;
+            modelo.temPlano = qtd > 0;
+            modelo.qtdPlanos = qtd;
+            if (qtd > 0) {
+                console.log(`✓ ${modelo.marca} ${modelo.modelo}: ${qtd} planos`);
             }
         });
 
@@ -311,7 +321,7 @@ async function buscarPlanosParaModelos() {
         console.error('⚠️ Erro ao carregar planos:', error);
         // Não bloqueia - apenas não mostra informação de planos
         modelos.forEach(modelo => {
-            modelo.temPlano = true; // Assume que tem plano por padrão
+            modelo.temPlano = false;
             modelo.qtdPlanos = 0;
         });
     }
@@ -599,6 +609,6 @@ async function excluirModelo(id) {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 
 </body></html>

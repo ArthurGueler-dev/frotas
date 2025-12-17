@@ -12,6 +12,200 @@ const ODOMETER_STORAGE_KEY = 'fleetflow_odometer_snapshots';
 const KM_CACHE_KEY = 'fleetflow_km_cache_v2';
 const KM_CACHE_TIMEOUT = 60 * 60 * 1000; // 1 HORA de cache por veículo (evita recalcular muito)
 
+// ============= CONFIGURAÇÃO DE SINCRONIZAÇÃO AUTOMÁTICA =============
+const AUTO_SYNC_ENABLED = true; // Ativar/desativar sincronização automática
+const AUTO_SYNC_TIMES = [
+    '14:18', // TESTE: auto-sync daqui 2 minutos (remover depois)
+    '08:00', // 8h da manhã (início do expediente)
+    '12:00', // 12h meio-dia
+    '18:00', // 18h final do expediente
+    '23:55'  // 23:55 (5 minutos antes do cron do servidor)
+];
+const AUTO_SYNC_STORAGE_KEY = 'fleetflow_last_auto_sync';
+const AUTO_SYNC_MIN_INTERVAL = 55 * 60 * 1000; // Mínimo 55 minutos entre syncs automáticos
+// =====================================================================
+
+// Web Worker para sincronização em background
+let syncWorker = null;
+let isSyncInProgress = false;
+let autoSyncInterval = null;
+
+// Detectar quando aba volta visível (retoma sincronização)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isSyncInProgress) {
+        console.log('🔄 Aba visível novamente, verificando progresso...');
+        resumeSyncFromCache();
+    }
+});
+
+/**
+ * Obtém a base/centro de custo selecionado no filtro
+ * @returns {string} Base selecionada ou string vazia se "Todas"
+ */
+function getSelectedBase() {
+    const baseSelect = document.getElementById('baseSelect');
+    if (!baseSelect) {
+        console.warn('⚠️ Elemento baseSelect não encontrado, usando base vazia');
+        return '';
+    }
+    const value = baseSelect.value;
+    return value === '' || value === 'Centro de Custo' ? '' : value;
+}
+
+// ============= FUNÇÕES DE SINCRONIZAÇÃO AUTOMÁTICA =============
+
+/**
+ * Verifica se deve executar sincronização automática
+ * @returns {boolean} true se deve sincronizar
+ */
+function shouldAutoSync() {
+    if (!AUTO_SYNC_ENABLED) {
+        return false;
+    }
+
+    // Não sincronizar se já está sincronizando
+    if (isSyncInProgress) {
+        console.log('⏭️ Auto-sync cancelado: sincronização já em andamento');
+        return false;
+    }
+
+    // Verificar último sync automático
+    const lastAutoSync = localStorage.getItem(AUTO_SYNC_STORAGE_KEY);
+    if (lastAutoSync) {
+        const timeSinceLastSync = Date.now() - parseInt(lastAutoSync);
+        if (timeSinceLastSync < AUTO_SYNC_MIN_INTERVAL) {
+            console.log(`⏭️ Auto-sync cancelado: última sync há ${Math.round(timeSinceLastSync / 60000)} minutos`);
+            return false;
+        }
+    }
+
+    // Verificar se está no horário programado
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const isScheduledTime = AUTO_SYNC_TIMES.some(scheduledTime => {
+        return currentTime === scheduledTime;
+    });
+
+    if (!isScheduledTime) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Executa sincronização automática em background
+ */
+async function executeAutoSync() {
+    if (!shouldAutoSync()) {
+        return;
+    }
+
+    console.log('🤖 ════════════════════════════════════════════════════');
+    console.log('🤖 SINCRONIZAÇÃO AUTOMÁTICA INICIADA');
+    console.log(`🤖 Horário: ${new Date().toLocaleString('pt-BR')}`);
+    console.log('🤖 ════════════════════════════════════════════════════');
+
+    try {
+        // Marcar timestamp da sincronização
+        localStorage.setItem(AUTO_SYNC_STORAGE_KEY, Date.now().toString());
+
+        // Mostrar notificação discreta (se disponível)
+        showAutoSyncNotification('Sincronizando quilometragem em segundo plano...');
+
+        // Executar sincronização (mesmo código do botão manual)
+        await calculateInBackground(0, null, (progress, plate) => {
+            // Callback de progresso silencioso (não bloqueia UI)
+            log(`🤖 Auto-sync: ${progress}% - ${plate}`);
+        });
+
+        console.log('✅ Sincronização automática concluída');
+        showAutoSyncNotification('Quilometragem atualizada com sucesso!', 'success');
+
+    } catch (error) {
+        console.error('❌ Erro na sincronização automática:', error);
+        showAutoSyncNotification('Erro ao sincronizar quilometragem', 'error');
+    }
+}
+
+/**
+ * Mostra notificação discreta de sincronização automática
+ * @param {string} message - Mensagem a exibir
+ * @param {string} type - Tipo: 'info', 'success', 'error'
+ */
+function showAutoSyncNotification(message, type = 'info') {
+    // Criar ou atualizar elemento de notificação
+    let notification = document.getElementById('auto-sync-notification');
+
+    if (!notification) {
+        notification = document.createElement('div');
+        notification.id = 'auto-sync-notification';
+        notification.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 9999;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+        `;
+        document.body.appendChild(notification);
+    }
+
+    // Definir cor baseado no tipo
+    const colors = {
+        info: 'background: #3B82F6; color: white;',
+        success: 'background: #10B981; color: white;',
+        error: 'background: #EF4444; color: white;'
+    };
+
+    notification.style.cssText += colors[type] || colors.info;
+    notification.textContent = message;
+
+    // Animar entrada
+    setTimeout(() => {
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateY(0)';
+    }, 10);
+
+    // Auto-ocultar após 4 segundos
+    setTimeout(() => {
+        notification.style.opacity = '0';
+        notification.style.transform = 'translateY(20px)';
+    }, 4000);
+}
+
+/**
+ * Inicializa sistema de sincronização automática
+ */
+function initAutoSync() {
+    if (!AUTO_SYNC_ENABLED) {
+        console.log('ℹ️ Sincronização automática DESATIVADA');
+        return;
+    }
+
+    console.log('🤖 Sistema de sincronização automática ATIVADO');
+    console.log('📅 Horários programados:', AUTO_SYNC_TIMES.join(', '));
+
+    // Verificar a cada 1 minuto se deve sincronizar
+    autoSyncInterval = setInterval(() => {
+        executeAutoSync();
+    }, 60 * 1000); // 60 segundos
+
+    // Verificar imediatamente (caso esteja no horário ao carregar página)
+    setTimeout(() => {
+        executeAutoSync();
+    }, 5000); // Aguardar 5 segundos após load
+}
+
+// ===============================================================
+
 /**
  * Cache de KM por veículo para evitar variações bruscas
  * Estrutura: { "placa_hoje": { km: 1000, timestamp: Date }, "placa_ontem": { km: 500, timestamp: Date } }
@@ -743,11 +937,272 @@ function loadPreCalculatedData() {
 }
 
 /**
- * NOVA FUNÇÃO: Calcula em background sem travar
+ * NOVA FUNÇÃO: Calcula em background usando Web Worker
+ * Permite que sincronização continue mesmo ao trocar de aba
  * @param {number} startFrom - Índice do veículo para começar (default: 0)
  * @param {Object} initialData - Dados iniciais para continuar cálculo
+ * @param {Function} progressCallback - Callback chamado a cada veículo processado
  */
-async function calculateInBackground(startFrom = 0, initialData = null) {
+async function calculateInBackground(startFrom = 0, initialData = null, progressCallback = null) {
+    console.log(`🔄 Iniciando cálculo em BACKGROUND com Web Worker (veículo ${startFrom})`);
+
+    // Verificar suporte a Web Worker
+    if (!window.Worker) {
+        console.warn('⚠️ Web Worker não suportado, usando método legado');
+        return calculateInBackgroundLegacy(startFrom, initialData, progressCallback);
+    }
+
+    // Se já está sincronizando, não iniciar outro
+    if (isSyncInProgress && syncWorker) {
+        console.warn('⚠️ Sincronização já em andamento');
+        return;
+    }
+
+    // Mostrar barra de progresso
+    showProgressBar();
+
+    try {
+        // Criar Worker
+        syncWorker = new Worker('sync-worker.js?v=' + Date.now());
+        isSyncInProgress = true;
+
+        // Buscar lista de veículos
+        let vehicles;
+        try {
+            console.log('📡 Tentando buscar veículos da API Ituran...');
+            vehicles = await Promise.race([
+                ituranService.getVehiclesList(),
+                new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Timeout')), 30000)
+                )
+            ]);
+            console.log(`✅ ${vehicles.length} veículos encontrados da API`);
+        } catch (error) {
+            console.warn(`⚠️ API demorou ou falhou: ${error.message}`);
+            console.log('🔄 Usando lista LOCAL de veículos...');
+
+            if (typeof getLocalVehiclesList === 'function') {
+                vehicles = getLocalVehiclesList();
+                console.log(`✅ ${vehicles.length} veículos carregados da lista LOCAL`);
+            } else {
+                throw new Error('Lista local não disponível e API falhou');
+            }
+        }
+
+        const base = getSelectedBase(); // Função existente
+
+        // Configurar listeners
+        syncWorker.addEventListener('message', (event) => {
+            const { type, data } = event.data;
+
+            switch (type) {
+                case 'PROGRESS':
+                    handleWorkerProgress(data);
+                    break;
+                case 'COMPLETE':
+                    handleWorkerComplete(data);
+                    break;
+                case 'ERROR':
+                    handleWorkerError(data);
+                    break;
+            }
+        });
+
+        syncWorker.addEventListener('error', (error) => {
+            console.error('❌ Erro no Worker:', error);
+            handleWorkerComplete({ error: true });
+        });
+
+        // Iniciar sincronização
+        console.log(`📤 Enviando mensagem START_SYNC ao Worker:`);
+        console.log(`   - Veículos: ${vehicles?.length || 0}`);
+        console.log(`   - Índice inicial: ${startFrom}`);
+        console.log(`   - Base: ${base || 'Todas'}`);
+        console.log(`   - Primeiro veículo:`, vehicles[0]);
+
+        syncWorker.postMessage({
+            type: 'START_SYNC',
+            data: {
+                vehicles: vehicles,
+                startIndex: startFrom,
+                base: base
+            }
+        });
+
+        console.log(`✅ Mensagem START_SYNC enviada ao Worker`);
+
+    } catch (error) {
+        console.error('❌ Erro ao iniciar sincronização com Worker:', error);
+        hideProgressBar();
+        isSyncInProgress = false;
+
+        // Fallback para método legado
+        console.log('🔄 Tentando método legado...');
+        return calculateInBackgroundLegacy(startFrom, initialData, progressCallback);
+    }
+}
+
+/**
+ * Handler do progresso do Worker
+ */
+function handleWorkerProgress(data) {
+    const { index, total, plate, kmToday, kmYesterday, kmMonth, totalToday, totalYesterday, totalMonth, reportToday } = data;
+
+    // Atualizar UI
+    const percent = Math.round(((index + 1) / total) * 100);
+    updateProgressBar(percent, `${plate} (${index + 1}/${total})`);
+
+    // Adicionar placa ao container visual
+    const platesContainer = document.getElementById('syncPlatesContainer');
+    if (platesContainer) {
+        const plateBadge = document.createElement('span');
+        plateBadge.className = 'px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded';
+        plateBadge.textContent = plate;
+        platesContainer.appendChild(plateBadge);
+
+        // Auto-scroll para mostrar últimas placas
+        platesContainer.scrollTop = platesContainer.scrollHeight;
+    }
+
+    // Atualizar cache no localStorage
+    const cacheData = JSON.parse(localStorage.getItem('fleetflow_daily_km_data') || '{}');
+    cacheData.date = new Date().toISOString().split('T')[0];
+    cacheData.timestamp = Date.now();
+    cacheData.todayTotal = totalToday;
+    cacheData.yesterdayTotal = totalYesterday;
+    cacheData.monthTotal = totalMonth;
+    cacheData.isComplete = false;
+    cacheData.progress = index + 1;
+    cacheData.totalVehicles = total;
+
+    if (!cacheData.vehiclesData) cacheData.vehiclesData = [];
+    cacheData.vehiclesData.push({ plate, kmToday, kmYesterday, kmMonth });
+
+    localStorage.setItem('fleetflow_daily_km_data', JSON.stringify(cacheData));
+
+    // Salvar no banco de dados
+    if (kmToday > 0 && reportToday.success) {
+        saveTelemetryToDatabase({
+            licensePlate: plate,
+            date: new Date().toISOString().split('T')[0],
+            kmInicial: reportToday.startOdometer || 0,
+            kmFinal: reportToday.endOdometer || 0,
+            kmRodado: kmToday,
+            base: getSelectedBase()
+        });
+    }
+
+    // Atualizar totais na UI
+    updateStatElement('stat-km-today', totalToday);
+    updateStatElement('stat-km-yesterday', totalYesterday);
+    updateStatElement('stat-km-month', totalMonth);
+}
+
+/**
+ * Handler de conclusão do Worker
+ */
+function handleWorkerComplete(data) {
+    isSyncInProgress = false;
+
+    if (syncWorker) {
+        syncWorker.terminate();
+        syncWorker = null;
+    }
+
+    // Marcar cache como completo
+    const cache = JSON.parse(localStorage.getItem('fleetflow_daily_km_data') || '{}');
+    cache.isComplete = true;
+    cache.completedAt = Date.now();
+    localStorage.setItem('fleetflow_daily_km_data', JSON.stringify(cache));
+
+    console.log('✅ Sincronização completa!');
+    console.log(`📊 KM Hoje: ${Math.round(data.totalToday || 0).toLocaleString('pt-BR')} km`);
+    console.log(`📊 KM Ontem: ${Math.round(data.totalYesterday || 0).toLocaleString('pt-BR')} km`);
+    console.log(`📊 KM Mês: ${Math.round(data.totalMonth || 0).toLocaleString('pt-BR')} km`);
+
+    hideProgressBar();
+}
+
+/**
+ * Handler de erro do Worker
+ */
+function handleWorkerError(data) {
+    console.error(`❌ Erro ao processar ${data.plate}:`, data.error);
+}
+
+/**
+ * Retoma sincronização do cache
+ */
+function resumeSyncFromCache() {
+    const cache = JSON.parse(localStorage.getItem('fleetflow_daily_km_data') || '{}');
+
+    if (cache && !cache.isComplete && cache.progress < cache.totalVehicles) {
+        console.log(`🔄 Retomando sincronização do veículo ${cache.progress + 1}/${cache.totalVehicles}`);
+        calculateInBackground(cache.progress);
+    }
+}
+
+/**
+ * Salva telemetria no banco de dados
+ */
+async function saveTelemetryToDatabase(data) {
+    try {
+        await fetch('/api/telemetry/save-daily', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        log(`💾 ${data.licensePlate}: Dados salvos no banco`);
+    } catch (error) {
+        console.error('❌ Erro ao salvar telemetria:', error);
+    }
+}
+
+/**
+ * Busca telemetria do banco de dados para evitar recálculo
+ * @param {string} plate - Placa do veículo
+ * @param {string} date - Data no formato YYYY-MM-DD
+ * @returns {Object|null} Dados do banco ou null se não existir
+ */
+async function getTelemetryFromDatabase(plate, date) {
+    try {
+        const params = new URLSearchParams({
+            plate: plate,
+            startDate: date,
+            endDate: date,
+            limit: 1
+        });
+
+        const response = await fetch(`/api/telemetry/daily?${params.toString()}`);
+        const result = await response.json();
+
+        if (result.success && result.data && result.data.length > 0) {
+            const record = result.data[0];
+            log(`📦 ${plate} (${date}): Dados encontrados no banco (KM: ${record.kmRodado})`);
+            return {
+                kmInicial: record.kmInicial,
+                kmFinal: record.kmFinal,
+                kmRodado: record.kmRodado,
+                fromCache: true
+            };
+        }
+
+        log(`🔍 ${plate} (${date}): Não encontrado no banco, será recalculado`);
+        return null;
+
+    } catch (error) {
+        console.error(`❌ Erro ao buscar telemetria do banco (${plate}):`, error);
+        return null;
+    }
+}
+
+/**
+ * FUNÇÃO LEGADA: Calcula em background sem travar (FALLBACK para navegadores sem Web Worker)
+ * @param {number} startFrom - Índice do veículo para começar (default: 0)
+ * @param {Object} initialData - Dados iniciais para continuar cálculo
+ * @param {Function} progressCallback - Callback chamado a cada veículo processado (progress, currentPlate)
+ */
+async function calculateInBackgroundLegacy(startFrom = 0, initialData = null, progressCallback = null) {
     console.log(`🔄 Iniciando cálculo em BACKGROUND (começando do veículo ${startFrom})`);
 
     // Mostra barra de progresso
@@ -803,32 +1258,34 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
         let vehiclesMoving = initialData?.vehiclesMoving || 0;
         const vehiclesData = initialData?.vehiclesData || []; // Array para armazenar dados de cada veículo
 
-        // Datas do mês
+        // IMPORTANTE: No início do mês (dias 1-2), KM mensal = KM hoje + KM ontem
+        // Não precisa calcular o mês todo novamente
+        const dayOfMonth = today.getDate();
+        const isStartOfMonth = dayOfMonth <= 2;
+
+        console.log(`📊 Dados iniciais: Hoje ${todayTotal}km, Ontem ${yesterdayTotal}km, Dia do mês: ${dayOfMonth}`);
+
+        // Se estamos no início do mês, não precisa calcular o mês separadamente
+        const shouldCalculateMonth = !isStartOfMonth;
+
+        if (isStartOfMonth) {
+            console.log('📅 Início do mês detectado - KM mensal será calculado como Hoje + Ontem');
+        } else {
+            // Verificar se tem cache de KM mensal válido
+            const cachedMonthTotal = loadMonthCache();
+
+            if (cachedMonthTotal !== null && monthTotal === 0) {
+                console.log(`⚡ Usando KM MENSAL do cache: ${cachedMonthTotal} km`);
+                monthTotal = cachedMonthTotal;
+                updateStatElement('stat-km-month', monthTotal);
+            } else {
+                console.log('🔄 Calculando KM do mês do zero...');
+            }
+        }
+
+        // Datas do mês (apenas se precisar calcular)
         const monthStart = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0);
         const monthEnd = new Date();
-
-        console.log(`📊 Dados iniciais: Hoje ${todayTotal}km, Ontem ${yesterdayTotal}km, Mês ${monthTotal}km, ${vehiclesData.length} veículos já processados`);
-
-        // OTIMIZAÇÃO: Verifica se já tem cache de KM mensal válido
-        const cachedMonthTotal = loadMonthCache();
-
-        // Se NÃO tem dados iniciais (monthTotal = 0) E não tem cache, DEVE calcular
-        // Se tem dados iniciais (monthTotal > 0), usa eles e NÃO recalcula
-        const shouldCalculateMonth = (monthTotal === 0 && cachedMonthTotal === null);
-
-        if (cachedMonthTotal !== null && monthTotal === 0) {
-            // Tem cache e não tem dados parciais: usa o cache
-            console.log(`⚡ Usando KM MENSAL do cache: ${cachedMonthTotal} km`);
-            monthTotal = cachedMonthTotal;
-            updateStatElement('stat-km-month', monthTotal);
-        } else if (monthTotal > 0) {
-            // Tem dados parciais: usa eles (continua acumulando)
-            console.log(`🔄 Continuando cálculo do KM mensal (já tem ${monthTotal} km acumulados)`);
-            updateStatElement('stat-km-month', monthTotal);
-        } else {
-            // Não tem cache e não tem dados parciais: vai calcular do zero
-            console.log('🔄 Calculando KM do mês do zero...');
-        }
 
         // Processa 1 veículo por vez (sequencial, não trava)
         // Começa do índice startFrom (para continuar de onde parou)
@@ -874,10 +1331,18 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
                     monthTotal += kmMonth;
                 }
 
+                // Extrair cidade/base do endereço do veículo (se disponível)
+                let base = 'N/A';
+                if (vehicle.lastAddress) {
+                    const parts = vehicle.lastAddress.split(',');
+                    base = parts.length > 0 ? parts[parts.length - 1].trim() : 'N/A';
+                }
+
                 // Armazena dados do veículo para ranking
                 vehiclesData.push({
                     plate: vehicle.plate,
                     model: vehicle.model || vehicle.platformName || 'N/A',
+                    base: base,
                     kmToday: kmToday,
                     kmYesterday: kmYesterday,
                     kmMonth: kmMonth
@@ -891,6 +1356,12 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
                 updateStatElement('stat-km-month', Math.round(monthTotal));
 
                 updateStatElement('stat-vehicles-moving', vehiclesMoving);
+
+                // Chama callback de progresso se fornecido
+                if (typeof progressCallback === 'function') {
+                    const progress = ((i + 1) / vehicles.length) * 100;
+                    progressCallback(progress, vehicle.plate);
+                }
 
                 // SALVA CACHE A CADA VEÍCULO (não perde progresso ao trocar de aba!)
                 const cacheData = {
@@ -913,12 +1384,40 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
                 // Log detalhado apenas se DEBUG_MODE estiver ativado
                 log(`✅ ${vehicle.plate}: Hoje ${kmToday}km, Ontem ${kmYesterday}km, Mês ${kmMonth}km`);
 
+                // SALVAR NO BANCO DE DADOS (telemetria de hoje)
+                if (kmToday > 0 && reportToday.success) {
+                    try {
+                        await fetch('/api/telemetry/save-daily', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                licensePlate: vehicle.plate,
+                                date: today.toISOString().split('T')[0],
+                                kmInicial: parseFloat(reportToday.startOdometer) || 0,
+                                kmFinal: parseFloat(reportToday.endOdometer) || 0,
+                                kmRodado: kmToday,
+                                base: base  // Adiciona a base/localidade
+                            })
+                        });
+                        log(`💾 ${vehicle.plate}: Dados salvos no banco (Base: ${base})`);
+                    } catch (dbError) {
+                        warn(`⚠️ Erro ao salvar ${vehicle.plate} no banco:`, dbError.message);
+                    }
+                }
+
             } catch (error) {
                 warn(`⚠️ Erro em ${vehicle.plate}:`, error.message);
             }
 
             // Pausa de 500ms entre veículos (não sobrecarrega API)
             await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+        // Se estamos no início do mês, KM mensal = hoje + ontem
+        if (isStartOfMonth) {
+            monthTotal = todayTotal + yesterdayTotal;
+            console.log(`📅 KM mensal calculado (início do mês): ${todayTotal} + ${yesterdayTotal} = ${monthTotal} km`);
+            updateStatElement('stat-km-month', Math.round(monthTotal));
         }
 
         // Salva no cache FINAL (marca como completo)
@@ -937,7 +1436,7 @@ async function calculateInBackground(startFrom = 0, initialData = null) {
         console.log(`💾 Cache FINAL salvo com ${vehiclesData.length} veículos (COMPLETO)`);
 
         // Salva cache mensal separado (válido por 24h)
-        if (shouldCalculateMonth) {
+        if (shouldCalculateMonth || isStartOfMonth) {
             const roundedMonthTotal = Math.round(monthTotal);
             saveMonthCache(roundedMonthTotal);
             console.log(`💾 Cache mensal salvo: ${roundedMonthTotal} km`);
@@ -971,6 +1470,12 @@ function showProgressBar() {
     const progressBar = document.getElementById('sync-progress-bar');
     if (progressBar) {
         progressBar.classList.remove('hidden');
+
+        // Limpar placas da sincronização anterior
+        const platesContainer = document.getElementById('syncPlatesContainer');
+        if (platesContainer) {
+            platesContainer.innerHTML = '';
+        }
     }
 }
 
@@ -1154,27 +1659,108 @@ function cleanupOldCache() {
 }
 
 /**
+ * Carrega dados do banco de dados ao iniciar o dashboard
+ */
+async function loadDataFromDatabase() {
+    try {
+        console.log('🗄️ Carregando dados do banco de dados...');
+
+        const response = await fetch('/api/telemetry/summary');
+        const result = await response.json();
+
+        if (result.success && result.data) {
+            const { kmToday, kmYesterday, kmMonth, lastSync } = result.data;
+
+            // Atualizar cards
+            updateStatElement('stat-km-today', kmToday);
+            updateStatElement('stat-km-yesterday', kmYesterday);
+            updateStatElement('stat-km-month', kmMonth);
+
+            // Atualizar timestamp da última sincronização
+            if (lastSync) {
+                const lastSyncDate = new Date(lastSync);
+                const now = new Date();
+                const diffMs = now - lastSyncDate;
+                const diffMins = Math.floor(diffMs / 60000);
+
+                let timeAgo = '';
+                if (diffMins < 1) {
+                    timeAgo = 'Agora mesmo';
+                } else if (diffMins < 60) {
+                    timeAgo = `${diffMins} min atrás`;
+                } else if (diffMins < 1440) {
+                    const hours = Math.floor(diffMins / 60);
+                    timeAgo = `${hours}h atrás`;
+                } else {
+                    timeAgo = lastSyncDate.toLocaleString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+
+                const lastSyncEl = document.getElementById('last-sync-time');
+                if (lastSyncEl) {
+                    lastSyncEl.textContent = `Última sync: ${timeAgo}`;
+                }
+            }
+
+            console.log(`✅ Dados carregados do banco: Hoje=${kmToday}km, Ontem=${kmYesterday}km, Mês=${kmMonth}km`);
+            return true;
+        }
+    } catch (error) {
+        console.warn('⚠️ Erro ao carregar dados do banco:', error);
+        return false;
+    }
+}
+
+/**
  * Inicializa o carregamento das estatísticas quando a página carregar
  * COM ATUALIZAÇÃO AUTOMÁTICA A CADA 30 SEGUNDOS (TEMPO REAL)
  */
 if (typeof document !== 'undefined') {
     document.addEventListener('DOMContentLoaded', () => {
         // Aguarda um pouco para garantir que os outros scripts carregaram
-        setTimeout(() => {
+        setTimeout(async () => {
             if (typeof ituranService !== 'undefined') {
                 // Limpa cache antigo ANTES de carregar
                 cleanupOldCache();
 
-                // Carrega imediatamente
-                updateDashboardStats();
+                // PRIMEIRO: Tenta carregar dados do banco de dados
+                const loadedFromDB = await loadDataFromDatabase();
 
-                // Atualiza a cada 10 minutos (reduz MUITO a carga na API)
-                console.log('⏰ Timer de atualização automática iniciado (10 minutos)');
-                setInterval(() => {
-                    const now = new Date();
-                    console.log(`\n🔄 [${now.toLocaleTimeString()}] Atualizando dashboard...`);
-                    updateDashboardStats();
-                }, 10 * 60 * 1000); // 10 minutos
+                if (!loadedFromDB) {
+                    // FALLBACK: Carrega APENAS do cache local (não recalcula automaticamente)
+                    console.log('📦 Carregando dados do cache ao iniciar página...');
+                    const preCalculated = loadPreCalculatedData();
+
+                if (preCalculated && preCalculated.isComplete) {
+                    // Atualiza interface com cache completo
+                    updateStatElement('stat-km-today', preCalculated.todayTotal);
+                    updateStatElement('stat-km-yesterday', preCalculated.yesterdayTotal);
+
+                    const cachedMonth = loadMonthCache();
+                    const monthKm = cachedMonth !== null ? cachedMonth : (preCalculated.monthTotal || 0);
+                    updateStatElement('stat-km-month', monthKm);
+
+                    if (preCalculated.vehiclesData) {
+                        updateTopVehiclesRanking(preCalculated.vehiclesData);
+                    }
+
+                    console.log('✅ Dashboard carregado do cache. Use "Sincronizar KM" para atualizar.');
+                } else {
+                    console.log('⚠️ Nenhum cache completo. Use "Sincronizar KM" para calcular.');
+                }
+                }
+
+                // NÃO atualiza automaticamente a cada 10 minutos (evita recálculos desnecessários)
+                // O usuário deve clicar em "Sincronizar KM" quando quiser atualizar
+                console.log('💡 Dashboard prioriza dados do banco. Clique em "Sincronizar KM" para atualizar.');
+
+                // ============= INICIALIZAR SINCRONIZAÇÃO AUTOMÁTICA =============
+                initAutoSync();
+                // ================================================================
             } else {
                 console.warn('⚠️ Serviço Ituran não disponível. Estatísticas não foram carregadas.');
             }

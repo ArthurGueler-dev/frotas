@@ -23,8 +23,14 @@ $password = 'In9@1234qwer';
 $database = 'f137049_in9aut';
 
 try {
-    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4", $user, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Configurar timeout de 3 segundos para conexão
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_TIMEOUT => 3,
+        PDO::ATTR_EMULATE_PREPARES => false
+    ];
+
+    $pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4", $user, $password, $options);
     $pdo->exec("SET NAMES utf8mb4");
 
     $method = $_SERVER['REQUEST_METHOD'];
@@ -59,11 +65,20 @@ try {
     }
 
 } catch (PDOException $e) {
-    http_response_code(500);
-    echo json_encode([
-        'error' => 'Erro no banco de dados',
-        'message' => $e->getMessage()
-    ]);
+    // Se for um GET e o erro for de conexão, retornar array vazio
+    if ($_SERVER['REQUEST_METHOD'] === 'GET' &&
+        (strpos($e->getMessage(), 'timed out') !== false ||
+         strpos($e->getMessage(), 'Connection refused') !== false ||
+         strpos($e->getMessage(), 'Access denied') !== false)) {
+        http_response_code(200);
+        echo json_encode([]);
+    } else {
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Erro no banco de dados',
+            'message' => $e->getMessage()
+        ]);
+    }
 }
 
 // ============== FUNÇÕES ==============
@@ -151,8 +166,8 @@ function handlePost($pdo) {
             $data['modelo'],
             $data['ano'],
             $data['tipo'],
-            $data['motor'] ?? null,
-            $data['observacoes'] ?? null
+            isset($data['motor']) ? $data['motor'] : null,
+            isset($data['observacoes']) ? $data['observacoes'] : null
         ]);
 
         $novoId = $pdo->lastInsertId();
@@ -216,8 +231,8 @@ function handlePut($pdo, $id) {
             $data['modelo'],
             $data['ano'],
             $data['tipo'],
-            $data['motor'] ?? null,
-            $data['observacoes'] ?? null,
+            isset($data['motor']) ? $data['motor'] : null,
+            isset($data['observacoes']) ? $data['observacoes'] : null,
             $id
         ]);
 

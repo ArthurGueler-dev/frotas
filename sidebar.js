@@ -3,9 +3,9 @@
 
 function createSidebar(activePage = '') {
     return `
-    <aside class="w-64 bg-white dark:bg-gray-800 flex flex-col border-r border-gray-200 dark:border-gray-700">
+    <aside class="w-64 bg-white dark:bg-gray-800 flex flex-col border-r border-gray-200 dark:border-gray-700 h-screen fixed top-0 left-0 z-50" style="position: fixed !important; top: 0 !important; left: 0 !important; height: 100vh !important; z-index: 1000 !important;">
         <!-- Logo/Header -->
-        <div class="p-6 flex items-center gap-3">
+        <div class="p-6 flex items-center gap-3 flex-shrink-0">
             <span class="material-symbols-outlined text-primary text-4xl">directions_car</span>
             <div class="flex flex-col">
                 <h1 class="text-gray-800 dark:text-white text-xl font-bold leading-normal">FleetFlow</h1>
@@ -14,7 +14,7 @@ function createSidebar(activePage = '') {
         </div>
 
         <!-- Navigation -->
-        <nav class="flex-1 px-4 py-2 overflow-y-auto">
+        <nav class="flex-1 px-4 py-2 overflow-y-auto min-h-0">
             <!-- Menu Principal -->
             <a class="flex items-center gap-3 px-4 py-2 rounded-lg ${activePage === 'dashboard' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="dashboard.html">
                 <span class="material-symbols-outlined">dashboard</span>
@@ -41,7 +41,7 @@ function createSidebar(activePage = '') {
                 <p class="text-sm">Lançar OS</p>
             </a>
 
-            <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'rotas' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="rotas.html">
+            <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'otimizador-blocos' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="otimizador-blocos.html">
                 <span class="material-symbols-outlined">route</span>
                 <p class="text-sm">Rotas</p>
             </a>
@@ -70,6 +70,11 @@ function createSidebar(activePage = '') {
                     <span class="material-symbols-outlined">settings_input_component</span>
                     <p class="text-sm">Peças</p>
                 </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'servicos' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="servicos.html">
+                    <span class="material-symbols-outlined">construction</span>
+                    <p class="text-sm">Serviços</p>
+                </a>
             </div>
 
             <!-- Seção CheckList -->
@@ -84,7 +89,7 @@ function createSidebar(activePage = '') {
         </nav>
 
         <!-- Footer -->
-        <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div class="flex items-center gap-3 mb-3">
                 <img class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
                      src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVrVgfjcLzwfLby1sAwIY-nZzVjq7Hgukkn2dVW_u_Gl9JuHxqV9xURUrtHGlbws0mv31g0fIIWHHpBxOQynNiFo2Aca4gP3cnDNxmfKc8DMM112lHLzWzPB8UaW0vm9dX3u9_YoLflbP9cDc6XNMUjuZdCIvYgVZXTedYI3_H86rZ6WsGr-30M_OTLhAzGJ8_3bvwWE6lOqYlwac7BFmcck9HwVnNzaIwku7cRKUvApohtuPbUkygSoKPnbgU167PdxXTrxXNf1M"
@@ -106,15 +111,16 @@ function createSidebar(activePage = '') {
 // Função para carregar o badge de alertas
 async function carregarBadgeAlertas() {
     try {
-        const response = await fetch('/api/maintenance-alerts');
-        const alertas = await response.json();
+        const response = await fetch('https://floripa.in9automacao.com.br/avisos-manutencao-api.php?status=Ativo&limit=100');
+        const result = await response.json();
         const badge = document.getElementById('badge-alertas-sidebar');
-        if (badge && alertas.length > 0) {
-            badge.textContent = alertas.length;
+        if (badge && result.success && result.data.alertas.length > 0) {
+            badge.textContent = result.data.alertas.length;
             badge.classList.remove('hidden');
         }
     } catch (error) {
         console.error('Erro ao carregar alertas:', error);
+        // Silenciosamente falha - não é crítico
     }
 }
 
@@ -129,6 +135,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Injetar o sidebar
         sidebarContainer.innerHTML = createSidebar(activePage);
+
+        // Adicionar margem ao conteúdo principal para compensar o sidebar fixo
+        const mainContent = document.querySelector('main');
+        if (mainContent && !mainContent.classList.contains('ml-64')) {
+            mainContent.style.marginLeft = '256px';
+        }
 
         // Carregar badge de alertas
         carregarBadgeAlertas();

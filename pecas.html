@@ -170,6 +170,9 @@ Carregando peças...
 </div>
 
 <script>
+// API Configuration
+const API_PECAS_URL = 'https://floripa.in9automacao.com.br/pecas-api.php';
+
 // Estado da aplicação
 let pecas = [];
 let pecasFiltradas = [];
@@ -219,10 +222,10 @@ function configurarEventos() {
 // Carregar peças da API
 async function carregarPecas() {
     try {
-        const response = await fetch('/api/pecas');
+        const response = await fetch(API_PECAS_URL);
         const data = await response.json();
 
-        pecas = Array.isArray(data) ? data : (data.pecas || []);
+        pecas = (data.success !== false && data.data) ? data.data : [];
         pecasFiltradas = pecas;
         paginaAtual = 1;
         atualizarTabela();
@@ -400,11 +403,11 @@ async function salvarPeca() {
     }
 
     try {
-        let url = '/api/pecas';
+        let url = API_PECAS_URL;
         let method = 'POST';
 
         if (pecaEditando) {
-            url = `/api/pecas/${pecaEditando.id}`;
+            url = `${API_PECAS_URL}?id=${pecaEditando.id}`;
             method = 'PUT';
         }
 
@@ -414,13 +417,14 @@ async function salvarPeca() {
             body: JSON.stringify(dados)
         });
 
-        if (response.ok) {
+        const result = await response.json();
+
+        if (result.success) {
             alert(pecaEditando ? 'Peça atualizada com sucesso!' : 'Peça cadastrada com sucesso!');
             limparFormulario();
             carregarPecas();
         } else {
-            const error = await response.json();
-            alert('Erro: ' + (error.error || 'Erro ao salvar peça'));
+            alert('Erro: ' + (result.error || 'Erro ao salvar peça'));
         }
     } catch (error) {
         console.error('Erro ao salvar:', error);
@@ -484,16 +488,17 @@ async function excluirPeca(id) {
     }
 
     try {
-        const response = await fetch(`/api/pecas/${id}`, {
+        const response = await fetch(`${API_PECAS_URL}?id=${id}`, {
             method: 'DELETE'
         });
 
-        if (response.ok) {
+        const result = await response.json();
+
+        if (result.success) {
             alert('Peça excluída com sucesso!');
             carregarPecas();
         } else {
-            const error = await response.json();
-            alert('Erro: ' + (error.error || 'Erro ao excluir peça'));
+            alert('Erro: ' + (result.error || 'Erro ao excluir peça'));
         }
     } catch (error) {
         console.error('Erro ao excluir:', error);
@@ -503,6 +508,6 @@ async function excluirPeca(id) {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 
 </body></html>

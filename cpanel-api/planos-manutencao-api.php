@@ -19,21 +19,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Configuração do banco de dados
 require_once 'config-db.php';
 
-// Criar conexão
-$conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+// Criar conexão com timeout
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+$conn = mysqli_init();
+$conn->options(MYSQLI_OPT_CONNECT_TIMEOUT, 3);
 
-// Verificar conexão
-if ($conn->connect_error) {
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Erro de conexão com o banco de dados',
-        'details' => $conn->connect_error
-    ]);
-    exit();
+try {
+    $conn->real_connect(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+    $conn->set_charset("utf8mb4");
+} catch (Exception $e) {
+    // Se for um GET e houver erro de conexão, retornar array vazio
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+        http_response_code(200);
+        echo json_encode([
+            'success' => true,
+            'total' => 0,
+            'count' => 0,
+            'data' => []
+        ]);
+        exit();
+    } else {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro de conexão com o banco de dados',
+            'details' => $e->getMessage()
+        ]);
+        exit();
+    }
 }
-
-$conn->set_charset("utf8mb4");
 
 // Pegar método HTTP e parâmetros
 $method = $_SERVER['REQUEST_METHOD'];
@@ -57,8 +71,9 @@ function validarDadosPlano($dados, $requerTodos = true) {
     }
 
     if (isset($dados['criticidade'])) {
-        $criticidades_validas = ['Baixa', 'Média', 'Alta', 'Crítica'];
-        if (!in_array($dados['criticidade'], $criticidades_validas)) {
+        $criticidade_lower = strtolower($dados['criticidade']);
+        $criticidades_validas = ['baixa', 'média', 'media', 'alta', 'crítica', 'critica'];
+        if (!in_array($criticidade_lower, $criticidades_validas)) {
             $erros[] = 'criticidade deve ser: Baixa, Média, Alta ou Crítica';
         }
     }

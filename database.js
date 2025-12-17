@@ -55,24 +55,17 @@ const dbFunctions = {
     async salvarDiaria(placa, data, kmInicial, kmFinal, tempoIgnicao = 0) {
         const connection = await pool.getConnection();
         try {
-            const dataObj = new Date(data);
-            const ano = dataObj.getFullYear();
-            const mes = dataObj.getMonth() + 1;
-            const dia = dataObj.getDate();
-            const kmRodados = Math.max(0, kmFinal - kmInicial);
-
             const [result] = await connection.query(`
-                INSERT INTO quilometragem_diaria
-                    (placa, data, ano, mes, dia, km_inicial, km_final, km_rodados, tempo_ignicao_minutos)
+                INSERT INTO Telemetria_Diaria
+                    (LicensePlate, data, km_inicial, km_final, tempo_ligado_minutos)
                 VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE
                     km_inicial = VALUES(km_inicial),
                     km_final = VALUES(km_final),
-                    km_rodados = VALUES(km_rodados),
-                    tempo_ignicao_minutos = VALUES(tempo_ignicao_minutos),
-                    updated_at = CURRENT_TIMESTAMP
-            `, [placa, data.split('T')[0], ano, mes, dia, kmInicial, kmFinal, kmRodados, tempoIgnicao]);
+                    tempo_ligado_minutos = VALUES(tempo_ligado_minutos),
+                    atualizado_em = CURRENT_TIMESTAMP
+            `, [placa, data.split('T')[0], kmInicial, kmFinal, tempoIgnicao]);
 
             return result;
         } finally {
@@ -85,8 +78,15 @@ const dbFunctions = {
         const connection = await pool.getConnection();
         try {
             const [rows] = await connection.query(`
-                SELECT * FROM quilometragem_diaria
-                WHERE placa = ? AND data = ?
+                SELECT
+                    LicensePlate as placa,
+                    data,
+                    km_inicial,
+                    km_final,
+                    km_rodado as km_rodados,
+                    tempo_ligado_minutos as tempo_ignicao_minutos
+                FROM Telemetria_Diaria
+                WHERE LicensePlate = ? AND data = ?
             `, [placa, data.split('T')[0]]);
 
             return rows[0] || null;
@@ -100,8 +100,15 @@ const dbFunctions = {
         const connection = await pool.getConnection();
         try {
             const [rows] = await connection.query(`
-                SELECT * FROM quilometragem_diaria
-                WHERE placa = ? AND data BETWEEN ? AND ?
+                SELECT
+                    LicensePlate as placa,
+                    data,
+                    km_inicial,
+                    km_final,
+                    km_rodado as km_rodados,
+                    tempo_ligado_minutos as tempo_ignicao_minutos
+                FROM Telemetria_Diaria
+                WHERE LicensePlate = ? AND data BETWEEN ? AND ?
                 ORDER BY data ASC
             `, [placa, dataInicio.split('T')[0], dataFim.split('T')[0]]);
 
@@ -111,40 +118,33 @@ const dbFunctions = {
         }
     },
 
-    // Atualizar dados mensais
+    // Atualizar dados mensais (calculado dinamicamente - não há mais tabela mensal)
     async atualizarMensal(placa, ano, mes) {
+        // Esta função é mantida por compatibilidade mas não faz nada
+        // Os totais mensais são calculados dinamicamente em buscarMensal()
+        return null;
+    },
+
+    // Buscar quilometragem mensal (calculado dinamicamente)
+    async buscarMensal(placa, ano, mes) {
         const connection = await pool.getConnection();
         try {
-            const [totais] = await connection.query(`
+            const [rows] = await connection.query(`
                 SELECT
-                    SUM(km_rodados) as km_total,
+                    ? as placa,
+                    ? as ano,
+                    ? as mes,
+                    SUM(km_rodado) as km_total,
                     COUNT(DISTINCT data) as dias_rodados,
-                    SUM(tempo_ignicao_minutos) as tempo_ignicao_total_minutos
-                FROM quilometragem_diaria
-                WHERE placa = ? AND ano = ? AND mes = ?
-            `, [placa, ano, mes]);
+                    SUM(tempo_ligado_minutos) as tempo_ignicao_total_minutos
+                FROM Telemetria_Diaria
+                WHERE LicensePlate = ?
+                  AND YEAR(data) = ?
+                  AND MONTH(data) = ?
+            `, [placa, ano, mes, placa, ano, mes]);
 
-            if (totais[0] && totais[0].km_total > 0) {
-                const [result] = await connection.query(`
-                    INSERT INTO quilometragem_mensal
-                        (placa, ano, mes, km_total, dias_rodados, tempo_ignicao_total_minutos)
-                    VALUES
-                        (?, ?, ?, ?, ?, ?)
-                    ON DUPLICATE KEY UPDATE
-                        km_total = VALUES(km_total),
-                        dias_rodados = VALUES(dias_rodados),
-                        tempo_ignicao_total_minutos = VALUES(tempo_ignicao_total_minutos),
-                        updated_at = CURRENT_TIMESTAMP
-                `, [
-                    placa,
-                    ano,
-                    mes,
-                    totais[0].km_total || 0,
-                    totais[0].dias_rodados || 0,
-                    totais[0].tempo_ignicao_total_minutos || 0
-                ]);
-
-                return result;
+            if (rows[0] && rows[0].km_total > 0) {
+                return rows[0];
             }
             return null;
         } finally {
@@ -152,30 +152,27 @@ const dbFunctions = {
         }
     },
 
-    // Buscar quilometragem mensal
-    async buscarMensal(placa, ano, mes) {
-        const connection = await pool.getConnection();
-        try {
-            const [rows] = await connection.query(`
-                SELECT * FROM quilometragem_mensal
-                WHERE placa = ? AND ano = ? AND mes = ?
-            `, [placa, ano, mes]);
-
-            return rows[0] || null;
-        } finally {
-            connection.release();
-        }
-    },
-
-    // Buscar quilometragem de vários meses
+    // Buscar quilometragem de vários meses (calculado dinamicamente)
     async buscarMeses(placa, anoInicio, mesInicio, anoFim, mesFim) {
         const connection = await pool.getConnection();
         try {
             const [rows] = await connection.query(`
-                SELECT * FROM quilometragem_mensal
-                WHERE placa = ? AND
-                      ((ano = ? AND mes >= ?) OR (ano > ?))
-                      AND ((ano = ? AND mes <= ?) OR (ano < ?))
+                SELECT
+                    LicensePlate as placa,
+                    YEAR(data) as ano,
+                    MONTH(data) as mes,
+                    SUM(km_rodado) as km_total,
+                    COUNT(DISTINCT data) as dias_rodados,
+                    SUM(tempo_ligado_minutos) as tempo_ignicao_total_minutos
+                FROM Telemetria_Diaria
+                WHERE LicensePlate = ?
+                  AND (
+                      (YEAR(data) = ? AND MONTH(data) >= ?) OR (YEAR(data) > ?)
+                  )
+                  AND (
+                      (YEAR(data) = ? AND MONTH(data) <= ?) OR (YEAR(data) < ?)
+                  )
+                GROUP BY YEAR(data), MONTH(data)
                 ORDER BY ano ASC, mes ASC
             `, [placa, anoInicio, mesInicio, anoInicio, anoFim, mesFim, anoFim]);
 
@@ -197,11 +194,11 @@ const dbFunctions = {
             // Calcular totais do dia
             const [totais] = await connection.query(`
                 SELECT
-                    SUM(km_rodados) as km_total,
-                    COUNT(DISTINCT placa) as total_veiculos,
-                    COUNT(CASE WHEN km_rodados > 0 THEN 1 END) as veiculos_em_movimento,
-                    SUM(tempo_ignicao_minutos) as tempo_ignicao_total_minutos
-                FROM quilometragem_diaria
+                    SUM(km_rodado) as km_total,
+                    COUNT(DISTINCT LicensePlate) as total_veiculos,
+                    COUNT(CASE WHEN km_rodado > 0 THEN 1 END) as veiculos_em_movimento,
+                    SUM(tempo_ligado_minutos) as tempo_ignicao_total_minutos
+                FROM Telemetria_Diaria
                 WHERE data = ?
             `, [data.split('T')[0]]);
 
@@ -255,7 +252,8 @@ const dbFunctions = {
         const connection = await pool.getConnection();
         try {
             const [rows] = await connection.query(`
-                SELECT DISTINCT placa FROM quilometragem_diaria
+                SELECT DISTINCT LicensePlate as placa
+                FROM Telemetria_Diaria
                 WHERE data = ?
             `, [data.split('T')[0]]);
 

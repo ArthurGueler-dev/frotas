@@ -6,7 +6,8 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<script src="ituran-service.js"></script>
+<!-- Removido ituran-service.js - não é necessário na página de manutenção -->
+<!-- <script src="ituran-service.js"></script> -->
 <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -403,9 +404,10 @@
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inicializando página de gestão de manutenção...');
 
-    // Inicializar serviço Ituran para obter modelos
-    const ituranService = new IturanService();
-    await ituranService.loadVehicleModels();
+    // Remover inicialização do IturanService aqui - não é necessário no carregamento inicial
+    // O IturanService será carregado apenas quando necessário (ex: ao editar OS)
+    // const ituranService = new IturanService();
+    // await ituranService.loadVehicleModels();
 
     // Configurar busca
     setupSearch();
@@ -672,25 +674,28 @@ async function applyAllFilters() {
 
     try {
         // Tentar carregar da API primeiro
-        const response = await fetch('/api/ordens-servico');
+        const response = await fetch('https://floripa.in9automacao.com.br/get-workorders.php');
         console.log('📡 Response status:', response.status, response.ok);
 
         if (response.ok) {
-            const apiOrders = await response.json();
-            console.log('📦 Dados da API:', apiOrders);
+            const result = await response.json();
+            console.log('📦 Dados da API:', result);
+
+            // A API retorna {success: true, data: [...]}
+            const apiOrders = result.success ? result.data : (Array.isArray(result) ? result : []);
 
             // Mapear campos da API para o formato esperado
             serviceOrders = apiOrders.map(os => ({
                 osNumber: os.ordem_numero,
-                dateTime: os.data_abertura,
-                plate: os.placa,
+                dateTime: os.data_criacao,
+                plate: os.placa_veiculo,
                 responsavel: os.responsavel,
                 status: os.status,
-                totalGeral: parseFloat(os.custo_total) || 0,
+                totalGeral: parseFloat(os.valor_total) || 0,
                 items: [],
                 kmVeiculo: os.km_veiculo,
                 observacoes: os.observacoes,
-                tipoServico: os.tipo_servico
+                tipoServico: os.ocorrencia // Corretiva/Preventiva/Garantia
             }));
             console.log(`✅ ${serviceOrders.length} OS carregadas da API`);
         } else {
@@ -889,30 +894,34 @@ async function editOS(osNumber) {
     let order = null;
 
     try {
-        const response = await fetch('/api/ordens-servico');
+        const response = await fetch('https://floripa.in9automacao.com.br/get-workorders.php');
         if (response.ok) {
-            const apiOrders = await response.json();
-            const apiOrder = apiOrders.find(o => o.ordem_numero === osNumber);
+            const result = await response.json();
+            const apiOrders = result.success ? result.data : result;
+            const apiOrder = Array.isArray(apiOrders) ? apiOrders.find(o => o.ordem_numero === osNumber) : null;
 
             if (apiOrder) {
                 // Buscar detalhes completos da OS (incluindo itens)
                 try {
-                    const detailsResponse = await fetch(`/api/ordens-servico/${apiOrder.id}`);
+                    const detailsResponse = await fetch(`https://floripa.in9automacao.com.br/get-workorders.php?id=${apiOrder.id}&with_items=true`);
                     if (detailsResponse.ok) {
-                        const details = await detailsResponse.json();
+                        const result = await detailsResponse.json();
+
+                        // A API retorna {success: true, data: {...}}
+                        const details = result.success ? result.data : result;
 
                         // Mapear campos da API para o formato esperado
                         order = {
                             id: details.id,
                             osNumber: details.ordem_numero,
-                            dateTime: details.data_abertura,
+                            dateTime: details.data_criacao,
                             plate: details.placa_veiculo,
                             responsavel: details.responsavel,
                             status: details.status,
-                            totalGeral: parseFloat(details.custo_total) || 0,
+                            totalGeral: 0, // Campo não existe
                             km: details.km_veiculo,
                             observacoes: details.observacoes,
-                            tipoServico: details.tipo_servico || details.ocorrencia,
+                            tipoServico: details.ocorrencia,
                             items: [],
                             dates: {
                                 diagnostico: details.data_diagnostico,
@@ -927,12 +936,15 @@ async function editOS(osNumber) {
                             order.items = details.itens.map(item => ({
                                 type: item.tipo || 'Serviço',
                                 description: item.descricao,
-                                category: item.categoria || '',
-                                qty: item.quantidade || 1,
+                                category: '',
+                                qty: parseInt(item.quantidade) || 1,
                                 value: parseFloat(item.valor_unitario) || 0,
-                                total: parseFloat(item.valor_total) || (item.quantidade * parseFloat(item.valor_unitario)) || 0,
-                                occurrence: item.ocorrencia || 'corretivo'
+                                total: parseFloat(item.valor_total) || 0,
+                                occurrence: order.tipoServico // Usar o tipo da OS
                             }));
+
+                            // Calcular total geral baseado nos itens
+                            order.totalGeral = order.items.reduce((sum, item) => sum + item.total, 0);
                         }
 
                         console.log('✅ OS carregada da API com itens:', order);
@@ -944,20 +956,20 @@ async function editOS(osNumber) {
                     order = {
                         id: apiOrder.id,
                         osNumber: apiOrder.ordem_numero,
-                        dateTime: apiOrder.data_abertura,
-                        plate: apiOrder.placa,
+                        dateTime: apiOrder.data_criacao,
+                        plate: apiOrder.placa_veiculo,
                         responsavel: apiOrder.responsavel,
                         status: apiOrder.status,
-                        totalGeral: parseFloat(apiOrder.custo_total) || 0,
+                        totalGeral: 0,
                         km: apiOrder.km_veiculo,
                         observacoes: apiOrder.observacoes,
-                        tipoServico: apiOrder.tipo_servico,
+                        tipoServico: apiOrder.ocorrencia,
                         items: [],
                         dates: {
-                            diagnostico: null,
-                            orcamento: null,
-                            execucao: null,
-                            finalizacao: null
+                            diagnostico: apiOrder.data_diagnostico,
+                            orcamento: apiOrder.data_orcamento,
+                            execucao: apiOrder.data_execucao,
+                            finalizacao: apiOrder.data_finalizacao
                         }
                     };
                 }
@@ -1008,7 +1020,15 @@ async function editOS(osNumber) {
 
     // Preencher dados do modal
     document.getElementById('edit-os-number').textContent = order.osNumber;
-    document.getElementById('edit-datetime').value = order.dateTime ? new Date(order.dateTime).toISOString().slice(0, 16) : '';
+
+    // Converter data para formato datetime-local considerando timezone local
+    if (order.dateTime) {
+        // Se a data vem como string (ex: "2025-11-25 12:03:29"), considerar como horário local de Brasília
+        const dateStr = order.dateTime.replace(' ', 'T'); // Converter para formato ISO
+        document.getElementById('edit-datetime').value = dateStr.slice(0, 16);
+    } else {
+        document.getElementById('edit-datetime').value = '';
+    }
     document.getElementById('edit-responsavel').value = order.responsavel || '';
     document.getElementById('edit-status').value = order.status || '';
     document.getElementById('edit-plate').value = order.plate || '';
@@ -1097,7 +1117,7 @@ async function deleteOS(osNumber) {
 
     try {
         // Excluir da API
-        const response = await fetch(`/api/ordens-servico?ordem_numero=${encodeURIComponent(osNumber)}`, {
+        const response = await fetch(`https://floripa.in9automacao.com.br/get-workorders.php?ordem_numero=${encodeURIComponent(osNumber)}`, {
             method: 'DELETE'
         });
 
@@ -1175,7 +1195,7 @@ async function saveEditedOS() {
     // Salvar na API
     try {
         const osId = currentEditingOS.id || currentEditingOS.osNumber;
-        const response = await fetch(`/api/ordens-servico/${osId}`, {
+        const response = await fetch(`https://floripa.in9automacao.com.br/get-workorders.php?id=${osId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json'
@@ -1869,6 +1889,6 @@ function removeItemFromOS(itemIndex) {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js"></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 
 </body></html>

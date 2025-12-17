@@ -1,6 +1,17 @@
 // Serviço de Integração com Ituran (SOAP/XML API)
 // API Real: iweb.ituran.com.br
 
+// Import DOMParser para Node.js (se disponível)
+const isNode = typeof window === 'undefined';
+if (isNode) {
+    try {
+        const { DOMParser } = require('@xmldom/xmldom');
+        global.DOMParser = DOMParser;
+    } catch (e) {
+        console.warn('⚠️ @xmldom/xmldom não instalado. Use: npm install @xmldom/xmldom');
+    }
+}
+
 class IturanService {
     constructor() {
         // Configurações da API
@@ -635,6 +646,18 @@ class IturanService {
                 console.log(`⚠️ Período maior que 3 dias. Dividindo em múltiplas requisições...`);
             }
 
+            // Helper para formatar data no horário LOCAL (não UTC)
+            // Formato: "YYYY-MM-DD HH:MM:SS"
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            };
+
             // Divide em chunks de 2.5 dias (60 horas) para ficar BEM ABAIXO de 3 dias
             const chunks = [];
             let currentStart = new Date(start);
@@ -648,16 +671,17 @@ class IturanService {
                     currentEnd = new Date(end);
                 }
 
+                // Formata usando horário LOCAL (não UTC)
                 chunks.push({
-                    start: currentStart.toISOString(),
-                    end: currentEnd.toISOString()
+                    start: formatLocalDate(currentStart),
+                    end: formatLocalDate(currentEnd)
                 });
 
                 currentStart = new Date(currentEnd);
                 currentStart.setSeconds(currentStart.getSeconds() + 1); // Evita overlap
             }
 
-            console.log(`   Dividido em ${chunks.length} requisições`);
+            console.log(`   Dividido em ${chunks.length} requisições de até 3 dias`);
 
             // Busca dados de todos os chunks
             let allPoints = [];
@@ -665,9 +689,10 @@ class IturanService {
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 console.log(`   📡 Buscando chunk ${i + 1}/${chunks.length}...`);
+                console.log(`      📅 Período: ${chunk.start} → ${chunk.end}`);
 
-                const startFormatted = chunk.start.replace('T', ' ').substring(0, 19);
-                const endFormatted = chunk.end.replace('T', ' ').substring(0, 19);
+                const startFormatted = chunk.start;
+                const endFormatted = chunk.end;
 
                 const xmlDoc = await this._makeRequest('/ituranwebservice3/Service3.asmx/GetFullReport', {
                     Plate: plate,
@@ -774,6 +799,18 @@ class IturanService {
                 console.log(`⚠️ Período maior que 3 dias. Dividindo em múltiplas requisições...`);
             }
 
+            // Helper para formatar data no horário LOCAL (não UTC)
+            // Formato: "YYYY-MM-DD HH:MM:SS"
+            const formatLocalDate = (date) => {
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            };
+
             // Divide em chunks de 2.5 dias (60 horas) para ficar BEM ABAIXO de 3 dias
             const chunks = [];
             let currentStart = new Date(start);
@@ -787,16 +824,17 @@ class IturanService {
                     currentEnd = new Date(end);
                 }
 
+                // Formata usando horário LOCAL (não UTC)
                 chunks.push({
-                    start: currentStart.toISOString(),
-                    end: currentEnd.toISOString()
+                    start: formatLocalDate(currentStart),
+                    end: formatLocalDate(currentEnd)
                 });
 
                 currentStart = new Date(currentEnd);
                 currentStart.setSeconds(currentStart.getSeconds() + 1); // Evita overlap
             }
 
-            console.log(`   Dividido em ${chunks.length} requisições de 3 dias`);
+            console.log(`   Dividido em ${chunks.length} requisições de até 3 dias`);
 
             // Busca dados de todos os chunks
             let allRecords = [];
@@ -805,9 +843,10 @@ class IturanService {
             for (let i = 0; i < chunks.length; i++) {
                 const chunk = chunks[i];
                 console.log(`   📡 Buscando chunk ${i + 1}/${chunks.length}...`);
+                console.log(`      📅 Período: ${chunk.start} → ${chunk.end}`);
 
-                const startFormatted = chunk.start.replace('T', ' ').substring(0, 19);
-                const endFormatted = chunk.end.replace('T', ' ').substring(0, 19);
+                const startFormatted = chunk.start;
+                const endFormatted = chunk.end;
 
                 try {
                     const xmlDoc = await this._makeRequest('/ituranwebservice3/Service3.asmx/GetFullReport', {
@@ -873,8 +912,12 @@ class IturanService {
             console.log(`   🔍 DEBUG - Mileage bruto: Inicial=${rawStartMileage}, Final=${rawEndMileage}`);
 
             // Normaliza para KM
-            let startOdometer = rawStartMileage >= 1000000 ? Math.floor(rawStartMileage / 1000) : Math.floor(rawStartMileage);
-            let endOdometer = rawEndMileage >= 1000000 ? Math.floor(rawEndMileage / 1000) : Math.floor(rawEndMileage);
+            // Se > 1.000.000, está em METROS - converte dividindo por 1000
+            // Senão, já está em KM - usa direto
+            let startOdometer = rawStartMileage >= 1000000 ? Math.round(rawStartMileage / 1000) : Math.round(rawStartMileage);
+            let endOdometer = rawEndMileage >= 1000000 ? Math.round(rawEndMileage / 1000) : Math.round(rawEndMileage);
+
+            console.log(`   📊 Odômetros normalizados: Inicial=${startOdometer}km, Final=${endOdometer}km`);
 
             // Se odômetros são zero, tenta encontrar registros com valores válidos
             if (startOdometer === 0 && endOdometer === 0 && allRecords.length > 2) {
@@ -883,7 +926,7 @@ class IturanService {
                 // Busca o primeiro registro com odômetro válido
                 for (let i = 0; i < allRecords.length; i++) {
                     const rawMileage = parseFloat(this._getXmlValue(allRecords[i], 'Mileage')) || 0;
-                    const mileage = rawMileage >= 1000000 ? Math.floor(rawMileage / 1000) : Math.floor(rawMileage);
+                    const mileage = rawMileage >= 1000000 ? Math.round(rawMileage / 1000) : Math.round(rawMileage);
                     if (mileage > 0) {
                         startOdometer = mileage;
                         console.log(`   ✅ Primeiro odômetro válido encontrado: ${startOdometer} km`);
@@ -894,7 +937,7 @@ class IturanService {
                 // Busca o último registro com odômetro válido
                 for (let i = allRecords.length - 1; i >= 0; i--) {
                     const rawMileage = parseFloat(this._getXmlValue(allRecords[i], 'Mileage')) || 0;
-                    const mileage = rawMileage >= 1000000 ? Math.floor(rawMileage / 1000) : Math.floor(rawMileage);
+                    const mileage = rawMileage >= 1000000 ? Math.round(rawMileage / 1000) : Math.round(rawMileage);
                     if (mileage > 0) {
                         endOdometer = mileage;
                         console.log(`   ✅ Último odômetro válido encontrado: ${endOdometer} km`);
@@ -920,11 +963,13 @@ class IturanService {
             const kmDriven = endOdometer - startOdometer;
             const avgSpeed = speedCount > 0 ? Math.round(speedSum / speedCount) : 0;
 
-            console.log(`✅ Relatório gerado:`);
-            console.log(`   KM Inicial: ${startOdometer}`);
-            console.log(`   KM Final: ${endOdometer}`);
-            console.log(`   KM Rodados: ${kmDriven}`);
-            console.log(`   Total de registros: ${allRecords.length}`);
+            console.log(`✅ Relatório gerado para ${plate}:`);
+            console.log(`   📅 Período: ${this._getXmlValue(firstRecord, 'Date')} → ${this._getXmlValue(lastRecord, 'Date')}`);
+            console.log(`   🛣️  KM Inicial: ${startOdometer.toLocaleString('pt-BR')} km`);
+            console.log(`   🛣️  KM Final: ${endOdometer.toLocaleString('pt-BR')} km`);
+            console.log(`   ✅ KM Rodados: ${kmDriven.toLocaleString('pt-BR')} km`);
+            console.log(`   📊 Total de registros: ${allRecords.length}`);
+            console.log(`   🚗 Velocidade média: ${avgSpeed} km/h, máxima: ${maxSpeed} km/h`);
 
             // Se quilometragem for negativa, significa que há problema nos dados
             if (kmDriven < 0) {

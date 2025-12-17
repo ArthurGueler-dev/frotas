@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciar Rotas - Envio WhatsApp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .rota-card {
+            transition: all 0.2s;
+        }
+        .rota-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold mb-8 text-gray-800">📱 Gerenciar Rotas - Envio WhatsApp</h1>
+
+        <!-- Filtros -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="filtroStatus" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">Todos</option>
+                        <option value="pendente" selected>Pendente</option>
+                        <option value="enviada">Enviada</option>
+                        <option value="em_andamento">Em Andamento</option>
+                        <option value="concluida">Concluída</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Motorista</label>
+                    <select id="filtroMotorista" class="w-full border rounded-lg px-3 py-2">
+                        <option value="">Todos</option>
+                    </select>
+                </div>
+                <div class="flex items-end">
+                    <button onclick="carregarRotas()" class="w-full bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">
+                        🔄 Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lista de Rotas -->
+        <div id="listaRotas" class="grid grid-cols-1 gap-4">
+            <!-- Rotas serão carregadas aqui -->
+        </div>
+    </div>
+
+    <!-- Modal de Envio -->
+    <div id="modalEnvio" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-8 max-w-2xl w-full mx-4">
+            <h2 class="text-2xl font-bold mb-4">Enviar Rota por WhatsApp</h2>
+
+            <div id="previewRota" class="bg-gray-50 p-4 rounded-lg mb-4">
+                <!-- Preview da mensagem -->
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Telefone (com DDD)</label>
+                <input type="tel" id="telefoneDestino" placeholder="27999999999"
+                       class="w-full border rounded-lg px-3 py-2">
+                <small class="text-gray-500">Formato: código país + DDD + número (ex: 5527999999999)</small>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="enviarWhatsApp()" class="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">
+                    📱 Enviar WhatsApp
+                </button>
+                <button onclick="fecharModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="sidebar.js?v=20251211-fix-rotas"></script>
+    <script>
+        let rotaSelecionada = null;
+
+        // Carregar rotas ao iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            carregarRotas();
+            carregarMotoristas();
+        });
+
+        async function carregarRotas() {
+            try {
+                const status = document.getElementById('filtroStatus').value;
+                const motorista = document.getElementById('filtroMotorista').value;
+
+                let url = 'https://floripa.in9automacao.com.br/rotas-api.php';
+                const params = new URLSearchParams();
+                if (status) params.append('status', status);
+                if (motorista) params.append('motorista_id', motorista);
+
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    exibirRotas(data.rotas);
+                } else {
+                    alert('Erro ao carregar rotas: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar rotas');
+            }
+        }
+
+        function exibirRotas(rotas) {
+            const container = document.getElementById('listaRotas');
+
+            if (!rotas || rotas.length === 0) {
+                container.innerHTML = '<div class="bg-white rounded-lg shadow p-8 text-center text-gray-500">Nenhuma rota encontrada</div>';
+                return;
+            }
+
+            container.innerHTML = rotas.map(rota => {
+                const statusClass = {
+                    'pendente': 'bg-yellow-100 text-yellow-800',
+                    'enviada': 'bg-blue-100 text-blue-800',
+                    'em_andamento': 'bg-green-100 text-green-800',
+                    'concluida': 'bg-gray-100 text-gray-800',
+                    'cancelada': 'bg-red-100 text-red-800'
+                }[rota.status] || 'bg-gray-100';
+
+                const locais = JSON.parse(rota.sequencia_locais_json || '[]');
+
+                return `
+                    <div class="rota-card bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 class="text-xl font-bold text-gray-800">${rota.bloco_nome || 'Rota #' + rota.id}</h3>
+                                <p class="text-sm text-gray-600">
+                                    ${rota.motorista_nome || 'Sem motorista'} | ${rota.veiculo_placa || 'Sem veículo'}
+                                </p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${statusClass}">
+                                ${rota.status}
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div>
+                                <p class="text-sm text-gray-500">Distância</p>
+                                <p class="text-lg font-semibold">${parseFloat(rota.distancia_total_km).toFixed(2)} km</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Tempo</p>
+                                <p class="text-lg font-semibold">${rota.tempo_estimado_min} min</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500">Locais</p>
+                                <p class="text-lg font-semibold">${locais.length}</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <button onclick="abrirModalEnvio(${rota.id})"
+                                    class="flex-1 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center justify-center gap-2">
+                                <span>📱</span>
+                                <span>Enviar WhatsApp</span>
+                            </button>
+                            <a href="${rota.link_google_maps}" target="_blank"
+                               class="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 text-center">
+                                🗺️ Ver no Maps
+                            </a>
+                        </div>
+
+                        <p class="text-xs text-gray-400 mt-2">
+                            Criada em: ${new Date(rota.data_criacao).toLocaleString('pt-BR')}
+                        </p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function abrirModalEnvio(rotaId) {
+            try {
+                const response = await fetch(`https://floripa.in9automacao.com.br/enviar-rota-whatsapp.php?rota_id=${rotaId}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    rotaSelecionada = data.rota;
+
+                    // Preencher telefone se houver no banco
+                    const telefone = rotaSelecionada.motorista_whatsapp || rotaSelecionada.telefone_destino || '';
+                    document.getElementById('telefoneDestino').value = telefone;
+
+                    // Gerar preview da mensagem
+                    const locais = rotaSelecionada.sequencia_locais;
+                    const preview = gerarPreviewMensagem(rotaSelecionada, locais);
+                    document.getElementById('previewRota').innerHTML = preview;
+
+                    // Mostrar modal
+                    document.getElementById('modalEnvio').classList.remove('hidden');
+                    document.getElementById('modalEnvio').classList.add('flex');
+                } else {
+                    alert('Erro ao carregar rota: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao carregar dados da rota');
+            }
+        }
+
+        function gerarPreviewMensagem(rota, locais) {
+            let html = '<div class="whitespace-pre-line text-sm">';
+            html += `<strong>🚗 Sua Rota de Hoje 🚗</strong>\n\n`;
+            html += `📍 <strong>Bloco:</strong> ${rota.bloco_nome}\n`;
+            html += `📏 <strong>Distância Total:</strong> ${parseFloat(rota.distancia_total_km).toFixed(2)} km\n`;
+            html += `⏱️ <strong>Tempo Estimado:</strong> ${rota.tempo_estimado_min} minutos\n\n`;
+
+            if (rota.veiculo_placa) {
+                html += `🚙 <strong>Veículo:</strong> ${rota.veiculo_placa}\n\n`;
+            }
+
+            html += `<strong>📋 Sequência de Visitas:</strong>\n\n`;
+
+            locais.forEach((local, index) => {
+                html += `<strong>${index + 1}.</strong> ${local.nome || 'Local ' + (index + 1)}\n`;
+                if (local.endereco) {
+                    html += `   📍 <em>${local.endereco}</em>\n`;
+                }
+                html += '\n';
+            });
+
+            html += `<a href="${rota.link_google_maps}" target="_blank" class="text-blue-500">🗺️ Abrir no Google Maps</a>`;
+            html += '</div>';
+
+            return html;
+        }
+
+        async function enviarWhatsApp() {
+            const telefone = document.getElementById('telefoneDestino').value.replace(/\D/g, '');
+
+            if (!telefone) {
+                alert('Digite o número de telefone');
+                return;
+            }
+
+            if (telefone.length < 10) {
+                alert('Número de telefone inválido');
+                return;
+            }
+
+            try {
+                const response = await fetch('https://floripa.in9automacao.com.br/enviar-rota-whatsapp.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        rota_id: rotaSelecionada.id,
+                        telefone: telefone
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ Rota enviada com sucesso via WhatsApp!');
+                    fecharModal();
+                    carregarRotas(); // Atualizar lista
+                } else {
+                    alert('❌ Erro ao enviar: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erro:', error);
+                alert('Erro ao enviar mensagem');
+            }
+        }
+
+        function fecharModal() {
+            document.getElementById('modalEnvio').classList.add('hidden');
+            document.getElementById('modalEnvio').classList.remove('flex');
+            rotaSelecionada = null;
+        }
+
+        async function carregarMotoristas() {
+            try {
+                const response = await fetch('https://floripa.in9automacao.com.br/motoristas-api.php');
+                const data = await response.json();
+
+                if (data.success) {
+                    const select = document.getElementById('filtroMotorista');
+                    data.motoristas.forEach(m => {
+                        const option = document.createElement('option');
+                        option.value = m.id;
+                        option.textContent = m.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Erro ao carregar motoristas:', error);
+            }
+        }
+    </script>
+</body>
+</html>
