@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login - Variante 1 - Sistema de Planos de Manutenção</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#1173d4",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 24px;
+        }
+    </style>
+</head>
+<body class="font-display">
+<div class="relative min-h-screen w-full lg:grid lg:grid-cols-2 group/design-root">
+<div class="flex flex-col items-center justify-center p-6 sm:p-12">
+<div class="w-full max-w-md">
+<div class="flex items-center gap-3 mb-8">
+<div class="flex items-center justify-center h-12 w-12 bg-primary/20 text-primary rounded-xl">
+<span class="material-symbols-outlined !text-3xl">local_shipping</span>
+</div>
+<h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Sistema de Manutenção</h1>
+</div>
+<h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Bem-vindo de volta!</h2>
+<p class="mt-2 text-slate-600 dark:text-slate-400">Faça login para gerenciar sua frota.</p>
+<div class="mt-10 space-y-6">
+<div>
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="email">Email ou Nome de Usuário</label>
+<input autocomplete="email" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm" id="email" name="email" placeholder="seu.email@exemplo.com" required="" type="email"/>
+</div>
+<div>
+<div class="flex items-center justify-between">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="password">Senha</label>
+<a class="text-sm font-medium text-primary hover:text-primary/80" href="#">Esqueceu sua senha?</a>
+</div>
+<input autocomplete="current-password" class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm" id="password" name="password" placeholder="••••••••" required="" type="password"/>
+</div>
+<div>
+<button class="flex w-full justify-center rounded-lg bg-primary px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors duration-200" type="submit">Entrar</button>
+</div>
+</div>
+<p class="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+                    Não tem uma conta?
+                    <a class="font-semibold leading-6 text-primary hover:text-primary/80" href="#">Crie uma aqui</a>
+</p>
+</div>
+<p class="mt-10 text-center text-xs text-slate-500 dark:text-slate-400">© 2024 Sistema de Planos de Manutenção.</p>
+</div>
+<div class="hidden lg:block relative">
+<div class="absolute inset-0 h-full w-full bg-cover bg-center" data-alt="Modern truck on an open road at dusk, representing fleet management." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDDmEy8-muk3IeKJbWO703EJQfb7PUpbdk8f2PJDePpOT-9erfjANGJ2I3OgtZsom4sj1N9VEm3soLa2cja78NKqDUAoPfQtSdqKa_Yo-nzl9UyX4rKPguknx1058qEHSeqw1G7UI6K9cvya8Jx0szr-zp-FV_2a1zIOb_gWzmoZsdmWPbu-jVWAgDnvwBvFRAcOQYJmE6oscNrcE3XroKcMnt9qGNkZ50WVlEJSf6ISAK3Mf4lrVDqH2xKuZQa_Bzh6SqpgbLvPSs');"></div>
+<div class="absolute inset-0 h-full w-full bg-gradient-to-t from-slate-900/60 via-slate-900/20 to-transparent"></div>
+<div class="relative flex h-full flex-col justify-end p-12">
+<blockquote class="text-white">
+<p class="text-2xl font-semibold">"Manter nossa frota funcionando sem problemas nunca foi tão fácil. A plataforma é intuitiva e poderosa."</p>
+<footer class="mt-4 text-base text-slate-300">– João Silva, Gerente de Frota</footer>
+</blockquote>
+</div>
+</div>
+</div>
+
+</body></html>

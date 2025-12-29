@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # Flask API
+  api:
+    build: .
+    container_name: fleet-api
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=mysql+pymysql://fleet_user:fleet_pass@mysql:3306/fleet_db
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - mysql
+      - redis
+    command: gunicorn -b 0.0.0.0:5001 -w 4 --timeout 120 app:app
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+  # Celery Worker
+  celery-worker:
+    build: .
+    container_name: fleet-celery-worker
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=mysql+pymysql://fleet_user:fleet_pass@mysql:3306/fleet_db
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - mysql
+    command: celery -A celery_app worker --loglevel=info --concurrency=4
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+  # Celery Beat (Scheduler)
+  celery-beat:
+    build: .
+    container_name: fleet-celery-beat
+    environment:
+      - FLASK_ENV=production
+      - DATABASE_URL=mysql+pymysql://fleet_user:fleet_pass@mysql:3306/fleet_db
+      - REDIS_URL=redis://redis:6379/0
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - mysql
+    command: celery -A celery_app beat --loglevel=info
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+  # Flower (Celery Monitoring)
+  flower:
+    build: .
+    container_name: fleet-flower
+    ports:
+      - "5555:5555"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    command: celery -A celery_app flower --port=5555
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: fleet-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: fleet-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: fleet_db
+      MYSQL_USER: fleet_user
+      MYSQL_PASSWORD: fleet_pass
+    ports:
+      - "3307:3306"  # 3307 para não conflitar com MySQL local
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+  # phpMyAdmin
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: fleet-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: fleet_user
+      PMA_PASSWORD: fleet_pass
+      MYSQL_ROOT_PASSWORD: root_password
+    ports:
+      - "8080:80"
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    networks:
+      - fleet-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  fleet-network:
+    driver: bridge

@@ -61,12 +61,86 @@
             <div class="max-w-7xl mx-auto space-y-8">
                 <!-- Header -->
                 <div class="flex flex-wrap justify-between items-center gap-4">
-                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Otimizador de Rotas</h1>
-                    <div class="flex items-center gap-4">
-                        <button id="btnOptimizeRoute" disabled class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white rounded-lg text-sm font-bold shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed">
-                            <span class="material-symbols-outlined" style="font-size: 20px;">route</span>
-                            <span class="truncate">Otimizar Rota</span>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Otimizador de Rotas</h1>
+                        <button onclick="showHelpModal()"
+                                class="w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                title="Ajuda e Glossário">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">help</span>
                         </button>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <button id="btnOptimizeRoute" disabled
+                                class="flex items-center justify-center gap-2 h-10 px-4 bg-primary text-white rounded-lg text-sm font-bold shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Selecione blocos ou locais na lista abaixo para otimizar uma rota">
+                            <span class="material-symbols-outlined" style="font-size: 20px;">route</span>
+                            <span class="truncate">Otimizar Blocos Selecionados</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Dashboard de Métricas -->
+                <div class="bg-white dark:bg-background-dark/50 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined text-primary">analytics</span>
+                            Métricas de Otimização
+                        </h2>
+                        <button onclick="loadMetrics()" class="text-sm text-primary hover:text-primary/80 flex items-center gap-1" title="Atualizar métricas">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">refresh</span>
+                            <span>Atualizar</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <!-- Card: Total de Rotas -->
+                        <div class="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-900/10 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="material-symbols-outlined text-blue-600 dark:text-blue-400" style="font-size: 28px;">route</span>
+                                <span class="text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-200 dark:bg-blue-900/40 px-2 py-1 rounded-full">Mês</span>
+                            </div>
+                            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400" id="metric-total-routes">-</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Rotas Otimizadas</div>
+                        </div>
+
+                        <!-- Card: Distância Total -->
+                        <div class="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-900/10 rounded-lg p-4 border border-green-200 dark:border-green-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="material-symbols-outlined text-green-600 dark:text-green-400" style="font-size: 28px;">social_distance</span>
+                                <span class="text-xs font-medium text-green-600 dark:text-green-400 bg-green-200 dark:bg-green-900/40 px-2 py-1 rounded-full">Total</span>
+                            </div>
+                            <div class="text-3xl font-bold text-green-600 dark:text-green-400" id="metric-total-distance">-</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Distância Percorrida</div>
+                        </div>
+
+                        <!-- Card: Média de Paradas -->
+                        <div class="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-900/10 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="material-symbols-outlined text-purple-600 dark:text-purple-400" style="font-size: 28px;">pin_drop</span>
+                                <span class="text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-200 dark:bg-purple-900/40 px-2 py-1 rounded-full">Média</span>
+                            </div>
+                            <div class="text-3xl font-bold text-purple-600 dark:text-purple-400" id="metric-avg-stops">-</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Paradas por Rota</div>
+                        </div>
+
+                        <!-- Card: Blocos Ativos -->
+                        <div class="bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-900/10 rounded-lg p-4 border border-orange-200 dark:border-orange-800">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="material-symbols-outlined text-orange-600 dark:text-orange-400" style="font-size: 28px;">grid_view</span>
+                                <span class="text-xs font-medium text-orange-600 dark:text-orange-400 bg-orange-200 dark:bg-orange-900/40 px-2 py-1 rounded-full">Ativo</span>
+                            </div>
+                            <div class="text-3xl font-bold text-orange-600 dark:text-orange-400" id="metric-active-blocks">-</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Blocos Cadastrados</div>
+                        </div>
+                    </div>
+
+                    <!-- Gráfico de Tendência (Opcional) -->
+                    <div class="mt-6 bg-gray-50 dark:bg-gray-900/20 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                            <span class="material-symbols-outlined" style="font-size: 18px;">show_chart</span>
+                            Histórico de Otimizações (Últimos 6 Meses)
+                        </h3>
+                        <canvas id="metrics-chart" height="80"></canvas>
                     </div>
                 </div>
 
@@ -217,14 +291,66 @@
                                         <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" style="font-size: 20px;">search</span>
                                         <input type="text"
                                                id="blocksFilter"
-                                               placeholder="Filtrar blocos (ex: Bloco 5, ou 3 locais)"
+                                               placeholder="Filtrar: nome, >3, <10, >5km, >=4km..."
                                                class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                                               oninput="filterBlocks(this.value)">
+                                               oninput="filterBlocks(this.value)"
+                                               title="Filtrar por: nome do bloco, quantidade de locais (>3, <10, >=5, <=3), distância máxima (>5km, <3km)">
                                     </div>
-                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+
+                                    <!-- Chips de Filtro Rápido -->
+                                    <div class="flex flex-wrap gap-2 mt-2 mb-2">
+                                        <button class="filter-chip px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                                                onclick="document.getElementById('blocksFilter').value = '<5'; filterBlocks('<5');"
+                                                title="Blocos com 1-4 locais">
+                                            📦 1-4 locais
+                                        </button>
+                                        <button class="filter-chip px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-full text-xs font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                                                onclick="document.getElementById('blocksFilter').value = '>=5'; filterBlocks('>=5');"
+                                                title="Blocos com 5 ou mais locais">
+                                            📦 5+ locais
+                                        </button>
+                                        <button class="filter-chip px-3 py-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full text-xs font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors"
+                                                onclick="document.getElementById('blocksFilter').value = '<3km'; filterBlocks('<3km');"
+                                                title="Blocos compactos (raio < 3km)">
+                                            📍 Compacto (&lt;3km)
+                                        </button>
+                                        <button class="filter-chip px-3 py-1 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-full text-xs font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                                onclick="document.getElementById('blocksFilter').value = '>5km'; filterBlocks('>5km');"
+                                                title="Blocos grandes (raio > 5km)">
+                                            📍 Grande (&gt;5km)
+                                        </button>
+                                        <button class="filter-chip px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                                onclick="document.getElementById('blocksFilter').value = ''; filterBlocks('');"
+                                                title="Limpar filtro">
+                                            ✕ Limpar
+                                        </button>
+                                    </div>
+
+                                    <!-- Filtros Dinâmicos por Cidade -->
+                                    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                        <div class="flex items-center gap-2 mb-2">
+                                            <span class="material-symbols-outlined text-indigo-600 dark:text-indigo-400" style="font-size: 16px;">location_city</span>
+                                            <span class="text-xs font-semibold text-gray-700 dark:text-gray-300">Filtrar por Cidade:</span>
+                                        </div>
+                                        <div id="city-filters-container" class="flex flex-wrap gap-2">
+                                            <span class="text-xs text-gray-500">Carregando cidades...</span>
+                                        </div>
+                                    </div>
+
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-3">
                                         <span id="blocksCount">0 blocos</span> •
                                         <span id="locationsCount">0 locais</span>
                                     </p>
+                                    <details class="mt-2">
+                                        <summary class="text-xs text-primary hover:text-primary/80 cursor-pointer">💡 Ver exemplos de filtros</summary>
+                                        <div class="mt-2 text-xs text-gray-600 dark:text-gray-400 space-y-1 pl-4">
+                                            <p>• <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">Bloco 5</code> - nome do bloco</p>
+                                            <p>• <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">>3</code> - mais de 3 locais</p>
+                                            <p>• <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded"><=5</code> - até 5 locais</p>
+                                            <p>• <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded">>5km</code> - distância >5km</p>
+                                            <p>• <code class="bg-gray-200 dark:bg-gray-700 px-1 rounded"><3km</code> - distância <3km</p>
+                                        </div>
+                                    </details>
                                 </div>
 
                                 <!-- Lista de Blocos (será preenchida dinamicamente) -->
@@ -234,6 +360,16 @@
                             </div>
 
                             <!-- Seleção de Veículo e Motorista -->
+                            <div class="mb-3">
+                                <div class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400 mb-3 bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg">
+                                    <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 mt-0.5" style="font-size: 20px;">info</span>
+                                    <p>
+                                        <strong>Opcional:</strong> Atribua um veículo e motorista à rota.
+                                        Essas informações serão incluídas ao gerar o link do Google Maps para envio via WhatsApp.
+                                    </p>
+                                </div>
+                            </div>
+
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <label class="flex flex-col w-full">
                                     <p class="text-sm font-medium text-gray-700 dark:text-gray-300 pb-2">Veículo</p>
@@ -334,6 +470,73 @@
         </main>
     </div>
 
+    <!-- Modal de Ajuda/Glossário -->
+    <div id="helpModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target.id === 'helpModal') this.classList.add('hidden')">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined">help</span>
+                    Ajuda e Glossário
+                </h2>
+                <button onclick="document.getElementById('helpModal').classList.add('hidden')"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div class="border-l-4 border-blue-500 pl-4">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>📦</span> Blocos
+                    </h3>
+                    <p class="text-gray-600 dark:text-gray-300 mt-1">
+                        Áreas geográficas que agrupam locais próximos. O sistema divide automaticamente seus endereços em blocos baseados na proximidade, facilitando a organização das rotas.
+                    </p>
+                </div>
+
+                <div class="border-l-4 border-green-500 pl-4">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>🛣️</span> Rotas
+                    </h3>
+                    <p class="text-gray-600 dark:text-gray-300 mt-1">
+                        Sequência otimizada de visitação aos locais. O sistema calcula automaticamente a melhor ordem para percorrer os endereços, minimizando distância e tempo.
+                    </p>
+                </div>
+
+                <div class="border-l-4 border-purple-500 pl-4">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>📍</span> Locais
+                    </h3>
+                    <p class="text-gray-600 dark:text-gray-300 mt-1">
+                        Pontos de atendimento ou entrega. Cada local representa um endereço que precisa ser visitado durante a rota.
+                    </p>
+                </div>
+
+                <div class="border-l-4 border-orange-500 pl-4">
+                    <h3 class="font-bold text-lg text-gray-900 dark:text-white flex items-center gap-2">
+                        <span>🎯</span> Otimização
+                    </h3>
+                    <p class="text-gray-600 dark:text-gray-300 mt-1">
+                        Processo de cálculo que determina a melhor ordem para visitar os locais. Considera distâncias reais (usando mapas do OpenStreetMap) para encontrar o caminho mais eficiente.
+                    </p>
+                </div>
+
+                <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 mt-6">
+                    <h4 class="font-bold text-gray-900 dark:text-white mb-2">💡 Como usar:</h4>
+                    <ol class="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300 text-sm">
+                        <li>Importe uma planilha Excel com Nome, Latitude e Longitude</li>
+                        <li>Marque "Criar blocos automaticamente" para agrupar locais próximos</li>
+                        <li>Aguarde o processamento (pode levar alguns minutos)</li>
+                        <li>Selecione os blocos que deseja otimizar</li>
+                        <li>Clique em "Otimizar Blocos Selecionados"</li>
+                        <li>Visualize as rotas coloridas no mapa</li>
+                        <li>Envie por WhatsApp para os motoristas</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Loading Overlay -->
     <div id="loadingOverlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
         <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl flex flex-col items-center gap-4">
@@ -342,11 +545,106 @@
         </div>
     </div>
 
+    <!-- Modal: Atribuir Veículo/Motorista ao Enviar WhatsApp -->
+    <div id="assignRouteModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <span class="material-symbols-outlined">send</span>
+                    Enviar Rota por WhatsApp
+                </h2>
+                <button onclick="closeAssignRouteModal()"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+
+            <form id="assignRouteForm" class="space-y-4">
+                <!-- Veículo com Autocomplete -->
+                <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Veículo *
+                    </label>
+                    <input type="text" id="routeVehicleInput" required
+                           autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                           placeholder="Digite a placa ou modelo do veículo...">
+
+                    <!-- Dropdown de sugestões -->
+                    <div id="vehicleSuggestions" class="hidden absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <!-- Sugestões preenchidas via JavaScript -->
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-1">O veículo será monitorado via GPS</p>
+                </div>
+
+                <!-- Motorista com Autocomplete -->
+                <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Motorista *
+                    </label>
+                    <input type="text" id="routeDriverInput" required
+                           autocomplete="off"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                           placeholder="Digite o nome do motorista...">
+
+                    <!-- Dropdown de sugestões -->
+                    <div id="driverSuggestions" class="hidden absolute z-10 w-full mt-1 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <!-- Sugestões preenchidas via JavaScript -->
+                    </div>
+
+                    <p class="text-xs text-gray-500 mt-1">A rota será enviada para este motorista</p>
+                </div>
+
+                <!-- Telefone WhatsApp -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Telefone WhatsApp *
+                    </label>
+                    <input type="tel" id="routePhone" required
+                           pattern="[0-9]{12,13}"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                           placeholder="5527999999999">
+                    <p class="text-xs text-gray-500 mt-1">Código do país + DDD + número (ex: 5527999999999)</p>
+                </div>
+
+                <!-- Hidden fields -->
+                <input type="hidden" id="pendingBlockId">
+                <input type="hidden" id="pendingRouteId">
+
+                <!-- Botões -->
+                <div class="flex gap-3 pt-4">
+                    <button type="submit"
+                            class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">send</span>
+                        Enviar WhatsApp e Iniciar Monitoramento
+                    </button>
+                    <button type="button" onclick="closeAssignRouteModal()"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        Cancelar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <script src="otimizador-blocos.js?v=20251216-cors-fix"></script>
-    <script src="sidebar.js?v=20251211-fix-rotas"></script>
+
+    <!-- jsPDF para exportação de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- html2canvas para captura de screenshots -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- Chart.js para gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script src="otimizador-blocos.js?v=20251229-1350"></script>
+    <script src="route-assignment-modal.js?v=20251229-1400"></script>
+    <script src="auth.js" defer></script>
+<script src="sidebar.js?v=20251211-fix-rotas"></script>
 </body>
 </html>

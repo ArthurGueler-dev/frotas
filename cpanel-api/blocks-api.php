@@ -120,6 +120,7 @@ function handleGet($pdo, $id) {
                 b.locations_count,
                 b.import_batch,
                 b.created_at,
+                b.map_html,
                 r.id as rota_id,
                 r.link_google_maps
             FROM FF_Blocks b
@@ -186,6 +187,8 @@ function handleGet($pdo, $id) {
                 b.import_batch,
                 b.created_at,
                 COUNT(DISTINCT bl.location_id) as actual_locations_count,
+                (LENGTH(b.map_html) > 0) as has_map_html,
+                b.map_html,
                 r.id as rota_id,
                 r.link_google_maps
             FROM FF_Blocks b
@@ -412,6 +415,108 @@ function handlePut($pdo) {
         return;
     }
 
+    // Verificar se é UPDATE (tem ID) ou INSERT (sem ID)
+    $blockId = isset($_GET['id']) ? intval($_GET['id']) : (isset($data['id']) ? intval($data['id']) : null);
+
+    if ($blockId) {
+        // UPDATE - Atualizar bloco existente
+        handleUpdateBlock($pdo, $blockId, $data);
+    } else {
+        // INSERT - Criar novo bloco (comportamento antigo)
+        handleInsertBlock($pdo, $data);
+    }
+}
+
+/**
+ * Atualizar bloco existente (renomear, alterar coordenadas, etc.)
+ */
+function handleUpdateBlock($pdo, $blockId, $data) {
+    $pdo->beginTransaction();
+
+    try {
+        // Verificar se o bloco existe
+        $stmt = $pdo->prepare("SELECT id, name FROM FF_Blocks WHERE id = ?");
+        $stmt->execute([$blockId]);
+        $block = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$block) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Bloco não encontrado']);
+            return;
+        }
+
+        // Preparar campos para UPDATE
+        $fields = [];
+        $values = [];
+
+        if (isset($data['name'])) {
+            $fields[] = "name = ?";
+            $values[] = $data['name'];
+        }
+
+        if (isset($data['center_latitude'])) {
+            $fields[] = "center_latitude = ?";
+            $values[] = $data['center_latitude'];
+        }
+
+        if (isset($data['center_longitude'])) {
+            $fields[] = "center_longitude = ?";
+            $values[] = $data['center_longitude'];
+        }
+
+        if (isset($data['radius_km'])) {
+            $fields[] = "radius_km = ?";
+            $values[] = $data['radius_km'];
+        }
+
+        if (isset($data['diameterKm'])) {
+            $fields[] = "radius_km = ?";
+            $values[] = $data['diameterKm'];
+        }
+
+        if (empty($fields)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => 'Nenhum campo para atualizar']);
+            return;
+        }
+
+        // Adicionar ID aos valores
+        $values[] = $blockId;
+
+        // Executar UPDATE
+        $sql = "UPDATE FF_Blocks SET " . implode(", ", $fields) . " WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($values);
+
+        $pdo->commit();
+
+        // Retornar bloco atualizado
+        $stmt = $pdo->prepare("SELECT * FROM FF_Blocks WHERE id = ?");
+        $stmt->execute([$blockId]);
+        $updatedBlock = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        http_response_code(200);
+        echo json_encode([
+            'success' => true,
+            'message' => 'Bloco atualizado com sucesso',
+            'block' => $updatedBlock
+        ]);
+
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Erro ao atualizar bloco',
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
+/**
+ * Inserir novo bloco (comportamento original do handlePut)
+ */
+function handleInsertBlock($pdo, $data) {
     if (!isset($data['center_latitude']) || !isset($data['center_longitude'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'center_latitude e center_longitude são obrigatórios']);
@@ -429,8 +534,9 @@ function handlePut($pdo) {
                 center_longitude,
                 radius_km,
                 locations_count,
-                import_batch
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                import_batch,
+                map_html
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
 
         $stmt->execute([
@@ -439,7 +545,8 @@ function handlePut($pdo) {
             $data['center_longitude'],
             isset($data['diameterKm']) ? $data['diameterKm'] : 0,
             isset($data['locationsCount']) ? $data['locationsCount'] : 0,
-            isset($data['importBatch']) ? $data['importBatch'] : null
+            isset($data['importBatch']) ? $data['importBatch'] : null,
+            isset($data['map_html']) ? $data['map_html'] : null
         ]);
 
         $blockId = $pdo->lastInsertId();

@@ -86,20 +86,36 @@ function createSidebar(activePage = '') {
                     <p class="text-sm">CheckList</p>
                 </a>
             </div>
+
+            <!-- Seção Monitoramento -->
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p class="px-4 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Monitoramento</p>
+
+                <a class="flex items-center gap-3 px-4 py-2 rounded-lg ${activePage === 'compliance-monitor' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="compliance-monitor.html">
+                    <span class="material-symbols-outlined">monitor_heart</span>
+                    <p class="text-sm">Conformidade</p>
+                    <span class="ml-auto bg-blue-500 text-white text-xs px-2 py-0.5 rounded-full">NOVO</span>
+                </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'alert-recipients' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="alert-recipients.html">
+                    <span class="material-symbols-outlined">group</span>
+                    <p class="text-sm">Destinatários</p>
+                </a>
+            </div>
         </nav>
 
         <!-- Footer -->
         <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div class="flex items-center gap-3 mb-3">
-                <img class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10"
-                     src="https://lh3.googleusercontent.com/aida-public/AB6AXuCVrVgfjcLzwfLby1sAwIY-nZzVjq7Hgukkn2dVW_u_Gl9JuHxqV9xURUrtHGlbws0mv31g0fIIWHHpBxOQynNiFo2Aca4gP3cnDNxmfKc8DMM112lHLzWzPB8UaW0vm9dX3u9_YoLflbP9cDc6XNMUjuZdCIvYgVZXTedYI3_H86rZ6WsGr-30M_OTLhAzGJ8_3bvwWE6lOqYlwac7BFmcck9HwVnNzaIwku7cRKUvApohtuPbUkygSoKPnbgU167PdxXTrxXNf1M"
-                     alt="User avatar" />
-                <div class="flex flex-col">
-                    <h1 class="text-gray-800 dark:text-white text-sm font-medium leading-normal">Ana Silveira</h1>
-                    <p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal">ana.s@example.com</p>
+                <div class="flex items-center justify-center bg-primary/20 text-primary rounded-full size-10">
+                    <span class="material-symbols-outlined">person</span>
+                </div>
+                <div class="flex flex-col flex-1 min-w-0">
+                    <h1 class="text-gray-800 dark:text-white text-sm font-medium leading-normal truncate user-name">Usuário</h1>
+                    <p class="text-gray-500 dark:text-gray-400 text-xs font-normal leading-normal truncate user-type">Carregando...</p>
                 </div>
             </div>
-            <button class="flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-red-500/10 text-red-500 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-red-500/20">
+            <button id="logoutButton" class="logout-button flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-red-500/10 text-red-500 text-sm font-bold leading-normal tracking-[0.015em] hover:bg-red-500/20 transition-colors">
                 <span class="material-symbols-outlined">logout</span>
                 <span class="truncate">Sair</span>
             </button>

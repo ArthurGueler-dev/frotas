@@ -10,9 +10,11 @@ let blockMarkers = {};
 let locationMarkers = {};
 let blockCircles = {};
 let routeLayer = null;
+let routeMarkers = [];  // Marcadores da rota (🚀, 🏁, números)
 let currentOptimizedRoute = null;
 let markerClusterGroup = null;
 let allBlocks = [];
+let blocksLoaded = false; // Flag para evitar carregamento duplicado
 
 // Base i9 Engenharia (ponto de partida fixo)
 const BASE_I9 = {
@@ -79,7 +81,27 @@ function initMap() {
 }
 
 function visualizeBlocksOnMap(blocks) {
+    console.log(`🗺️ visualizeBlocksOnMap chamado com ${blocks.length} blocos`);
     clearMapMarkers();
+
+    // DEDUPLICAR blocos com coordenadas idênticas (problema na API)
+    const uniqueBlocks = [];
+    const seenCoords = new Set();
+
+    blocks.forEach(block => {
+        const centerLat = block.centerLatitude || block.center_latitude;
+        const centerLon = block.centerLongitude || block.center_longitude;
+        const coordKey = `${centerLat},${centerLon}`;
+
+        if (!seenCoords.has(coordKey)) {
+            seenCoords.add(coordKey);
+            uniqueBlocks.push(block);
+        } else {
+            console.warn(`⚠️ Bloco duplicado ignorado: ${block.name} (${coordKey})`);
+        }
+    });
+
+    console.log(`📊 ${blocks.length} blocos recebidos, ${uniqueBlocks.length} únicos após deduplicação`);
 
     // Criar grupo de clustering para os locais
     markerClusterGroup = L.markerClusterGroup({
@@ -89,7 +111,8 @@ function visualizeBlocksOnMap(blocks) {
         zoomToBoundsOnClick: true
     });
 
-    blocks.forEach((block, index) => {
+    let totalLocations = 0;
+    uniqueBlocks.forEach((block, index) => {
         const color = BLOCK_COLORS[index % BLOCK_COLORS.length];
 
         // Normalizar nomes dos campos (API pode retornar com underscore ou camelCase)
@@ -165,6 +188,7 @@ function visualizeBlocksOnMap(blocks) {
 
                 locationMarkers[location.id] = locationMarker;
                 markerClusterGroup.addLayer(locationMarker);
+                totalLocations++;
             });
         }
     });
@@ -173,23 +197,43 @@ function visualizeBlocksOnMap(blocks) {
     map.addLayer(markerClusterGroup);
 
     // Ajustar zoom
-    if (blocks.length > 0) {
+    if (uniqueBlocks.length > 0) {
         const bounds = markerClusterGroup.getBounds();
         if (bounds.isValid()) {
             map.fitBounds(bounds, { padding: [50, 50] });
         }
     }
 
-    console.log(`✅ ${blocks.length} blocos visualizados no mapa com clustering`);
+    console.log(`✅ ${uniqueBlocks.length} blocos únicos e ${totalLocations} locais visualizados no mapa com clustering`);
 }
 
 function clearMapMarkers() {
+    console.log('🧹 Limpando marcadores do mapa...');
+
     // Remover cluster group
     if (markerClusterGroup) {
+        console.log('  - Removendo cluster group');
         map.removeLayer(markerClusterGroup);
         markerClusterGroup = null;
     }
 
+    // Remover todos os marcadores de blocos
+    Object.keys(blockMarkers).forEach(blockId => {
+        const marker = blockMarkers[blockId];
+        if (marker && map.hasLayer(marker)) {
+            map.removeLayer(marker);
+        }
+    });
+
+    // Remover todos os marcadores de locais
+    Object.keys(locationMarkers).forEach(locationId => {
+        const marker = locationMarkers[locationId];
+        if (marker && map.hasLayer(marker)) {
+            map.removeLayer(marker);
+        }
+    });
+
+    // Remover círculos
     Object.values(blockCircles).forEach(circle => {
         if (map.hasLayer(circle)) {
             map.removeLayer(circle);
@@ -204,6 +248,8 @@ function clearMapMarkers() {
         map.removeLayer(routeLayer);
         routeLayer = null;
     }
+
+    console.log('✅ Marcadores limpos');
 }
 
 function updateMapSelection() {
@@ -295,6 +341,220 @@ function handleFileSelect(file) {
     console.log('📁 Arquivo selecionado:', file.name);
 }
 
+/**
+ * Otimiza rotas usando a API Python (algoritmo avançado com OSRM + PyVRP)
+ */
+async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota, importBatch) {
+    try {
+        console.log(`🐍 Iniciando otimização Python ASSÍNCRONA com ${locations.length} locais...`);
+
+        const payload = {
+            base: {
+                lat: BASE_I9.latitude,
+                lon: BASE_I9.longitude,
+                name: BASE_I9.name
+            },
+            locais: locations.map(loc => ({
+                id: loc.id || Math.random(),
+                lat: loc.latitude,
+                lon: loc.longitude,
+                name: loc.name,
+                endereco: loc.address || ''
+            })),
+            max_diameter_km: maxDiameterKm || 5.0,  // ✅ Usa valor do campo (fallback 5km)
+            max_locais_por_rota: maxLocaisPerRota || 6   // ✅ Usa valor do campo (fallback 6)
+        };
+
+        // 1. Iniciar job assíncrono
+        const startResponse = await fetch('https://floripa.in9automacao.com.br/otimizar-rotas-async.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!startResponse.ok) {
+            const errorText = await startResponse.text();
+            console.error('Erro HTTP:', startResponse.status, errorText);
+            throw new Error(`Erro ao iniciar job: HTTP ${startResponse.status}`);
+        }
+
+        const responseText = await startResponse.text();
+        if (!responseText || responseText.trim() === '') {
+            throw new Error('Resposta vazia da API');
+        }
+
+        const startData = JSON.parse(responseText);
+        if (!startData.success || !startData.job_id) {
+            throw new Error(startData.error || 'Erro ao iniciar job');
+        }
+
+        const jobId = startData.job_id;
+        console.log(`📋 Job ${jobId} iniciado. Aguardando processamento...`);
+
+        // 2. Fazer polling até completar
+        let attempts = 0;
+        const maxAttempts = 1800; // 60 minutos (2s * 1800)
+
+        while (attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Aguardar 2s
+            attempts++;
+
+            const statusResponse = await fetch(`https://floripa.in9automacao.com.br/otimizar-rotas-async.php?job_id=${jobId}`);
+
+            if (!statusResponse.ok) {
+                console.error(`Erro HTTP ${statusResponse.status} ao verificar status`);
+                continue; // Tentar novamente
+            }
+
+            const statusText = await statusResponse.text();
+            if (!statusText || statusText.trim() === '') {
+                console.warn('Resposta vazia ao verificar status, tentando novamente...');
+                continue;
+            }
+
+            const statusData = JSON.parse(statusText);
+
+            if (!statusData.success) {
+                throw new Error(statusData.error || 'Erro ao verificar status');
+            }
+
+            console.log(`⏳ Status: ${statusData.status} (${attempts}/${maxAttempts})`);
+
+            if (statusData.status === 'completed') {
+                console.log(`✅ Otimização concluída!`, statusData.result.resumo);
+
+                // Converter blocos
+                const blocks = [];
+                for (let i = 0; i < statusData.result.blocos.length; i++) {
+                    const bloco = statusData.result.blocos[i];
+
+                    // Extrair IDs dos locais das rotas
+                    const locationIds = [];
+                    if (bloco.rotas && Array.isArray(bloco.rotas)) {
+                        for (const rota of bloco.rotas) {
+                            // API Python retorna "locations" (não "location_ids")
+                            if (rota.locations && Array.isArray(rota.locations)) {
+                                // Converter strings para números
+                                const ids = rota.locations.map(id => parseInt(id));
+                                locationIds.push(...ids);
+                            }
+                        }
+                    }
+                    console.log(`Bloco ${i + 1}: ${locationIds.length} location IDs extraídos:`, locationIds);
+
+                    // Usar tempo REAL do OSRM (já vem calculado com paradas)
+                    const distanciaKm = bloco.distancia_total_km || 0;
+                    const tempoTotalReal = bloco.tempo_total_min || 0; // ✅ TEMPO REAL DO OSRM + paradas
+
+                    // Se por algum motivo não vier tempo, calcular estimativa (fallback)
+                    let tempoFinal = tempoTotalReal;
+                    if (!tempoTotalReal) {
+                        const numLocais = bloco.num_locais || 0;
+                        const tempoViagem = (distanciaKm / 25) * 60; // minutos de viagem
+                        const tempoParadas = numLocais * 5; // 5 min por parada
+                        tempoFinal = Math.round(tempoViagem + tempoParadas);
+                        console.warn(`⚠️ Tempo não retornado pela API Python, usando estimativa: ${tempoFinal}min`);
+                    }
+
+                    // Calcular número de locais únicos
+                    const numLocaisUnicos = [...new Set(locationIds)].length;
+
+                    // Gerar nome descritivo baseado nos locais
+                    let nomeBloco = `Bloco #${i + 1}`;
+                    if (numLocaisUnicos > 0) {
+                        nomeBloco = `Bloco #${i + 1} - ${numLocaisUnicos} ${numLocaisUnicos > 1 ? 'locais' : 'local'}`;
+                        if (distanciaKm > 0) {
+                            nomeBloco += ` (${distanciaKm.toFixed(1)}km)`;
+                        }
+                    }
+
+                    blocks.push({
+                        id: bloco.bloco_id,
+                        name: nomeBloco,
+                        center_latitude: bloco.center_lat,
+                        center_longitude: bloco.center_lon,
+                        diameterKm: bloco.diameter_km || 0,
+                        locationsCount: numLocaisUnicos, // ✅ Usar contagem calculada
+                        routesCount: bloco.num_rotas || 1,
+                        totalDistanceKm: distanciaKm,
+                        totalDurationMin: tempoFinal, // ✅ TEMPO REAL DO OSRM
+                        importBatch: importBatch,
+                        algorithm: 'python',
+                        routes: bloco.rotas,
+                        locationIds: [...new Set(locationIds)] // Deduplicate
+                    });
+                }
+                return blocks;
+
+            } else if (statusData.status === 'failed') {
+                throw new Error(`Job falhou: ${statusData.error}`);
+            }
+            // Status 'pending' ou 'processing' - continuar polling
+        }
+
+        throw new Error('Timeout: processamento demorou mais de 60 minutos');
+
+    } catch (error) {
+        console.error('❌ Erro ao otimizar com Python API:', error);
+        throw new Error('Erro ao otimizar com algoritmo avançado: ' + error.message);
+    }
+}
+
+/**
+ * Salvar rotas otimizadas para tabela FF_Rotas (envio via WhatsApp)
+ */
+async function salvarRotasParaWhatsApp(blocos, importBatch) {
+    console.log(`📱 Salvando ${blocos.length} rotas para envio via WhatsApp...`);
+
+    let rotasSalvas = 0;
+
+    for (const bloco of blocos) {
+        try {
+            // Preparar dados da rota
+            const rotaData = {
+                bloco_id: bloco.id, // ID do bloco salvo no banco
+                motorista_id: null, // Será atribuído depois na interface
+                veiculo_id: null,   // Será atribuído depois na interface
+                base_lat: BASE_I9.latitude,
+                base_lon: BASE_I9.longitude,
+                locais_ordenados: (bloco.locations || []).map(loc => ({
+                    id: loc.id,
+                    lat: loc.latitude,
+                    lon: loc.longitude,
+                    nome: loc.name,
+                    endereco: loc.address || ''
+                })),
+                distancia_total_km: bloco.totalDistanceKm || 0,
+                tempo_total_min: Math.round((bloco.totalDurationMin || 0))
+            };
+
+            // Salvar rota
+            const response = await fetch('https://floripa.in9automacao.com.br/salvar-rota-whatsapp.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(rotaData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                bloco.rota_id = data.rota_id;
+                bloco.link_google_maps = data.link_google_maps;
+                rotasSalvas++;
+                console.log(`✅ Rota #${data.rota_id} salva para bloco ${bloco.name}`);
+            } else {
+                console.warn(`⚠️ Erro ao salvar rota do bloco ${bloco.name}:`, data.error);
+            }
+
+        } catch (error) {
+            console.error(`❌ Erro ao salvar rota do bloco ${bloco.name}:`, error);
+        }
+    }
+
+    console.log(`📱 ${rotasSalvas}/${blocos.length} rotas salvas com sucesso`);
+    return rotasSalvas;
+}
+
 async function handleUpload() {
     if (!selectedFile) {
         showNotification('Selecione um arquivo primeiro', 'error');
@@ -365,55 +625,127 @@ async function handleUpload() {
         const insertedIds = locationsData.insertedIds;
         console.log(`✅ ${insertedIds.length} locais inseridos no banco`);
 
+        // Associar IDs aos locais (converter para número)
+        for (let i = 0; i < locations.length && i < insertedIds.length; i++) {
+            locations[i].id = parseInt(insertedIds[i]);
+        }
+
         let blocks = [];
 
         // Se clustering automático estiver ativado
         if (autoClustering && insertedIds.length > 0) {
-            updateProgress(70, 'Criando blocos geográficos...');
+            // Usar API Python com OSRM (distâncias reais) + PyVRP (otimização)
+            updateProgress(70, 'Otimizando rotas com OSRM + PyVRP...');
 
-            // Processar em lotes de 250 IDs para evitar timeout
-            const batchSize = 250;
-            const batches = [];
+            // PROCESSAMENTO EM LOTES para grandes volumes
+            const BATCH_SIZE = 500; // Processar 500 locais por vez
+            let pythonBlocks = [];
 
-            for (let i = 0; i < insertedIds.length; i += batchSize) {
-                batches.push(insertedIds.slice(i, i + batchSize));
-            }
+            if (locations.length > BATCH_SIZE) {
+                // DIVIDIR EM LOTES
+                const totalBatches = Math.ceil(locations.length / BATCH_SIZE);
+                console.log(`📦 Dividindo ${locations.length} locais em ${totalBatches} lotes de ${BATCH_SIZE}`);
 
-            console.log(`📦 Processando ${batches.length} lotes de até ${batchSize} locais`);
+                for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+                    const start = batchIndex * BATCH_SIZE;
+                    const end = Math.min(start + BATCH_SIZE, locations.length);
+                    const batchLocations = locations.slice(start, end);
 
-            for (let i = 0; i < batches.length; i++) {
-                const batch = batches[i];
-                const progress = 70 + (i / batches.length) * 20;
-                updateProgress(progress, `Criando blocos (lote ${i + 1}/${batches.length})...`);
+                    const batchProgress = 70 + (batchIndex / totalBatches) * 20;
+                    updateProgress(
+                        batchProgress,
+                        `Lote ${batchIndex + 1}/${totalBatches}: Otimizando ${batchLocations.length} locais...`
+                    );
 
-                const blocksResponse = await fetch('https://floripa.in9automacao.com.br/blocks-api.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        locationIds: batch,
-                        maxLocationsPerBlock,
+                    console.log(`📊 Lote ${batchIndex + 1}/${totalBatches}: processando locais ${start + 1} a ${end}`);
+
+                    const batchBlocks = await optimizeWithPythonAPI(
+                        batchLocations,
                         maxDistanceKm,
-                        importBatch
-                    })
-                });
+                        maxLocationsPerBlock,
+                        `${importBatch}_lote${batchIndex + 1}`
+                    );
 
-                if (!blocksResponse.ok) {
-                    const errorText = await blocksResponse.text();
-                    console.error(`⚠️ Erro HTTP ${blocksResponse.status} no lote ${i + 1}:`, errorText);
-                    continue;
+                    pythonBlocks.push(...batchBlocks);
+                    console.log(`✅ Lote ${batchIndex + 1} concluído: ${batchBlocks.length} blocos gerados`);
                 }
 
-                const blocksData = await blocksResponse.json();
-
-                if (blocksData.success) {
-                    blocks = blocks.concat(blocksData.blocks);
-                    console.log(`✅ Lote ${i + 1}: ${blocksData.blocks.length} blocos criados`);
-                } else {
-                    console.warn(`⚠️ Erro no lote ${i + 1}:`, blocksData.error || blocksData.message);
-                }
+                console.log(`✅ TODOS OS LOTES PROCESSADOS: ${pythonBlocks.length} blocos totais`);
+            } else {
+                // PROCESSAMENTO NORMAL (< 500 locais)
+                pythonBlocks = await optimizeWithPythonAPI(locations, maxDistanceKm, maxLocationsPerBlock, importBatch);
             }
 
-            console.log(`✅ Total: ${blocks.length} blocos criados`);
+            // Popular locations dos blocos Python usando locationIds
+            console.log(`📊 Array locations tem ${locations.length} elementos`);
+            console.log(`📊 TODOS os IDs do array locations:`, locations.map(l => l.id));
+            console.log(`📊 Primeiros 3 IDs:`, locations.slice(0, 3).map(l => l.id));
+            console.log(`📊 Tipos dos IDs:`, locations.slice(0, 3).map(l => typeof l.id));
+
+            for (const block of pythonBlocks) {
+                block.locations = [];
+                if (block.locationIds && block.locationIds.length > 0) {
+                    console.log(`🔍 Procurando IDs do bloco ${block.name}:`, block.locationIds.slice(0, 3));
+                    console.log(`🔍 Tipos dos IDs procurados:`, block.locationIds.slice(0, 3).map(id => typeof id));
+
+                    // Mapear os IDs para os objetos completos de locations
+                    for (const locId of block.locationIds) {
+                        const loc = locations.find(l => l.id === locId);
+                        if (loc) {
+                            block.locations.push({
+                                id: loc.id,
+                                name: loc.name,
+                                latitude: loc.latitude,
+                                longitude: loc.longitude,
+                                address: loc.address || ''
+                            });
+                        } else {
+                            console.warn(`⚠️ Local não encontrado para ID: ${locId}`);
+                        }
+                    }
+                }
+                console.log(`✅ Bloco ${block.name}: ${block.locations.length} locais populados`);
+            }
+
+                // Salvar blocos no banco de dados
+                updateProgress(90, 'Salvando blocos otimizados no banco...');
+                for (const block of pythonBlocks) {
+                    // Salvar bloco via API (usando POST com createSingleBlock)
+                    try {
+                        const saveResponse = await fetch('https://floripa.in9automacao.com.br/blocks-api.php', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                createSingleBlock: true,  // Flag para diferenciar de clustering
+                                name: block.name,
+                                center_latitude: block.center_latitude,
+                                center_longitude: block.center_longitude,
+                                diameterKm: block.diameterKm,
+                                locationsCount: block.locationsCount,
+                                routesCount: block.routesCount,
+                                totalDistanceKm: block.totalDistanceKm,
+                                importBatch: block.importBatch,
+                                algorithm: block.algorithm,
+                                locationIds: block.locationIds || []
+                            })
+                        });
+
+                        if (saveResponse.ok) {
+                            const saveData = await saveResponse.json();
+                            if (saveData.success && saveData.block) {
+                                block.id = saveData.block.id; // Atualizar com ID do banco
+                            }
+                        }
+                    } catch (err) {
+                        console.warn('⚠️ Erro ao salvar bloco:', err);
+                    }
+                }
+
+            blocks = pythonBlocks;
+            console.log(`✅ ${blocks.length} blocos criados e salvos com OSRM + PyVRP`);
+
+            // Salvar rotas otimizadas para envio via WhatsApp
+            await salvarRotasParaWhatsApp(pythonBlocks, importBatch);
         }
 
         updateProgress(100, 'Concluído!');
@@ -471,67 +803,18 @@ function setupBlocksHandlers() {
     document.getElementById('btnClearSelection').addEventListener('click', handleClearSelection);
     document.getElementById('searchBlocks').addEventListener('input', handleSearchBlocks);
     document.getElementById('btnOptimizeRoute').addEventListener('click', handleOptimizeRoute);
-    document.getElementById('btnDeleteAllBlocks').addEventListener('click', handleDeleteAllBlocks);
 
     console.log('✅ Handlers de blocos configurados');
 }
 
-async function handleDeleteAllBlocks() {
-    console.log('🗑️ Botão "Deletar Todos" clicado');
-
-    if (!confirm('⚠️ ATENÇÃO!\n\nIsso vai DELETAR TODOS os blocos e locais do banco de dados!\n\nVocê terá que reimportar o Excel depois.\n\nTem certeza?')) {
-        console.log('❌ Usuário cancelou (1ª confirmação)');
-        return;
-    }
-
-    if (!confirm('Tem MESMO certeza? Essa ação NÃO pode ser desfeita!')) {
-        console.log('❌ Usuário cancelou (2ª confirmação)');
-        return;
-    }
-
-    try {
-        console.log('🔄 Deletando todos os blocos...');
-        showLoading('Deletando todos os blocos...');
-
-        const url = 'https://floripa.in9automacao.com.br/blocks-api.php';
-        console.log('📡 DELETE request para:', url);
-
-        // Deletar blocos (locations serão removidas automaticamente via cascade)
-        const response = await fetch(url, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deleteAll: true })
-        });
-
-        console.log('📥 Response status:', response.status);
-
-        const data = await response.json();
-        console.log('📦 Response data:', data);
-
-        if (!data.success) {
-            throw new Error(data.error || 'Erro ao deletar blocos');
-        }
-
-        showNotification('Todos os blocos foram deletados!', 'success');
-
-        // Recarregar lista vazia
-        await loadBlocks();
-
-        // Limpar mapa
-        clearMapMarkers();
-
-        console.log('✅ Todos os blocos deletados com sucesso');
-
-    } catch (error) {
-        console.error('❌ Erro ao deletar blocos:', error);
-        showNotification('Erro ao deletar blocos: ' + error.message, 'error');
-    } finally {
-        hideLoading();
-    }
-}
-
 // Carregar blocos existentes ao iniciar
 async function loadExistingBlocks() {
+    // Evitar carregamento duplicado
+    if (blocksLoaded) {
+        console.log('⚠️ Blocos já carregados, pulando carregamento duplicado');
+        return;
+    }
+
     try {
         console.log('🔄 Carregando blocos existentes automaticamente...');
         console.log('📡 Buscando: https://floripa.in9automacao.com.br/blocks-api.php');
@@ -554,14 +837,33 @@ async function loadExistingBlocks() {
 
         console.log(`✅ ${data.blocks.length} blocos encontrados no servidor`);
 
-        // Armazenar blocos globalmente
-        allBlocks = data.blocks;
+        // DEDUPLICAR blocos antes de processar
+        const uniqueBlocks = [];
+        const seenCoords = new Set();
+
+        data.blocks.forEach(block => {
+            const centerLat = block.centerLatitude || block.center_latitude;
+            const centerLon = block.centerLongitude || block.center_longitude;
+            const coordKey = `${centerLat},${centerLon}`;
+
+            if (!seenCoords.has(coordKey)) {
+                seenCoords.add(coordKey);
+                uniqueBlocks.push(block);
+            } else {
+                console.warn(`⚠️ Bloco duplicado ignorado na lista: ${block.name} (ID: ${block.id})`);
+            }
+        });
+
+        console.log(`📊 ${data.blocks.length} blocos recebidos da API, ${uniqueBlocks.length} únicos`);
+
+        // Armazenar blocos globalmente (apenas os únicos)
+        allBlocks = uniqueBlocks;
 
         // Renderizar blocos na lista
         const blocksListContainer = document.getElementById('blocksList');
         blocksListContainer.innerHTML = '';
 
-        data.blocks.forEach(block => {
+        uniqueBlocks.forEach(block => {
             const blockElement = createBlockElement(block);
             blocksListContainer.appendChild(blockElement);
         });
@@ -569,13 +871,16 @@ async function loadExistingBlocks() {
         // Atualizar contadores
         updateBlocksCount();
 
-        // Visualizar os blocos no mapa
-        visualizeBlocksOnMap(data.blocks);
+        // Visualizar os blocos no mapa (apenas os únicos)
+        visualizeBlocksOnMap(uniqueBlocks);
 
         // Mostrar container de blocos
         document.getElementById('blocksContainer').classList.remove('hidden');
 
-        console.log(`✅ ${data.blocks.length} blocos carregados e exibidos automaticamente no mapa e na lista`);
+        // Marcar como carregado
+        blocksLoaded = true;
+
+        console.log(`✅ ${uniqueBlocks.length} blocos únicos carregados e exibidos automaticamente no mapa e na lista`);
 
     } catch (error) {
         console.error('❌ Erro ao carregar blocos existentes:', error);
@@ -627,7 +932,11 @@ async function loadBlocks(importBatch = null) {
             }
         });
 
+        console.log('📋 Blocos com rota_id:');
         data.blocks.forEach(block => {
+            if (block.rota_id) {
+                console.log(`  - ${block.name} (ID ${block.id}): rota_id = ${block.rota_id}`);
+            }
             const blockElement = createBlockElement(block);
             blocksListContainer.appendChild(blockElement);
         });
@@ -664,6 +973,10 @@ function createBlockElement(block) {
         }
     }
 
+    // Garantir valores válidos
+    const locationsCount = block.locationsCount || block.locations?.length || 0;
+    const blockName = block.name || `Bloco #${block.id}`;
+
     const summary = document.createElement('summary');
     summary.className = 'flex items-center justify-between p-3 cursor-pointer';
     summary.innerHTML = `
@@ -674,10 +987,10 @@ function createBlockElement(block) {
                    onchange="handleBlockCheckboxChange(${block.id})">
             <div>
                 <p class="text-sm font-medium text-gray-800 dark:text-gray-200 text-left">
-                    ${block.name}
+                    ${blockName}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400 text-left">
-                    ${block.locationsCount} locais ${distanceInfo}
+                    ${locationsCount} local${locationsCount !== 1 ? 'is' : ''} ${distanceInfo}
                 </p>
             </div>
         </div>
@@ -717,19 +1030,46 @@ function createBlockElement(block) {
         locationsContainer.appendChild(locationDiv);
     });
 
-    // Botão para gerar rota
-    const routeButton = document.createElement('div');
-    routeButton.className = 'px-3 pb-3';
-    routeButton.innerHTML = `
+    // Botões de ação
+    const actionButtons = document.createElement('div');
+    actionButtons.className = 'px-3 pb-3 space-y-2';
+
+    // Botão para gerar rota no mapa
+    const routeButton = `
         <button onclick="generateBlockRoute(${JSON.stringify(block).replace(/"/g, '&quot;')})"
                 class="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
             <span class="material-symbols-outlined" style="font-size: 20px;">route</span>
-            <span>Gerar Rota deste Bloco</span>
+            <span>Ver Rota no Mapa</span>
         </button>
     `;
 
+    // Botão para enviar por WhatsApp OU gerar rota
+    let secondButton = '';
+    if (block.rota_id) {
+        // Se já tem rota salva → mostrar botão de WhatsApp
+        secondButton = `
+            <button onclick="enviarRotaWhatsApp(${block.id}, ${block.rota_id})"
+                    class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
+                <span class="material-symbols-outlined" style="font-size: 20px;">send</span>
+                <span>📱 Enviar por WhatsApp</span>
+            </button>
+        `;
+    } else {
+        // Se não tem rota → mostrar botão para gerar rota
+        secondButton = `
+            <button onclick="gerarRotaParaBloco(${block.id}, '${block.name.replace(/'/g, "\\'")}')"
+                    class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                    id="gerar-rota-${block.id}">
+                <span class="material-symbols-outlined" style="font-size: 20px;">autorenew</span>
+                <span>🔄 Gerar Rota para WhatsApp</span>
+            </button>
+        `;
+    }
+
+    actionButtons.innerHTML = routeButton + secondButton;
+
     blockDiv.appendChild(locationsContainer);
-    blockDiv.appendChild(routeButton);
+    blockDiv.appendChild(actionButtons);
 
     return blockDiv;
 }
@@ -892,9 +1232,19 @@ async function handleOptimizeRoute() {
 }
 
 function drawOptimizedRouteOnMap(route) {
+    // Limpar rota anterior
     if (routeLayer) {
         map.removeLayer(routeLayer);
+        routeLayer = null;
     }
+
+    // Limpar marcadores antigos da rota
+    routeMarkers.forEach(marker => {
+        if (map.hasLayer(marker)) {
+            map.removeLayer(marker);
+        }
+    });
+    routeMarkers = [];
 
     // Se temos geometria real da rota (OSRM), usar ela
     // Senão, usar linha reta entre pontos
@@ -945,9 +1295,11 @@ function drawOptimizedRouteOnMap(route) {
             popupContent = `<b>${index}. ${waypoint.address}</b>`;
         }
 
-        L.marker([waypoint.lat, waypoint.lon], { icon })
+        const marker = L.marker([waypoint.lat, waypoint.lon], { icon })
             .addTo(map)
             .bindPopup(popupContent);
+
+        routeMarkers.push(marker);  // Salvar para poder remover depois
     });
 
     map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
@@ -1026,7 +1378,7 @@ async function generateBlockRoute(block) {
             },
             selectedBlocks: [block.id],
             selectedLocations: [],
-            returnToStart: true
+            returnToStart: false  // Mostrar apenas IDA (sem volta para base)
         };
 
         // Chamar API de otimização de rota
@@ -1068,12 +1420,153 @@ async function generateBlockRoute(block) {
     }
 }
 
+/**
+ * Gerar rota para bloco existente (sem rota salva)
+ */
+async function gerarRotaParaBloco(blockId, blockName) {
+    try {
+        showLoading(`Gerando rota para ${blockName}...`);
+        console.log(`🔄 Gerando rota para bloco #${blockId} (${blockName})...`);
+
+        // 1. Buscar localizações do bloco via API
+        const response = await fetch(`https://floripa.in9automacao.com.br/locations-api.php?block_id=${blockId}`);
+
+        if (!response.ok) {
+            throw new Error(`Erro ao buscar localizações: HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data.success || !data.locations || data.locations.length === 0) {
+            throw new Error('Bloco não possui localizações');
+        }
+
+        const locations = data.locations;
+        console.log(`📍 ${locations.length} localizações encontradas`);
+
+        // 2. Calcular distância aproximada (0.5km por local como estimativa)
+        const estimatedDistanceKm = locations.length * 0.5;
+        const estimatedTimeMin = locations.length * 5; // 5 min por local
+
+        // 3. Preparar objeto do bloco para salvar rota
+        const blocoComLocations = {
+            id: blockId,
+            name: blockName,
+            locations: locations.map(loc => ({
+                id: loc.id,
+                latitude: loc.latitude,
+                longitude: loc.longitude,
+                name: loc.name,
+                address: loc.address || ''
+            })),
+            totalDistanceKm: estimatedDistanceKm,
+            totalDurationMin: estimatedTimeMin
+        };
+
+        // 4. Salvar rota no banco
+        const rotasSalvas = await salvarRotasParaWhatsApp([blocoComLocations], null);
+
+        if (rotasSalvas > 0) {
+            showNotification(`✅ Rota gerada e salva com sucesso!`, 'success');
+            console.log(`✅ Rota gerada para bloco ${blockName}`);
+
+            // 5. Recarregar o bloco para atualizar UI e mostrar botão de WhatsApp
+            await recarregarBloco(blockId);
+        } else {
+            throw new Error('Erro ao salvar rota no banco de dados');
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar rota:', error);
+        showNotification(`Erro ao gerar rota: ${error.message}`, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Recarregar um bloco específico da API e atualizar na UI
+ */
+async function recarregarBloco(blockId) {
+    try {
+        // Buscar dados atualizados do bloco (com rota_id agora)
+        const response = await fetch(`https://floripa.in9automacao.com.br/blocks-api.php?id=${blockId}`);
+        const data = await response.json();
+
+        if (data.success && data.block) {
+            const blockElement = document.querySelector(`[data-block-id="${blockId}"]`);
+            if (blockElement) {
+                // Substituir elemento do bloco com versão atualizada
+                const novoElemento = createBlockElement(data.block);
+                blockElement.parentNode.replaceChild(novoElemento, blockElement);
+                console.log(`🔄 Bloco #${blockId} atualizado na UI`);
+            }
+        }
+    } catch (error) {
+        console.error('Erro ao recarregar bloco:', error);
+    }
+}
+
+/**
+ * Enviar rota por WhatsApp
+ */
+async function enviarRotaWhatsApp(blockId, rotaId) {
+    console.log(`📱 enviarRotaWhatsApp() chamado com: blockId=${blockId}, rotaId=${rotaId}`);
+
+    const telefone = prompt('Digite o telefone (com código do país):\nExemplo: 5527999999999');
+
+    if (!telefone) {
+        return;
+    }
+
+    try {
+        showLoading('Enviando rota por WhatsApp...');
+
+        console.log(`📤 Enviando request: rota_id=${rotaId}, telefone=${telefone}`);
+
+        const response = await fetch('https://frotas.in9automacao.com.br/enviar-rota-whatsapp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                rota_id: rotaId,
+                telefone: telefone.replace(/\D/g, '')
+            })
+        });
+
+        const data = await response.json();
+
+        console.log('RESPOSTA COMPLETA DA API:', data);
+
+        if (data.success) {
+            showNotification(`✅ Rota enviada para ${telefone}!`, 'success');
+            console.log('📱 Mensagem enviada com sucesso via WhatsApp');
+        } else {
+            console.error('[ERROR] Detalhes do erro:', JSON.stringify(data, null, 2));
+            showNotification(`❌ Erro ao enviar: ${data.error}`, 'error');
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao enviar WhatsApp:', error);
+        showNotification(`Erro ao enviar WhatsApp: ${error.message}`, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
 function displayRouteOnMap(route) {
     // Limpar rota anterior se existir
     if (routeLayer) {
         map.removeLayer(routeLayer);
         routeLayer = null;
     }
+
+    // Limpar marcadores antigos da rota
+    routeMarkers.forEach(marker => {
+        if (map.hasLayer(marker)) {
+            map.removeLayer(marker);
+        }
+    });
+    routeMarkers = [];
 
     // Se tiver geometria (rota real seguindo ruas), usar ela
     if (route.geometry && route.geometry.length > 0) {
@@ -1104,6 +1597,44 @@ function displayRouteOnMap(route) {
         }).addTo(map);
 
         console.log(`⚠️ Rota em linha reta (fallback): ${route.waypoints.length} pontos`);
+    }
+
+    // Adicionar marcadores dos waypoints
+    if (route.waypoints && route.waypoints.length > 0) {
+        route.waypoints.forEach((waypoint, index) => {
+            let icon, popupContent;
+
+            if (waypoint.type === 'start') {
+                icon = L.divIcon({
+                    html: `<div style="background-color: #10B981; color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🚀</div>`,
+                    className: '',
+                    iconSize: [35, 35]
+                });
+                popupContent = `<b>🚀 INÍCIO</b><br>${waypoint.address}`;
+
+            } else if (waypoint.type === 'end') {
+                icon = L.divIcon({
+                    html: `<div style="background-color: #EF4444; color: white; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">🏁</div>`,
+                    className: '',
+                    iconSize: [35, 35]
+                });
+                popupContent = `<b>🏁 FIM</b><br>${waypoint.address}`;
+
+            } else {
+                icon = L.divIcon({
+                    html: `<div style="background-color: #EF4444; color: white; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">${index}</div>`,
+                    className: '',
+                    iconSize: [30, 30]
+                });
+                popupContent = `<b>${index}. ${waypoint.address}</b>`;
+            }
+
+            const marker = L.marker([waypoint.lat, waypoint.lon], { icon })
+                .addTo(map)
+                .bindPopup(popupContent);
+
+            routeMarkers.push(marker);
+        });
     }
 
     // Ajustar zoom para mostrar toda a rota

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoramento de Conformidade | Sistema de Frotas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .severity-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .severity-badge.critical {
+            background: #fecaca;
+            color: #991b1b;
+        }
+        .severity-badge.high {
+            background: #fed7aa;
+            color: #9a3412;
+        }
+        .severity-badge.medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .severity-badge.low {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .deviation-marker {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        #map {
+            height: 500px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .kpi-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        }
+        .loading {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <div id="sidebar-container" data-page="compliance-monitor"></div>
+
+    <!-- Main Content -->
+    <div class="ml-64 p-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                        <span class="material-symbols-outlined text-blue-600" style="font-size: 36px;">monitor_heart</span>
+                        Monitoramento de Conformidade de Rotas
+                    </h1>
+                    <p class="text-gray-600 mt-2">Acompanhamento em tempo real da conformidade com rotas planejadas</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-sm text-gray-500">Última atualização</p>
+                    <p id="last-update" class="text-lg font-semibold text-gray-900">--:--:--</p>
+                    <button onclick="loadDashboardData()" class="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                        <span class="material-symbols-outlined" style="font-size: 20px;">refresh</span>
+                        Atualizar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <!-- KPI 1: Rotas Ativas -->
+            <div class="kpi-card bg-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Rotas Ativas</p>
+                        <p id="kpi-active-routes" class="text-4xl font-bold text-blue-600 loading">0</p>
+                    </div>
+                    <span class="material-symbols-outlined text-blue-600" style="font-size: 48px;">route</span>
+                </div>
+            </div>
+
+            <!-- KPI 2: Conformes -->
+            <div class="kpi-card bg-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Conformes</p>
+                        <p id="kpi-compliant" class="text-4xl font-bold text-green-600 loading">0</p>
+                    </div>
+                    <span class="material-symbols-outlined text-green-600" style="font-size: 48px;">check_circle</span>
+                </div>
+                <p id="kpi-compliant-pct" class="text-sm text-gray-500 mt-2">0% do total</p>
+            </div>
+
+            <!-- KPI 3: Com Desvios -->
+            <div class="kpi-card bg-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Com Desvios</p>
+                        <p id="kpi-deviations" class="text-4xl font-bold text-orange-600 loading">0</p>
+                    </div>
+                    <span class="material-symbols-outlined text-orange-600" style="font-size: 48px;">warning</span>
+                </div>
+                <p id="kpi-deviations-pct" class="text-sm text-gray-500 mt-2">0% do total</p>
+            </div>
+
+            <!-- KPI 4: Críticos -->
+            <div class="kpi-card bg-white p-6 rounded-xl shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-600 mb-1">Críticos</p>
+                        <p id="kpi-critical" class="text-4xl font-bold text-red-600 loading">0</p>
+                    </div>
+                    <span class="material-symbols-outlined text-red-600" style="font-size: 48px;">crisis_alert</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mapa de Desvios -->
+        <div class="bg-white p-6 rounded-xl shadow-md mb-8">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-600">map</span>
+                Mapa de Desvios em Tempo Real
+            </h2>
+            <div id="map"></div>
+            <div class="mt-4 flex gap-4 text-sm">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded-full bg-red-600"></div>
+                    <span>Crítico</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded-full bg-orange-600"></div>
+                    <span>Alto</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded-full bg-yellow-600"></div>
+                    <span>Médio</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded-full bg-green-600"></div>
+                    <span>Baixo</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabela de Desvios Recentes -->
+        <div class="bg-white p-6 rounded-xl shadow-md">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-red-600">error</span>
+                    Desvios Não Resolvidos
+                </h2>
+                <div class="flex gap-2">
+                    <select id="severity-filter" onchange="loadDashboardData()" class="px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Todas as Severidades</option>
+                        <option value="critical">Crítico</option>
+                        <option value="high">Alto</option>
+                        <option value="medium">Médio</option>
+                        <option value="low">Baixo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full" id="deviations-table">
+                    <thead>
+                        <tr class="border-b border-gray-200 bg-gray-50">
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Horário</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Rota</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tipo</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Severidade</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Localização</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Alerta Enviado</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviations-tbody" class="divide-y divide-gray-200">
+                        <tr>
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
+                                <span class="loading">Carregando desvios...</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Resolução -->
+    <div id="resolve-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Resolver Desvio</h3>
+            <textarea
+                id="resolution-notes"
+                rows="4"
+                placeholder="Digite as notas de resolução..."
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
+            ></textarea>
+            <div class="flex gap-3 justify-end">
+                <button onclick="closeResolveModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Cancelar
+                </button>
+                <button onclick="confirmResolveDeviation()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Resolver
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="sidebar.js"></script>
+    <script src="compliance-monitor.js"></script>
+</body>
+</html>

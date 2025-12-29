@@ -129,15 +129,13 @@ function enviarRotaPorWhatsApp($pdo) {
     $resultado = enviarMensagemEvolution($telefone, $mensagem);
 
     if ($resultado['success']) {
-        // Atualizar status da rota
+        // ✅ Atualizar apenas o status (colunas data_envio e telefone_destino removidas)
         $stmt = $pdo->prepare("
             UPDATE FF_Rotas
-            SET status = 'enviada',
-                data_envio = NOW(),
-                telefone_destino = ?
+            SET status = 'enviada'
             WHERE id = ?
         ");
-        $stmt->execute([$telefone, $rota_id]);
+        $stmt->execute([$rota_id]);
 
         http_response_code(200);
         echo json_encode([

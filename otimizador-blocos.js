@@ -1,5 +1,7 @@
 // ========== OTIMIZADOR DE ROTAS COM BLOCOS GEOGRÁFICOS ==========
 
+console.log('🚀 otimizador-blocos.js CARREGADO - Versão com debug de filtros de cidade - ' + new Date().toLocaleTimeString());
+
 // Estado da aplicação
 let map;
 let selectedFile = null;
@@ -15,6 +17,9 @@ let currentOptimizedRoute = null;
 let markerClusterGroup = null;
 let allBlocks = [];
 let blocksLoaded = false; // Flag para evitar carregamento duplicado
+let optimizedRoutesLayer = null; // Layer específico para rotas otimizadas coloridas
+let uploadStartTime = null; // Tempo de início do upload
+let batchTimes = []; // Tempos de processamento de cada lote
 
 // Base i9 Engenharia (ponto de partida fixo)
 const BASE_I9 = {
@@ -43,6 +48,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('✅ Upload handlers configurados');
 
     setupBlocksHandlers();
+
+    // Carregar métricas do dashboard
+    loadMetrics();
+    console.log('✅ Métricas do dashboard carregando...');
     console.log('✅ Blocks handlers configurados');
 
     loadVehiclesAndDrivers();
@@ -346,7 +355,8 @@ function handleFileSelect(file) {
  */
 async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota, importBatch) {
     try {
-        console.log(`🐍 Iniciando otimização Python ASSÍNCRONA com ${locations.length} locais...`);
+        console.log(`🐍 Iniciando otimização Python SÍNCRONA com ${locations.length} locais...`);
+        console.log(`⚙️  Configurações: max_diameter=${maxDiameterKm}km, max_locais=${maxLocaisPerRota}`);
 
         const payload = {
             base: {
@@ -361,126 +371,99 @@ async function optimizeWithPythonAPI(locations, maxDiameterKm, maxLocaisPerRota,
                 name: loc.name,
                 endereco: loc.address || ''
             })),
-            max_diameter_km: 5.0,  // 5km de diâmetro máximo
-            max_locais_por_rota: 6   // Máximo 6 locais por rota
+            max_diameter_km: maxDiameterKm || 5.0,  // ✅ Usa valor do campo (fallback 5km)
+            max_locais_por_rota: maxLocaisPerRota || 6   // ✅ Usa valor do campo (fallback 6)
         };
 
-        // 1. Iniciar job assíncrono
-        const startResponse = await fetch('https://floripa.in9automacao.com.br/otimizar-rotas-async.php', {
+        // Chamar endpoint SÍNCRONO do Node.js (proxy para Python API)
+        const response = await fetch('/api/routes/optimize-python', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (!startResponse.ok) {
-            const errorText = await startResponse.text();
-            console.error('Erro HTTP:', startResponse.status, errorText);
-            throw new Error(`Erro ao iniciar job: HTTP ${startResponse.status}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Erro HTTP:', response.status, errorText);
+            throw new Error(`Erro na otimização: HTTP ${response.status}`);
         }
 
-        const responseText = await startResponse.text();
+        const responseText = await response.text();
         if (!responseText || responseText.trim() === '') {
             throw new Error('Resposta vazia da API');
         }
 
-        const startData = JSON.parse(responseText);
-        if (!startData.success || !startData.job_id) {
-            throw new Error(startData.error || 'Erro ao iniciar job');
+        const result = JSON.parse(responseText);
+
+        if (!result.success || !result.blocos) {
+            throw new Error(result.error || 'Erro na resposta da API');
         }
 
-        const jobId = startData.job_id;
-        console.log(`📋 Job ${jobId} iniciado. Aguardando processamento...`);
+        console.log(`✅ Otimização concluída!`, result.resumo);
 
-        // 2. Fazer polling até completar
-        let attempts = 0;
-        const maxAttempts = 1800; // 60 minutos (2s * 1800)
+        // Converter blocos
+        const blocks = [];
+        for (let i = 0; i < result.blocos.length; i++) {
+            const bloco = result.blocos[i];
 
-        while (attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Aguardar 2s
-            attempts++;
-
-            const statusResponse = await fetch(`https://floripa.in9automacao.com.br/otimizar-rotas-async.php?job_id=${jobId}`);
-
-            if (!statusResponse.ok) {
-                console.error(`Erro HTTP ${statusResponse.status} ao verificar status`);
-                continue; // Tentar novamente
-            }
-
-            const statusText = await statusResponse.text();
-            if (!statusText || statusText.trim() === '') {
-                console.warn('Resposta vazia ao verificar status, tentando novamente...');
-                continue;
-            }
-
-            const statusData = JSON.parse(statusText);
-
-            if (!statusData.success) {
-                throw new Error(statusData.error || 'Erro ao verificar status');
-            }
-
-            console.log(`⏳ Status: ${statusData.status} (${attempts}/${maxAttempts})`);
-
-            if (statusData.status === 'completed') {
-                console.log(`✅ Otimização concluída!`, statusData.result.resumo);
-
-                // Converter blocos
-                const blocks = [];
-                for (let i = 0; i < statusData.result.blocos.length; i++) {
-                    const bloco = statusData.result.blocos[i];
-
-                    // Extrair IDs dos locais das rotas
-                    const locationIds = [];
-                    if (bloco.rotas && Array.isArray(bloco.rotas)) {
-                        for (const rota of bloco.rotas) {
-                            // API Python retorna "locations" (não "location_ids")
-                            if (rota.locations && Array.isArray(rota.locations)) {
-                                // Converter strings para números
-                                const ids = rota.locations.map(id => parseInt(id));
-                                locationIds.push(...ids);
-                            }
-                        }
+            // Extrair IDs dos locais das rotas
+            const locationIds = [];
+            if (bloco.rotas && Array.isArray(bloco.rotas)) {
+                for (const rota of bloco.rotas) {
+                    // API Python retorna "locations" (não "location_ids")
+                    if (rota.locations && Array.isArray(rota.locations)) {
+                        // Converter strings para números
+                        const ids = rota.locations.map(id => parseInt(id));
+                        locationIds.push(...ids);
                     }
-                    console.log(`Bloco ${i + 1}: ${locationIds.length} location IDs extraídos:`, locationIds);
-
-                    // Usar tempo REAL do OSRM (já vem calculado com paradas)
-                    const distanciaKm = bloco.distancia_total_km || 0;
-                    const tempoTotalReal = bloco.tempo_total_min || 0; // ✅ TEMPO REAL DO OSRM + paradas
-
-                    // Se por algum motivo não vier tempo, calcular estimativa (fallback)
-                    let tempoFinal = tempoTotalReal;
-                    if (!tempoTotalReal) {
-                        const numLocais = bloco.num_locais || 0;
-                        const tempoViagem = (distanciaKm / 25) * 60; // minutos de viagem
-                        const tempoParadas = numLocais * 5; // 5 min por parada
-                        tempoFinal = Math.round(tempoViagem + tempoParadas);
-                        console.warn(`⚠️ Tempo não retornado pela API Python, usando estimativa: ${tempoFinal}min`);
-                    }
-
-                    blocks.push({
-                        id: bloco.bloco_id,
-                        name: `Bloco Python #${i + 1}`,
-                        center_latitude: bloco.center_lat,
-                        center_longitude: bloco.center_lon,
-                        diameterKm: bloco.diameter_km,
-                        locationsCount: bloco.num_locais,
-                        routesCount: bloco.num_rotas,
-                        totalDistanceKm: distanciaKm,
-                        totalDurationMin: tempoFinal, // ✅ TEMPO REAL DO OSRM
-                        importBatch: importBatch,
-                        algorithm: 'python',
-                        routes: bloco.rotas,
-                        locationIds: [...new Set(locationIds)] // Deduplicate
-                    });
                 }
-                return blocks;
-
-            } else if (statusData.status === 'failed') {
-                throw new Error(`Job falhou: ${statusData.error}`);
             }
-            // Status 'pending' ou 'processing' - continuar polling
-        }
+            console.log(`Bloco ${i + 1}: ${locationIds.length} location IDs extraídos:`, locationIds);
 
-        throw new Error('Timeout: processamento demorou mais de 60 minutos');
+            // Usar tempo REAL do OSRM (já vem calculado com paradas)
+            const distanciaKm = bloco.distancia_total_km || 0;
+            const tempoTotalReal = bloco.tempo_total_min || 0; // ✅ TEMPO REAL DO OSRM + paradas
+
+            // Se por algum motivo não vier tempo, calcular estimativa (fallback)
+            let tempoFinal = tempoTotalReal;
+            if (!tempoTotalReal) {
+                const numLocais = bloco.num_locais || 0;
+                const tempoViagem = (distanciaKm / 25) * 60; // minutos de viagem
+                const tempoParadas = numLocais * 5; // 5 min por parada
+                tempoFinal = Math.round(tempoViagem + tempoParadas);
+                console.warn(`⚠️ Tempo não retornado pela API Python, usando estimativa: ${tempoFinal}min`);
+            }
+
+            // Calcular número de locais únicos
+            const numLocaisUnicos = [...new Set(locationIds)].length;
+
+            // Gerar nome descritivo baseado nos locais
+            let nomeBloco = `Bloco #${i + 1}`;
+            if (numLocaisUnicos > 0) {
+                nomeBloco = `Bloco #${i + 1} - ${numLocaisUnicos} ${numLocaisUnicos > 1 ? 'locais' : 'local'}`;
+                if (distanciaKm > 0) {
+                    nomeBloco += ` (${distanciaKm.toFixed(1)}km)`;
+                }
+            }
+
+            blocks.push({
+                id: bloco.bloco_id,
+                name: nomeBloco,
+                center_latitude: bloco.center_lat,
+                center_longitude: bloco.center_lon,
+                diameterKm: bloco.diameter_km || 0,
+                locationsCount: numLocaisUnicos, // ✅ Usar contagem calculada
+                routesCount: bloco.num_rotas || 1,
+                totalDistanceKm: distanciaKm,
+                totalDurationMin: tempoFinal, // ✅ TEMPO REAL DO OSRM
+                importBatch: importBatch,
+                algorithm: 'python',
+                routes: bloco.rotas,
+                locationIds: [...new Set(locationIds)], // Deduplicate
+                map_html: bloco.map_html // ✅ INCLUIR HTML DO MAPA
+            });
+        }
+        return blocks;
 
     } catch (error) {
         console.error('❌ Erro ao otimizar com Python API:', error);
@@ -530,6 +513,15 @@ async function salvarRotasParaWhatsApp(blocos, importBatch) {
                 bloco.link_google_maps = data.link_google_maps;
                 rotasSalvas++;
                 console.log(`✅ Rota #${data.rota_id} salva para bloco ${bloco.name}`);
+
+                // Salvar também no histórico de otimizações
+                try {
+                    await saveToHistory(bloco);
+                    console.log(`📊 Bloco ${bloco.name} salvo no histórico`);
+                } catch (historyError) {
+                    console.warn(`⚠️ Erro ao salvar histórico do bloco ${bloco.name}:`, historyError);
+                    // Não falha a operação principal se o histórico falhar
+                }
             } else {
                 console.warn(`⚠️ Erro ao salvar rota do bloco ${bloco.name}:`, data.error);
             }
@@ -554,10 +546,25 @@ async function handleUpload() {
     const maxDistanceKm = parseFloat(document.getElementById('maxDistanceKm').value);
 
     document.getElementById('uploadProgress').classList.remove('hidden');
-    document.getElementById('btnProcessFile').disabled = true;
+
+    // Adicionar spinner ao botão
+    const btnProcessFile = document.getElementById('btnProcessFile');
+    const originalBtnHTML = btnProcessFile.innerHTML;
+    btnProcessFile.innerHTML = `
+        <svg class="animate-spin h-5 w-5 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Processando...</span>
+    `;
+    btnProcessFile.disabled = true;
+
+    // Iniciar timer
+    uploadStartTime = Date.now();
+    batchTimes = [];
 
     try {
-        updateProgress(10, 'Lendo arquivo Excel...');
+        updateProgress(10, '📂 Lendo arquivo Excel...');
 
         // Ler arquivo Excel no frontend
         const arrayBuffer = await selectedFile.arrayBuffer();
@@ -568,7 +575,7 @@ async function handleUpload() {
 
         console.log(`📊 ${data.length} linhas encontradas na planilha`);
 
-        updateProgress(30, 'Preparando dados...');
+        updateProgress(30, '📋 Validando e preparando dados...');
 
         // Gerar identificador único para este lote
         const importBatch = `batch_${Date.now()}`;
@@ -625,7 +632,60 @@ async function handleUpload() {
             // Usar API Python com OSRM (distâncias reais) + PyVRP (otimização)
             updateProgress(70, 'Otimizando rotas com OSRM + PyVRP...');
 
-            const pythonBlocks = await optimizeWithPythonAPI(locations, maxDistanceKm, maxLocationsPerBlock, importBatch);
+            // PROCESSAMENTO EM LOTES para grandes volumes
+            const BATCH_SIZE = 500; // Processar 500 locais por vez
+            let pythonBlocks = [];
+
+            if (locations.length > BATCH_SIZE) {
+                // DIVIDIR EM LOTES
+                const totalBatches = Math.ceil(locations.length / BATCH_SIZE);
+                console.log(`📦 Dividindo ${locations.length} locais em ${totalBatches} lotes de ${BATCH_SIZE}`);
+
+                for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+                    const start = batchIndex * BATCH_SIZE;
+                    const end = Math.min(start + BATCH_SIZE, locations.length);
+                    const batchLocations = locations.slice(start, end);
+                    const batchStartTime = Date.now();
+
+                    const batchProgress = 70 + (batchIndex / totalBatches) * 20;
+
+                    // Calcular estimativa de tempo restante
+                    let estimateMsg = '';
+                    if (batchTimes.length > 0) {
+                        const avgBatchTime = batchTimes.reduce((a, b) => a + b, 0) / batchTimes.length;
+                        const remainingBatches = totalBatches - batchIndex;
+                        const estimatedMs = avgBatchTime * remainingBatches;
+                        const estimatedMin = Math.ceil(estimatedMs / 60000);
+                        estimateMsg = ` • ~${estimatedMin} min restantes`;
+                    }
+
+                    updateProgress(
+                        batchProgress,
+                        `🗺️ Lote ${batchIndex + 1}/${totalBatches}: Calculando rotas OSRM (${batchLocations.length} locais)${estimateMsg}`
+                    );
+
+                    console.log(`📊 Lote ${batchIndex + 1}/${totalBatches}: processando locais ${start + 1} a ${end}`);
+
+                    const batchBlocks = await optimizeWithPythonAPI(
+                        batchLocations,
+                        maxDistanceKm,
+                        maxLocationsPerBlock,
+                        `${importBatch}_lote${batchIndex + 1}`
+                    );
+
+                    // Registrar tempo do lote
+                    const batchTime = Date.now() - batchStartTime;
+                    batchTimes.push(batchTime);
+
+                    pythonBlocks.push(...batchBlocks);
+                    console.log(`✅ Lote ${batchIndex + 1} concluído em ${Math.round(batchTime / 1000)}s: ${batchBlocks.length} blocos gerados`);
+                }
+
+                console.log(`✅ TODOS OS LOTES PROCESSADOS: ${pythonBlocks.length} blocos totais`);
+            } else {
+                // PROCESSAMENTO NORMAL (< 500 locais)
+                pythonBlocks = await optimizeWithPythonAPI(locations, maxDistanceKm, maxLocationsPerBlock, importBatch);
+            }
 
             // Popular locations dos blocos Python usando locationIds
             console.log(`📊 Array locations tem ${locations.length} elementos`);
@@ -677,7 +737,8 @@ async function handleUpload() {
                                 totalDistanceKm: block.totalDistanceKm,
                                 importBatch: block.importBatch,
                                 algorithm: block.algorithm,
-                                locationIds: block.locationIds || []
+                                locationIds: block.locationIds || [],
+                                map_html: block.map_html  // ✅ ADICIONAR HTML DO MAPA
                             })
                         });
 
@@ -725,14 +786,32 @@ async function handleUpload() {
         showNotification('Erro ao importar: ' + error.message, 'error');
         document.getElementById('uploadProgress').classList.add('hidden');
     } finally {
-        document.getElementById('btnProcessFile').disabled = false;
+        // Restaurar botão ao estado original
+        const btnProcessFile = document.getElementById('btnProcessFile');
+        btnProcessFile.innerHTML = originalBtnHTML;
+        btnProcessFile.disabled = false;
     }
 }
 
-function updateProgress(percent, message) {
+function updateProgress(percent, message, showTime = true) {
     document.getElementById('progressBar').style.width = percent + '%';
     document.getElementById('progressText').textContent = percent + '%';
-    document.getElementById('progressMessage').textContent = message;
+
+    // Calcular tempo decorrido
+    let fullMessage = message;
+    if (showTime && uploadStartTime) {
+        const elapsedMs = Date.now() - uploadStartTime;
+        const elapsedSec = Math.floor(elapsedMs / 1000);
+        const minutes = Math.floor(elapsedSec / 60);
+        const seconds = elapsedSec % 60;
+        const timeStr = minutes > 0
+            ? `${minutes}min ${seconds}s`
+            : `${seconds}s`;
+
+        fullMessage = `${message} • ⏱️ ${timeStr} decorridos`;
+    }
+
+    document.getElementById('progressMessage').textContent = fullMessage;
 }
 
 function showUploadResult(data) {
@@ -833,6 +912,29 @@ async function loadExistingBlocks() {
 
         console.log(`✅ ${uniqueBlocks.length} blocos únicos carregados e exibidos automaticamente no mapa e na lista`);
 
+        // Criar filtros dinâmicos de cidade (assíncrono para não travar)
+        console.log('⏰ ANTES do setTimeout - vai processar filtros de cidade em 50ms');
+        setTimeout(() => {
+            console.log('⏰ DENTRO do setTimeout - iniciando processamento de cidades AGORA');
+            // Resetar contadores de debug para ver logs dos primeiros blocos/endereços
+            _extractCityCallCount = 0;
+            _getBlockCityCallCount = 0;
+
+            console.log('🏙️ Processando cidades...');
+            console.log('📊 Total de blocos recebidos:', uniqueBlocks.length);
+            console.log('📍 Primeiro bloco (sample):', uniqueBlocks[0]);
+
+            if (uniqueBlocks[0] && uniqueBlocks[0].locations) {
+                console.log('📍 Primeiro bloco tem', uniqueBlocks[0].locations.length, 'locais');
+                console.log('📍 Primeiro local do primeiro bloco:', uniqueBlocks[0].locations[0]);
+            }
+
+            const cities = getAllCities(uniqueBlocks);
+            console.log('🏙️ Cidades encontradas:', cities.length, '→', cities);
+
+            createCityFilters(cities);
+        }, 50);
+
     } catch (error) {
         console.error('❌ Erro ao carregar blocos existentes:', error);
         console.error('Stack trace:', error.stack);
@@ -899,6 +1001,29 @@ async function loadBlocks(importBatch = null) {
 
         console.log(`✅ ${data.blocks.length} blocos carregados`);
 
+        // Criar filtros dinâmicos de cidade (assíncrono para não travar)
+        console.log('⏰ ANTES do setTimeout - vai processar filtros de cidade em 50ms');
+        setTimeout(() => {
+            console.log('⏰ DENTRO do setTimeout - iniciando processamento de cidades AGORA');
+            // Resetar contadores de debug para ver logs dos primeiros blocos/endereços
+            _extractCityCallCount = 0;
+            _getBlockCityCallCount = 0;
+
+            console.log('🏙️ Processando cidades...');
+            console.log('📊 Total de blocos recebidos:', data.blocks.length);
+            console.log('📍 Primeiro bloco (sample):', data.blocks[0]);
+
+            if (data.blocks[0] && data.blocks[0].locations) {
+                console.log('📍 Primeiro bloco tem', data.blocks[0].locations.length, 'locais');
+                console.log('📍 Primeiro local do primeiro bloco:', data.blocks[0].locations[0]);
+            }
+
+            const cities = getAllCities(data.blocks);
+            console.log('🏙️ Cidades encontradas:', cities.length, '→', cities);
+
+            createCityFilters(cities);
+        }, 50);
+
     } catch (error) {
         console.error('❌ Erro ao carregar blocos:', error);
         showNotification('Erro ao carregar blocos: ' + error.message, 'error');
@@ -924,6 +1049,10 @@ function createBlockElement(block) {
         }
     }
 
+    // Garantir valores válidos
+    const locationsCount = block.locationsCount || block.locations?.length || 0;
+    const blockName = block.name || `Bloco #${block.id}`;
+
     const summary = document.createElement('summary');
     summary.className = 'flex items-center justify-between p-3 cursor-pointer';
     summary.innerHTML = `
@@ -932,12 +1061,19 @@ function createBlockElement(block) {
                    class="block-checkbox form-checkbox rounded text-primary focus:ring-primary"
                    data-block-id="${block.id}"
                    onchange="handleBlockCheckboxChange(${block.id})">
-            <div>
-                <p class="text-sm font-medium text-gray-800 dark:text-gray-200 text-left">
-                    ${block.name}
-                </p>
+            <div class="flex-1">
+                <div class="flex items-center gap-2">
+                    <p id="block-name-${block.id}" class="text-sm font-medium text-gray-800 dark:text-gray-200 text-left">
+                        ${blockName}
+                    </p>
+                    <button onclick="event.stopPropagation(); renameBlock(${block.id}, '${blockName.replace(/'/g, "\\'")}')"
+                            class="p-1 text-gray-400 hover:text-primary rounded hover:bg-primary/10 transition-colors"
+                            title="Renomear bloco">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">edit</span>
+                    </button>
+                </div>
                 <p class="text-xs text-gray-500 dark:text-gray-400 text-left">
-                    ${block.locationsCount} locais ${distanceInfo}
+                    ${locationsCount} ${locationsCount !== 1 ? 'locais' : 'local'} ${distanceInfo}
                 </p>
             </div>
         </div>
@@ -981,14 +1117,15 @@ function createBlockElement(block) {
     const actionButtons = document.createElement('div');
     actionButtons.className = 'px-3 pb-3 space-y-2';
 
-    // Botão para gerar rota no mapa
-    const routeButton = `
-        <button onclick="generateBlockRoute(${JSON.stringify(block).replace(/"/g, '&quot;')})"
-                class="w-full px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined" style="font-size: 20px;">route</span>
-            <span>Ver Rota no Mapa</span>
+    // Botão para visualizar mapa otimizado (com cores diferentes)
+    const savedMapButton = block.map_html ? `
+        <button onclick="viewSavedMap(${block.id})"
+                class="w-full px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                title="Visualizar rota com segmentos coloridos por destino">
+            <span class="material-symbols-outlined" style="font-size: 20px;">map</span>
+            <span>🗺️ Ver Segmentos Coloridos</span>
         </button>
-    `;
+    ` : '';
 
     // Botão para enviar por WhatsApp OU gerar rota
     let secondButton = '';
@@ -996,7 +1133,8 @@ function createBlockElement(block) {
         // Se já tem rota salva → mostrar botão de WhatsApp
         secondButton = `
             <button onclick="enviarRotaWhatsApp(${block.id}, ${block.rota_id})"
-                    class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2">
+                    class="w-full px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+                    title="Enviar rota otimizada via WhatsApp para o motorista">
                 <span class="material-symbols-outlined" style="font-size: 20px;">send</span>
                 <span>📱 Enviar por WhatsApp</span>
             </button>
@@ -1006,14 +1144,28 @@ function createBlockElement(block) {
         secondButton = `
             <button onclick="gerarRotaParaBloco(${block.id}, '${block.name.replace(/'/g, "\\'")}')"
                     class="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                    id="gerar-rota-${block.id}">
+                    id="gerar-rota-${block.id}"
+                    title="Gerar link do Google Maps e salvar para envio via WhatsApp">
                 <span class="material-symbols-outlined" style="font-size: 20px;">autorenew</span>
                 <span>🔄 Gerar Rota para WhatsApp</span>
             </button>
         `;
     }
 
-    actionButtons.innerHTML = routeButton + secondButton;
+    // Histórico removido - não é necessário
+    const historyButton = '';
+
+    // Botão para exportar rota
+    const exportButton = block.rota_id ? `
+        <button onclick="showExportOptions(${block.id}, '${block.name.replace(/'/g, "\\'")}')"
+                class="w-full px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors flex items-center justify-center gap-2"
+                title="Exportar rota para PDF ou Excel">
+            <span class="material-symbols-outlined" style="font-size: 20px;">download</span>
+            <span>📥 Exportar Rota</span>
+        </button>
+    ` : '';
+
+    actionButtons.innerHTML = savedMapButton + secondButton + historyButton + exportButton;
 
     blockDiv.appendChild(locationsContainer);
     blockDiv.appendChild(actionButtons);
@@ -1140,6 +1292,18 @@ async function handleOptimizeRoute() {
         return;
     }
 
+    // Adicionar spinner ao botão
+    const btnOptimize = document.getElementById('btnOptimizeRoute');
+    const originalOptimizeBtnHTML = btnOptimize.innerHTML;
+    btnOptimize.innerHTML = `
+        <svg class="animate-spin h-5 w-5 inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span>Otimizando...</span>
+    `;
+    btnOptimize.disabled = true;
+
     try {
         showLoading('Otimizando rota...');
 
@@ -1174,6 +1338,10 @@ async function handleOptimizeRoute() {
         console.error('❌ Erro ao otimizar:', error);
         showNotification('Erro ao otimizar rota: ' + error.message, 'error');
     } finally {
+        // Restaurar botão ao estado original
+        const btnOptimize = document.getElementById('btnOptimizeRoute');
+        btnOptimize.innerHTML = originalOptimizeBtnHTML;
+        btnOptimize.disabled = selectedBlocks.size === 0 && selectedLocations.size === 0;
         hideLoading();
     }
 }
@@ -1417,7 +1585,16 @@ async function gerarRotaParaBloco(blockId, blockName) {
             showNotification(`✅ Rota gerada e salva com sucesso!`, 'success');
             console.log(`✅ Rota gerada para bloco ${blockName}`);
 
-            // 5. Recarregar o bloco para atualizar UI e mostrar botão de WhatsApp
+            // 5. Salvar no histórico de otimizações
+            try {
+                await saveToHistory(blocoComLocations);
+                console.log(`📊 Otimização salva no histórico`);
+            } catch (historyError) {
+                console.warn('⚠️ Erro ao salvar no histórico:', historyError);
+                // Não falha a operação principal se o histórico falhar
+            }
+
+            // 6. Recarregar o bloco para atualizar UI e mostrar botão de WhatsApp
             await recarregarBloco(blockId);
         } else {
             throw new Error('Erro ao salvar rota no banco de dados');
@@ -1460,43 +1637,13 @@ async function recarregarBloco(blockId) {
 async function enviarRotaWhatsApp(blockId, rotaId) {
     console.log(`📱 enviarRotaWhatsApp() chamado com: blockId=${blockId}, rotaId=${rotaId}`);
 
-    const telefone = prompt('Digite o telefone (com código do país):\nExemplo: 5527999999999');
-
-    if (!telefone) {
-        return;
-    }
-
-    try {
-        showLoading('Enviando rota por WhatsApp...');
-
-        console.log(`📤 Enviando request: rota_id=${rotaId}, telefone=${telefone}`);
-
-        const response = await fetch('https://frotas.in9automacao.com.br/enviar-rota-whatsapp', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                rota_id: rotaId,
-                telefone: telefone.replace(/\D/g, '')
-            })
-        });
-
-        const data = await response.json();
-
-        console.log('RESPOSTA COMPLETA DA API:', data);
-
-        if (data.success) {
-            showNotification(`✅ Rota enviada para ${telefone}!`, 'success');
-            console.log('📱 Mensagem enviada com sucesso via WhatsApp');
-        } else {
-            console.error('[ERROR] Detalhes do erro:', JSON.stringify(data, null, 2));
-            showNotification(`❌ Erro ao enviar: ${data.error}`, 'error');
-        }
-
-    } catch (error) {
-        console.error('❌ Erro ao enviar WhatsApp:', error);
-        showNotification(`Erro ao enviar WhatsApp: ${error.message}`, 'error');
-    } finally {
-        hideLoading();
+    // Abrir modal para selecionar veículo, motorista e telefone
+    // A função está definida em route-assignment-modal.js
+    if (typeof abrirModalEnvioWhatsApp === 'function') {
+        await abrirModalEnvioWhatsApp(blockId, rotaId);
+    } else {
+        console.error('❌ Função abrirModalEnvioWhatsApp não encontrada');
+        showNotification('Erro: Modal de envio não carregado', 'error');
     }
 }
 
@@ -1617,20 +1764,43 @@ function showNotification(message, type = 'info') {
     };
 
     const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in`;
-    notification.textContent = message;
+    notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in flex items-center gap-3`;
+
+    // Container para a mensagem
+    const messageSpan = document.createElement('span');
+    messageSpan.textContent = message;
+    notification.appendChild(messageSpan);
+
+    // Botão fechar (sempre visível, mas mais importante para erros)
+    const closeButton = document.createElement('button');
+    closeButton.innerHTML = '<span class="material-symbols-outlined" style="font-size: 20px;">close</span>';
+    closeButton.className = 'hover:bg-white/20 rounded p-1 transition-colors';
+    closeButton.onclick = () => notification.remove();
+    notification.appendChild(closeButton);
 
     document.body.appendChild(notification);
 
-    setTimeout(() => {
-        notification.remove();
-    }, 5000);
+    // Duração baseada no tipo
+    const autoDismiss = type !== 'error'; // Erros não fecham sozinhos
+    const duration = type === 'success' ? 5000 : 8000; // Success 5s, outros 8s
+
+    if (autoDismiss) {
+        setTimeout(() => {
+            notification.remove();
+        }, duration);
+    }
 
     console.log(`[${type.toUpperCase()}] ${message}`);
 }
 
 // ========== FILTRO E CONTADORES ==========
 
+/**
+ * Filtrar blocos com suporte a múltiplos critérios:
+ * - Busca por nome: "bloco 5", "zona norte"
+ * - Busca por quantidade: "5 locais", ">3", ">=5", "<10", "<=3"
+ * - Busca por distância: ">5km", "<3km", ">=4km"
+ */
 function filterBlocks(searchTerm) {
     const term = searchTerm.toLowerCase().trim();
     const blocksListContainer = document.getElementById('blocksList');
@@ -1648,10 +1818,58 @@ function filterBlocks(searchTerm) {
             return;
         }
 
-        const blockName = block.name.toLowerCase();
-        const locationsText = `${block.locationsCount} locais`.toLowerCase();
+        let matches = false;
 
-        const matches = blockName.includes(term) || locationsText.includes(term);
+        if (!term) {
+            // Sem filtro, mostrar todos
+            matches = true;
+        } else {
+            const blockName = block.name.toLowerCase();
+            const locationsCount = block.locationsCount || 0;
+            const maxDistance = block.maxPairDistanceKm || 0;
+
+            // Busca por nome do bloco
+            if (blockName.includes(term)) {
+                matches = true;
+            }
+
+            // Busca por quantidade de locais exata: "5 locais", "3 local"
+            if (term.match(/^\d+\s*(locais?)?$/)) {
+                const num = parseInt(term);
+                if (locationsCount === num) {
+                    matches = true;
+                }
+            }
+
+            // Busca por quantidade com operadores: ">5", ">=3", "<10", "<=3"
+            const quantityMatch = term.match(/^(>=?|<=?)\s*(\d+)$/);
+            if (quantityMatch) {
+                const operator = quantityMatch[1];
+                const value = parseInt(quantityMatch[2]);
+
+                if (operator === '>' && locationsCount > value) matches = true;
+                if (operator === '>=' && locationsCount >= value) matches = true;
+                if (operator === '<' && locationsCount < value) matches = true;
+                if (operator === '<=' && locationsCount <= value) matches = true;
+            }
+
+            // Busca por distância: ">5km", "<3km", ">=4km"
+            const distanceMatch = term.match(/^(>=?|<=?)\s*(\d+(?:\.\d+)?)\s*km$/);
+            if (distanceMatch) {
+                const operator = distanceMatch[1];
+                const value = parseFloat(distanceMatch[2]);
+
+                if (operator === '>' && maxDistance > value) matches = true;
+                if (operator === '>=' && maxDistance >= value) matches = true;
+                if (operator === '<' && maxDistance < value) matches = true;
+                if (operator === '<=' && maxDistance <= value) matches = true;
+            }
+
+            // Busca genérica por texto que contém números
+            if (term.includes(locationsCount.toString())) {
+                matches = true;
+            }
+        }
 
         if (matches) {
             blockEl.style.display = '';
@@ -1686,13 +1904,1128 @@ function updateBlocksCount() {
     document.getElementById('locationsCount').textContent = `${totalLocations} locais`;
 }
 
+/**
+ * Renomear um bloco existente
+ */
+async function renameBlock(blockId, currentName) {
+    const newName = prompt('Digite o novo nome para o bloco:', currentName);
+
+    if (!newName || newName === currentName || newName.trim() === '') {
+        return;
+    }
+
+    try {
+        const response = await fetch(`https://floripa.in9automacao.com.br/blocks-api.php?id=${blockId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                name: newName.trim()
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Atualizar o nome no DOM
+            const nameElement = document.getElementById(`block-name-${blockId}`);
+            if (nameElement) {
+                nameElement.textContent = newName.trim();
+            }
+
+            // Atualizar no array de blocos
+            const block = allBlocks.find(b => b.id === blockId);
+            if (block) {
+                block.name = newName.trim();
+            }
+
+            // Mostrar mensagem de sucesso
+            alert(`✅ Bloco renomeado com sucesso para "${newName.trim()}"`);
+        } else {
+            throw new Error(result.error || 'Erro ao renomear bloco');
+        }
+    } catch (error) {
+        console.error('Erro ao renomear bloco:', error);
+        alert(`❌ Erro ao renomear bloco: ${error.message}`);
+    }
+}
+
 // Expor funções globalmente para uso inline
 window.handleBlockCheckboxChange = handleBlockCheckboxChange;
 window.handleLocationCheckboxChange = handleLocationCheckboxChange;
+/**
+ * Visualizar mapa salvo do bloco (com cores diferentes por segmento)
+ */
+async function viewSavedMap(blockId) {
+    try {
+        // Buscar bloco do banco para pegar o map_html
+        const response = await fetch(`https://floripa.in9automacao.com.br/blocks-api.php?id=${blockId}`);
+        const data = await response.json();
+
+        if (!data.success || !data.block) {
+            throw new Error('Bloco não encontrado');
+        }
+
+        const block = data.block;
+
+        // Buscar locais do bloco para desenhar rota (já vem em ordem otimizada)
+        const locationsResponse = await fetch(`https://floripa.in9automacao.com.br/locations-api.php?block_id=${blockId}`);
+        const locationsData = await locationsResponse.json();
+
+        if (!locationsData.success || !locationsData.locations) {
+            showNotification('Não foi possível carregar os locais do bloco', 'error');
+            return;
+        }
+
+        const locations = locationsData.locations;
+
+        // Cores diferentes para cada segmento
+        const colors = ['#0066FF', '#FF0000', '#00CC00', '#FF6600', '#9900FF', '#FF0099', '#00CCCC'];
+
+        // Estilos alternados para melhor diferenciação visual
+        const lineStyles = [
+            { dashArray: null, weight: 5 },           // Sólido grosso
+            { dashArray: '10, 5', weight: 4 },        // Tracejado médio
+            { dashArray: '2, 8', weight: 5 },         // Pontilhado grosso
+            { dashArray: '15, 10, 5, 10', weight: 4 },// Traço-ponto médio
+            { dashArray: null, weight: 6 },           // Sólido muito grosso
+            { dashArray: '5, 5', weight: 5 },         // Tracejado curto grosso
+            { dashArray: '20, 10', weight: 4 }        // Tracejado longo médio
+        ];
+
+        // Limpar rotas otimizadas anteriores usando layer dedicado
+        if (optimizedRoutesLayer) {
+            map.removeLayer(optimizedRoutesLayer);
+        }
+        optimizedRoutesLayer = L.layerGroup().addTo(map);
+
+        const base = { lat: BASE_I9.latitude, lng: BASE_I9.longitude };
+
+        showNotification('Carregando rotas otimizadas...', 'info');
+
+        // Desenhar rota sequencial: Base → Loc1 → Loc2 → Loc3 → ...
+        let prevPoint = base;
+
+        for (let i = 0; i < locations.length; i++) {
+            const loc = locations[i];
+            const currentPoint = { lat: loc.latitude, lng: loc.longitude };
+            const color = colors[i % colors.length];
+            const style = lineStyles[i % lineStyles.length];
+
+            try {
+                // Buscar geometria real da rota via OSRM (proxy Node.js)
+                const osrmUrl = `/api/osrm/route/${prevPoint.lng},${prevPoint.lat};${currentPoint.lng},${currentPoint.lat}?overview=full&geometries=geojson`;
+                const osrmResponse = await fetch(osrmUrl);
+                const osrmData = await osrmResponse.json();
+
+                if (osrmData.code === 'Ok' && osrmData.routes && osrmData.routes.length > 0) {
+                    // Usar geometria real do OSRM
+                    const geometry = osrmData.routes[0].geometry.coordinates;
+                    const latlngs = geometry.map(coord => [coord[1], coord[0]]); // [lng, lat] → [lat, lng]
+
+                    // Desenhar borda preta semi-transparente (linha mais grossa por baixo)
+                    const borderLine = L.polyline(latlngs, {
+                        color: '#000000',
+                        weight: style.weight + 3,
+                        opacity: 0.4,
+                        dashArray: style.dashArray
+                    }).addTo(optimizedRoutesLayer);
+
+                    // Desenhar linha colorida por cima com estilo específico
+                    const line = L.polyline(latlngs, {
+                        color: color,
+                        weight: style.weight,
+                        opacity: 1,
+                        dashArray: style.dashArray
+                    }).addTo(optimizedRoutesLayer);
+
+                    const fromName = i === 0 ? 'Base i9' : locations[i-1].name || `Local ${i}`;
+                    const toName = loc.name || `Local ${i + 1}`;
+                    const distanceKm = (osrmData.routes[0].distance / 1000).toFixed(2);
+
+                    // Adicionar número do segmento ao popup
+                    line.bindPopup(`<strong>Segmento ${i + 1}</strong><br>🚗 ${fromName} → ${toName}<br>📏 ${distanceKm} km`);
+                } else {
+                    // Fallback: linha reta se OSRM falhar
+                    // Borda preta
+                    const borderLine = L.polyline([
+                        [prevPoint.lat, prevPoint.lng],
+                        [currentPoint.lat, currentPoint.lng]
+                    ], {
+                        color: '#000000',
+                        weight: style.weight + 3,
+                        opacity: 0.4,
+                        dashArray: style.dashArray
+                    }).addTo(optimizedRoutesLayer);
+
+                    // Linha colorida
+                    const line = L.polyline([
+                        [prevPoint.lat, prevPoint.lng],
+                        [currentPoint.lat, currentPoint.lng]
+                    ], {
+                        color: color,
+                        weight: style.weight,
+                        opacity: 1,
+                        dashArray: style.dashArray
+                    }).addTo(optimizedRoutesLayer);
+
+                    const fromName = i === 0 ? 'Base i9' : locations[i-1].name || `Local ${i}`;
+                    const toName = loc.name || `Local ${i + 1}`;
+
+                    line.bindPopup(`<strong>Segmento ${i + 1}</strong><br>🚗 ${fromName} → ${toName}<br>⚠️ Rota estimada`);
+                }
+            } catch (osrmError) {
+                console.warn('Erro ao buscar rota OSRM, usando linha reta:', osrmError);
+
+                // Fallback: linha reta
+                // Borda preta
+                const borderLine = L.polyline([
+                    [prevPoint.lat, prevPoint.lng],
+                    [currentPoint.lat, currentPoint.lng]
+                ], {
+                    color: '#000000',
+                    weight: style.weight + 3,
+                    opacity: 0.4,
+                    dashArray: style.dashArray
+                }).addTo(optimizedRoutesLayer);
+
+                // Linha colorida
+                const line = L.polyline([
+                    [prevPoint.lat, prevPoint.lng],
+                    [currentPoint.lat, currentPoint.lng]
+                ], {
+                    color: color,
+                    weight: style.weight,
+                    opacity: 1,
+                    dashArray: style.dashArray
+                }).addTo(optimizedRoutesLayer);
+
+                const fromName = i === 0 ? 'Base i9' : locations[i-1].name || `Local ${i}`;
+                const toName = loc.name || `Local ${i + 1}`;
+
+                line.bindPopup(`<strong>Segmento ${i + 1}</strong><br>🚗 ${fromName} → ${toName}<br>⚠️ Rota estimada`);
+            }
+
+            prevPoint = currentPoint;
+        }
+
+        // Adicionar marcadores com números de parada
+        // Marcador da base (ponto de partida)
+        const baseMarker = L.marker([base.lat, base.lng], {
+            icon: L.divIcon({
+                className: 'custom-stop-marker',
+                html: `<div style="background: #10B981; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏠</div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            })
+        }).addTo(optimizedRoutesLayer);
+        baseMarker.bindPopup('<strong>🏠 Base i9 Engenharia</strong><br>Ponto de partida');
+
+        // Marcadores dos locais (paradas)
+        locations.forEach((loc, index) => {
+            const isLastStop = index === locations.length - 1;
+            const stopNumber = index + 1;
+            const label = isLastStop ? '🏁' : stopNumber;
+            const bgColor = isLastStop ? '#EF4444' : colors[index % colors.length];
+            const title = isLastStop ? 'Parada Final' : `Parada ${stopNumber}`;
+
+            const marker = L.marker([loc.latitude, loc.longitude], {
+                icon: L.divIcon({
+                    className: 'custom-stop-marker',
+                    html: `<div style="background: ${bgColor}; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 16px; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">${label}</div>`,
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                })
+            }).addTo(optimizedRoutesLayer);
+
+            marker.bindPopup(`<strong>${title}</strong><br>${loc.name || 'Local ' + stopNumber}<br>${loc.address || ''}`);
+        });
+
+        // Centralizar mapa nos locais
+        const allCoords = locations.map(l => [l.latitude, l.longitude]);
+        allCoords.push([base.lat, base.lng]);
+        map.fitBounds(allCoords);
+
+        showNotification(`✅ Rota sequencial exibida com ${locations.length} paradas! 🎨`, 'success');
+
+    } catch (error) {
+        console.error('Erro ao visualizar mapa:', error);
+        showNotification(`Erro ao abrir mapa: ${error.message}`, 'error');
+    }
+}
+
+/**
+ * Visualizar histórico de otimizações de um bloco
+ */
+async function viewRouteHistory(blockId) {
+    try {
+        showLoading('Carregando histórico...');
+
+        // Buscar histórico da API
+        const response = await fetch(`https://floripa.in9automacao.com.br/route-history-api.php?block_id=${blockId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao carregar histórico');
+        }
+
+        const history = data.history;
+
+        if (history.length === 0) {
+            showNotification('Ainda não há histórico de otimizações para este bloco', 'info');
+            hideLoading();
+            return;
+        }
+
+        // Criar modal com histórico
+        const modalHTML = `
+            <div id="historyModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target.id === 'historyModal') this.remove()">
+                <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            <span class="material-symbols-outlined">history</span>
+                            Histórico de Otimizações - ${history[0].block_name}
+                        </h2>
+                        <button onclick="document.getElementById('historyModal').remove()"
+                                class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                            <span class="material-symbols-outlined">close</span>
+                        </button>
+                    </div>
+
+                    <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                        Total de otimizações: <strong>${history.length}</strong>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">Data/Hora</th>
+                                    <th class="px-4 py-3 text-left">Distância</th>
+                                    <th class="px-4 py-3 text-left">Duração</th>
+                                    <th class="px-4 py-3 text-left">Paradas</th>
+                                    <th class="px-4 py-3 text-left">Veículo</th>
+                                    <th class="px-4 py-3 text-left">Motorista</th>
+                                    <th class="px-4 py-3 text-left">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                ${history.map((h, index) => {
+                                    const date = new Date(h.optimization_date);
+                                    const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                    const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                                    const isRecent = index === 0;
+
+                                    return `
+                                        <tr class="${isRecent ? 'bg-green-50 dark:bg-green-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}">
+                                            <td class="px-4 py-3">
+                                                ${isRecent ? '<span class="inline-block px-2 py-1 text-xs bg-green-600 text-white rounded-full mr-2">Atual</span>' : ''}
+                                                <div class="font-medium">${dateStr}</div>
+                                                <div class="text-gray-500 text-xs">${timeStr}</div>
+                                            </td>
+                                            <td class="px-4 py-3 font-semibold">${h.total_distance_km ? h.total_distance_km + ' km' : '-'}</td>
+                                            <td class="px-4 py-3">${h.total_duration_min ? h.total_duration_min + ' min' : '-'}</td>
+                                            <td class="px-4 py-3">${h.num_stops || '-'}</td>
+                                            <td class="px-4 py-3">
+                                                ${h.vehicle_plate ? `<div class="font-medium">${h.vehicle_plate}</div>` : '-'}
+                                                ${h.vehicle_name ? `<div class="text-xs text-gray-500">${h.vehicle_name}</div>` : ''}
+                                            </td>
+                                            <td class="px-4 py-3">${h.driver_name || '-'}</td>
+                                            <td class="px-4 py-3">
+                                                <button onclick="viewHistoricalRouteDetails(${h.id})"
+                                                        class="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                                    Ver Detalhes
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="document.getElementById('historyModal').remove()"
+                                class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                            Fechar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Adicionar modal ao DOM
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+        showNotification(`Erro ao carregar histórico: ${error.message}`, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Visualizar detalhes de uma otimização histórica
+ */
+async function viewHistoricalRouteDetails(historyId) {
+    try {
+        showLoading('Carregando detalhes...');
+
+        const response = await fetch(`https://floripa.in9automacao.com.br/route-history-api.php?id=${historyId}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao carregar detalhes');
+        }
+
+        const record = data.record;
+        const routeData = record.route_data;
+
+        // Criar modal com detalhes
+        let detailsHTML = `
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Data:</span>
+                        <span class="font-semibold ml-2">${new Date(record.optimization_date).toLocaleString('pt-BR')}</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Distância:</span>
+                        <span class="font-semibold ml-2">${record.total_distance_km} km</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Duração:</span>
+                        <span class="font-semibold ml-2">${record.total_duration_min} min</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600 dark:text-gray-400">Paradas:</span>
+                        <span class="font-semibold ml-2">${record.num_stops}</span>
+                    </div>
+                </div>
+        `;
+
+        if (routeData) {
+            detailsHTML += `
+                <div class="mt-4">
+                    <h4 class="font-bold mb-2">Dados da Rota:</h4>
+                    <pre class="bg-gray-100 dark:bg-gray-900 p-4 rounded-lg overflow-auto max-h-64 text-xs">${JSON.stringify(routeData, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        detailsHTML += '</div>';
+
+        // Usar função showModal se existir, senão criar modal simples
+        showModalWithContent('Detalhes da Otimização', detailsHTML);
+
+    } catch (error) {
+        console.error('Erro ao carregar detalhes:', error);
+        showNotification(`Erro ao carregar detalhes: ${error.message}`, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Função auxiliar para mostrar modal com conteúdo customizado
+ */
+function showModalWithContent(title, content) {
+    const modalHTML = `
+        <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target.id === 'detailsModal') this.remove()">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">${title}</h2>
+                    <button onclick="document.getElementById('detailsModal').remove()"
+                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+                <div>${content}</div>
+                <div class="mt-6 flex justify-end">
+                    <button onclick="document.getElementById('detailsModal').remove()"
+                            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                        Fechar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+/**
+ * Salvar otimização no histórico
+ */
+async function saveToHistory(blocoData) {
+    try {
+        // Preparar dados para salvar no histórico
+        const historyData = {
+            block_id: blocoData.id,
+            vehicle_id: null, // Pode ser passado como parâmetro se disponível
+            driver_id: null,  // Pode ser passado como parâmetro se disponível
+            total_distance_km: blocoData.totalDistanceKm || 0,
+            total_duration_min: blocoData.totalDurationMin || 0,
+            num_stops: blocoData.locations ? blocoData.locations.length : 0,
+            route_data: {
+                locations: blocoData.locations,
+                timestamp: new Date().toISOString()
+            },
+            created_by: 'frontend'
+        };
+
+        const response = await fetch('https://floripa.in9automacao.com.br/route-history-api.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(historyData)
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao salvar histórico');
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error('Erro ao salvar no histórico:', error);
+        throw error;
+    }
+}
+
+// ========== EXPORTAÇÃO DE ROTAS ==========
+
+/**
+ * Exportar rota para PDF
+ */
+async function exportRouteToPDF(blockId) {
+    try {
+        showLoading('Gerando PDF...');
+
+        // Buscar dados do bloco
+        const response = await fetch(`https://floripa.in9automacao.com.br/blocks-api.php?id=${blockId}`);
+        const data = await response.json();
+
+        if (!data.success || !data.block) {
+            throw new Error('Bloco não encontrado');
+        }
+
+        const block = data.block;
+
+        // Buscar locais do bloco
+        const locationsResponse = await fetch(`https://floripa.in9automacao.com.br/locations-api.php?block_id=${blockId}`);
+        const locationsData = await locationsResponse.json();
+
+        if (!locationsData.success) {
+            throw new Error('Erro ao carregar locais');
+        }
+
+        const locations = locationsData.locations || [];
+
+        // Criar PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF();
+
+        // Título
+        pdf.setFontSize(18);
+        pdf.setFont(undefined, 'bold');
+        pdf.text(`Rota: ${block.name}`, 20, 20);
+
+        // Metadados
+        pdf.setFontSize(12);
+        pdf.setFont(undefined, 'normal');
+        pdf.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 20, 35);
+        pdf.text(`Total de Paradas: ${locations.length}`, 20, 42);
+
+        // Capturar screenshot do mapa (se visível)
+        const mapElement = document.getElementById('map');
+        if (mapElement && mapElement.offsetHeight > 0) {
+            try {
+                const canvas = await html2canvas(mapElement, {
+                    useCORS: true,
+                    allowTaint: true,
+                    backgroundColor: '#ffffff'
+                });
+                const imgData = canvas.toDataURL('image/png');
+                pdf.addImage(imgData, 'PNG', 20, 50, 170, 100);
+            } catch (mapError) {
+                console.warn('Erro ao capturar mapa:', mapError);
+                pdf.setFontSize(10);
+                pdf.text('(Mapa não disponível para captura)', 20, 55);
+            }
+        }
+
+        // Lista de paradas
+        let yPos = mapElement && mapElement.offsetHeight > 0 ? 160 : 55;
+        pdf.setFontSize(14);
+        pdf.setFont(undefined, 'bold');
+        pdf.text('Sequência de Paradas:', 20, yPos);
+
+        yPos += 10;
+        pdf.setFontSize(10);
+        pdf.setFont(undefined, 'normal');
+
+        locations.forEach((loc, idx) => {
+            if (yPos > 270) {
+                pdf.addPage();
+                yPos = 20;
+            }
+
+            pdf.setFont(undefined, 'bold');
+            pdf.text(`${idx + 1}. ${loc.name || 'Local ' + (idx + 1)}`, 25, yPos);
+            yPos += 5;
+
+            pdf.setFont(undefined, 'normal');
+            const address = loc.address || 'Endereço não disponível';
+            pdf.text(`   ${address}`, 25, yPos);
+            yPos += 4;
+
+            pdf.setFontSize(8);
+            pdf.setTextColor(100, 100, 100);
+            pdf.text(`   Lat: ${loc.latitude}, Lng: ${loc.longitude}`, 25, yPos);
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(10);
+            yPos += 8;
+        });
+
+        // Rodapé
+        const pageCount = pdf.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            pdf.setPage(i);
+            pdf.setFontSize(8);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text(
+                `Gerado por Sistema de Otimização de Rotas - Página ${i} de ${pageCount}`,
+                105,
+                pdf.internal.pageSize.height - 10,
+                { align: 'center' }
+            );
+            pdf.setTextColor(0, 0, 0);
+        }
+
+        // Download
+        const fileName = `rota-${block.name.replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`;
+        pdf.save(fileName);
+
+        showNotification('PDF gerado com sucesso! 📄', 'success');
+
+    } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        showNotification(`Erro ao gerar PDF: ${error.message}`, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Exportar rota para Excel
+ */
+async function exportRouteToExcel(blockId) {
+    try {
+        showLoading('Gerando Excel...');
+
+        // Buscar dados do bloco
+        const response = await fetch(`https://floripa.in9automacao.com.br/blocks-api.php?id=${blockId}`);
+        const data = await response.json();
+
+        if (!data.success || !data.block) {
+            throw new Error('Bloco não encontrado');
+        }
+
+        const block = data.block;
+
+        // Buscar locais do bloco
+        const locationsResponse = await fetch(`https://floripa.in9automacao.com.br/locations-api.php?block_id=${blockId}`);
+        const locationsData = await locationsResponse.json();
+
+        if (!locationsData.success) {
+            throw new Error('Erro ao carregar locais');
+        }
+
+        const locations = locationsData.locations || [];
+
+        // Preparar dados para Excel
+        const excelData = [
+            ['Rota: ' + block.name],
+            ['Data: ' + new Date().toLocaleDateString('pt-BR')],
+            ['Total de Paradas: ' + locations.length],
+            [],
+            ['Sequência', 'Nome', 'Endereço', 'Latitude', 'Longitude', 'Observações'],
+            ...locations.map((loc, idx) => [
+                idx + 1,
+                loc.name || '',
+                loc.address || '',
+                loc.latitude,
+                loc.longitude,
+                ''
+            ])
+        ];
+
+        // Criar workbook
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+        // Ajustar larguras das colunas
+        ws['!cols'] = [
+            { wch: 10 },  // Sequência
+            { wch: 30 },  // Nome
+            { wch: 50 },  // Endereço
+            { wch: 12 },  // Latitude
+            { wch: 12 },  // Longitude
+            { wch: 30 }   // Observações
+        ];
+
+        // Estilizar células de cabeçalho (linha 5)
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 4, c: C });
+            if (!ws[cellAddress]) continue;
+            ws[cellAddress].s = {
+                font: { bold: true },
+                fill: { fgColor: { rgb: "CCCCCC" } }
+            };
+        }
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Rota');
+
+        // Download
+        const fileName = `rota-${block.name.replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+
+        showNotification('Excel gerado com sucesso! 📊', 'success');
+
+    } catch (error) {
+        console.error('Erro ao gerar Excel:', error);
+        showNotification(`Erro ao gerar Excel: ${error.message}`, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * Mostrar opções de exportação
+ */
+function showExportOptions(blockId, blockName) {
+    const modalHTML = `
+        <div id="exportModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onclick="if(event.target.id === 'exportModal') this.remove()">
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl max-w-md w-full mx-4">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                        <span class="material-symbols-outlined">download</span>
+                        Exportar Rota
+                    </h2>
+                    <button onclick="document.getElementById('exportModal').remove()"
+                            class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                        <span class="material-symbols-outlined">close</span>
+                    </button>
+                </div>
+
+                <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                    <strong>${blockName}</strong>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="exportRouteToPDF(${blockId}); document.getElementById('exportModal').remove();"
+                            class="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined">picture_as_pdf</span>
+                        <span>📄 Exportar como PDF</span>
+                    </button>
+
+                    <button onclick="exportRouteToExcel(${blockId}); document.getElementById('exportModal').remove();"
+                            class="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined">table_chart</span>
+                        <span>📊 Exportar como Excel</span>
+                    </button>
+
+                    <button onclick="Promise.all([exportRouteToPDF(${blockId}), exportRouteToExcel(${blockId})]); document.getElementById('exportModal').remove();"
+                            class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined">download</span>
+                        <span>📦 Exportar Ambos</span>
+                    </button>
+                </div>
+
+                <div class="mt-6 flex justify-end">
+                    <button onclick="document.getElementById('exportModal').remove()"
+                            class="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+}
+
+// ========== FILTROS POR CIDADE ==========
+
+/**
+ * Extrair cidade de um endereço (OTIMIZADO)
+ * Formato esperado: "Rua X, Bairro - Cidade - ES"
+ */
+let _extractCityCallCount = 0; // Contador para logar apenas algumas chamadas
+function extractCityFromAddress(address) {
+    const shouldLog = _extractCityCallCount < 3; // Logar apenas os 3 primeiros
+    _extractCityCallCount++;
+
+    if (!address) {
+        if (shouldLog) console.log('⚠️ Address vazio ou null');
+        return 'Não identificada';
+    }
+
+    // Busca rápida por traço (formato mais comum)
+    const dashIndex = address.lastIndexOf(' - ');
+    if (dashIndex > 0) {
+        const secondDashIndex = address.lastIndexOf(' - ', dashIndex - 1);
+        if (secondDashIndex > 0) {
+            const city = address.substring(secondDashIndex + 3, dashIndex).trim();
+            if (shouldLog) console.log(`📍 Extraído: "${city}" de "${address}"`);
+            return city;
+        }
+    }
+
+    if (shouldLog) console.log(`⚠️ Formato não reconhecido: "${address}"`);
+    return 'Não identificada';
+}
+
+/**
+ * Determinar cidade predominante de um bloco
+ */
+let _getBlockCityCallCount = 0; // Contador para logar apenas alguns blocos
+function getBlockCity(block) {
+    const shouldLog = _getBlockCityCallCount < 3; // Logar apenas os 3 primeiros
+    _getBlockCityCallCount++;
+
+    if (!block.locations || block.locations.length === 0) {
+        if (shouldLog) console.log(`⚠️ Bloco ${block.name || block.id} sem locais`);
+        return 'Não identificada';
+    }
+
+    if (shouldLog) console.log(`🔍 Processando bloco ${block.name || block.id} com ${block.locations.length} locais`);
+
+    // Contar frequência de cada cidade
+    const cityCounts = {};
+
+    block.locations.forEach(loc => {
+        const city = extractCityFromAddress(loc.address);
+        cityCounts[city] = (cityCounts[city] || 0) + 1;
+    });
+
+    // Retornar cidade mais frequente
+    let maxCount = 0;
+    let predominantCity = 'Não identificada';
+
+    for (const [city, count] of Object.entries(cityCounts)) {
+        if (count > maxCount) {
+            maxCount = count;
+            predominantCity = city;
+        }
+    }
+
+    if (shouldLog) console.log(`✅ Bloco ${block.name || block.id} → Cidade: ${predominantCity}`, cityCounts);
+    return predominantCity;
+}
+
+/**
+ * Coletar todas as cidades únicas dos blocos
+ */
+function getAllCities(blocks) {
+    console.log('🔄 getAllCities() iniciado com', blocks.length, 'blocos');
+    const cities = new Set();
+
+    blocks.forEach(block => {
+        const city = getBlockCity(block);
+        if (city !== 'Não identificada') {
+            cities.add(city);
+        }
+    });
+
+    const citiesArray = Array.from(cities).sort();
+    console.log('✅ getAllCities() retornou', citiesArray.length, 'cidades:', citiesArray);
+    return citiesArray;
+}
+
+/**
+ * Criar filtros dinâmicos de cidade
+ */
+function createCityFilters(cities) {
+    console.log('🎨 createCityFilters() iniciado com', cities.length, 'cidades:', cities);
+
+    const filterContainer = document.getElementById('city-filters-container');
+    console.log('📦 Container encontrado:', !!filterContainer, filterContainer);
+
+    if (!filterContainer) {
+        console.error('❌ Container de filtros de cidade não encontrado no DOM!');
+        return;
+    }
+
+    // Limpar filtros existentes
+    filterContainer.innerHTML = '';
+    console.log('🧹 Container limpo');
+
+    if (cities.length === 0) {
+        filterContainer.innerHTML = '<span class="text-xs text-gray-500">Nenhuma cidade identificada</span>';
+        console.log('⚠️ Nenhuma cidade para mostrar - exibindo mensagem');
+        return;
+    }
+
+    // Adicionar filtro para cada cidade
+    cities.forEach(city => {
+        const button = document.createElement('button');
+        button.className = 'city-filter-chip px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-medium hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors';
+        button.textContent = `📍 ${city}`;
+        button.title = `Filtrar blocos em ${city}`;
+        button.onclick = () => filterBlocksByCity(city);
+
+        filterContainer.appendChild(button);
+        console.log(`✅ Botão criado para: ${city}`);
+    });
+
+    // Adicionar botão "Limpar"
+    const clearButton = document.createElement('button');
+    clearButton.className = 'city-filter-chip px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors';
+    clearButton.innerHTML = '✕ Limpar';
+    clearButton.title = 'Limpar filtro de cidade';
+    clearButton.onclick = () => filterBlocksByCity('');
+
+    filterContainer.appendChild(clearButton);
+    console.log('✅ Botão "Limpar" adicionado');
+
+    console.log(`✅ ${cities.length} filtros de cidade criados:`, cities.join(', '));
+    console.log('📦 Container HTML final:', filterContainer.innerHTML.substring(0, 200) + '...');
+}
+
+/**
+ * Filtrar blocos por cidade
+ */
+function filterBlocksByCity(city) {
+    const blockCards = document.querySelectorAll('[data-block-id]');
+    let visibleCount = 0;
+
+    blockCards.forEach(card => {
+        const blockId = parseInt(card.getAttribute('data-block-id'));
+        const block = blocks.find(b => b.id === blockId);
+
+        if (!block) {
+            card.style.display = 'none';
+            return;
+        }
+
+        const blockCity = getBlockCity(block);
+
+        if (!city || blockCity === city) {
+            card.style.display = 'block';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Atualizar chips visuais (marcar o ativo)
+    document.querySelectorAll('.city-filter-chip').forEach(chip => {
+        if (city && chip.textContent.includes(city)) {
+            chip.classList.add('ring-2', 'ring-indigo-500');
+        } else {
+            chip.classList.remove('ring-2', 'ring-indigo-500');
+        }
+    });
+
+    console.log(`🔍 Filtro por cidade: ${city || 'Todos'} - ${visibleCount} blocos visíveis`);
+}
+
+// ========== DASHBOARD DE MÉTRICAS ==========
+
+let metricsChart = null; // Variável global para o gráfico
+
+/**
+ * Carregar métricas do dashboard
+ */
+async function loadMetrics() {
+    try {
+        // Buscar métricas gerais
+        const response = await fetch('https://floripa.in9automacao.com.br/metrics-api.php');
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao carregar métricas');
+        }
+
+        const metrics = data.metrics;
+
+        // Atualizar cards
+        document.getElementById('metric-total-routes').textContent = metrics.total_routes;
+        document.getElementById('metric-total-distance').textContent = `${metrics.total_distance} km`;
+        document.getElementById('metric-avg-stops').textContent = metrics.avg_stops;
+        document.getElementById('metric-active-blocks').textContent = metrics.active_blocks;
+
+        // Buscar histórico para o gráfico
+        await loadMetricsChart();
+
+        console.log('✅ Métricas carregadas com sucesso');
+
+    } catch (error) {
+        console.error('Erro ao carregar métricas:', error);
+        // Mostrar valores padrão em caso de erro
+        document.getElementById('metric-total-routes').textContent = '0';
+        document.getElementById('metric-total-distance').textContent = '0 km';
+        document.getElementById('metric-avg-stops').textContent = '0';
+        document.getElementById('metric-active-blocks').textContent = '0';
+    }
+}
+
+/**
+ * Carregar e renderizar gráfico de métricas
+ */
+async function loadMetricsChart() {
+    try {
+        const response = await fetch('https://floripa.in9automacao.com.br/metrics-api.php?period=6months');
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.error || 'Erro ao carregar histórico');
+        }
+
+        const history = data.history;
+
+        // Preparar dados para o gráfico
+        const labels = history.map(h => h.label);
+        const routesData = history.map(h => h.total_routes);
+        const distanceData = history.map(h => h.total_distance);
+
+        // Renderizar gráfico
+        renderMetricsChart(labels, routesData, distanceData);
+
+    } catch (error) {
+        console.error('Erro ao carregar gráfico:', error);
+    }
+}
+
+/**
+ * Renderizar gráfico de métricas com Chart.js
+ */
+function renderMetricsChart(labels, routesData, distanceData) {
+    const ctx = document.getElementById('metrics-chart');
+
+    if (!ctx) {
+        console.warn('Canvas metrics-chart não encontrado');
+        return;
+    }
+
+    // Destruir gráfico anterior se existir
+    if (metricsChart) {
+        metricsChart.destroy();
+    }
+
+    // Criar novo gráfico
+    metricsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Rotas Otimizadas',
+                    data: routesData,
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Distância Total (km)',
+                    data: distanceData,
+                    borderColor: 'rgb(34, 197, 94)',
+                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.datasetIndex === 1) {
+                                label += context.parsed.y.toFixed(2) + ' km';
+                            } else {
+                                label += context.parsed.y;
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Rotas Otimizadas'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Distância (km)'
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    }
+                }
+            }
+        }
+    });
+}
+
 window.centerMapOnBlock = centerMapOnBlock;
 window.centerMapOnLocation = centerMapOnLocation;
 window.generateBlockRoute = generateBlockRoute;
 window.filterBlocks = filterBlocks;
+window.renameBlock = renameBlock;
+window.viewSavedMap = viewSavedMap;
+window.viewRouteHistory = viewRouteHistory;
+window.viewHistoricalRouteDetails = viewHistoricalRouteDetails;
+window.exportRouteToPDF = exportRouteToPDF;
+window.exportRouteToExcel = exportRouteToExcel;
+window.showExportOptions = showExportOptions;
+window.loadMetrics = loadMetrics;
+
+/**
+ * Mostrar modal de ajuda/glossário
+ */
+function showHelpModal() {
+    const modal = document.getElementById('helpModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+}
+
+window.showHelpModal = showHelpModal;
 
 console.log('✅ Otimizador de Blocos carregado - v20251210160831');
 console.log('🔍 DEBUG MODE ATIVO - Verificando distâncias dos blocos');

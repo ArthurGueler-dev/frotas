@@ -4010,18 +4010,114 @@ async function ensurePecasTables() {
 }
 
 // Proxy para enviar WhatsApp via Evolution API (VPS em produção)
+// ============================================================================
+// ENVIO DE ROTAS VIA WHATSAPP (Evolution API)
+// ============================================================================
 app.post("/enviar-rota-whatsapp", async (req, res) => {
     try {
-        // Usar proxy de produção no VPS
-        const PROXY_URL = process.env.WHATSAPP_PROXY_URL || "http://31.97.169.36:3001/enviar-rota-whatsapp";
+        const { rota_id, telefone } = req.body;
 
-        console.log(`📤 Enviando para proxy WhatsApp: ${PROXY_URL}`);
+        if (!rota_id || !telefone) {
+            return res.status(400).json({
+                success: false,
+                error: 'rota_id e telefone são obrigatórios'
+            });
+        }
 
-        const response = await axios.post(PROXY_URL, req.body, {
-            headers: { "Content-Type": "application/json" },
-            timeout: 30000
+        console.log(`📱 Enviando rota #${rota_id} via WhatsApp para ${telefone}`);
+
+        // 1. Buscar dados da rota via API PHP
+        const rotaResponse = await axios.get(
+            `https://floripa.in9automacao.com.br/rotas-api.php?id=${rota_id}`
+        );
+
+        if (!rotaResponse.data.success || !rotaResponse.data.rota) {
+            return res.status(404).json({
+                success: false,
+                error: 'Rota não encontrada'
+            });
+        }
+
+        const rota = rotaResponse.data.rota;
+        const locais = JSON.parse(rota.sequencia_locais_json || '[]');
+
+        // 2. Construir mensagem formatada
+        const bloco_id = rota.bloco_id || 'N/A';
+        const distancia = parseFloat(rota.distancia_total_km || 0).toFixed(2).replace('.', ',');
+        const tempo = rota.tempo_estimado_min || 0;
+
+        let mensagem = `🚗 *Sua Rota de Hoje* 🚗\n\n`;
+        mensagem += `📍 *Bloco #:* ${bloco_id}\n`;
+        mensagem += `📏 *Distância Total:* ${distancia} km\n`;
+        mensagem += `⏱️ *Tempo Estimado:* ${tempo} minutos\n\n`;
+        mensagem += `📋 *Sequência de Visitas* (siga exatamente essa ordem):\n\n`;
+
+        locais.forEach((local, index) => {
+            const numero = index + 1;
+            const nome = local.nome || `Local ${numero}`;
+            const endereco = local.endereco || '';
+            mensagem += `*${numero}.* ${nome}\n`;
+            if (endereco) {
+                mensagem += `   📍 _${endereco}_\n`;
+            }
+            mensagem += `\n`;
         });
-        res.json(response.data);
+
+        mensagem += `🗺️ *Navegue com Google Maps:*\n`;
+        mensagem += `${rota.link_google_maps}\n\n`;
+        mensagem += `✅ *Instruções:*\n`;
+        mensagem += `1️⃣ Clique no link acima\n`;
+        mensagem += `2️⃣ O Google Maps abrirá com todos os pontos\n`;
+        mensagem += `3️⃣ Siga a navegação ponto a ponto\n`;
+        mensagem += `4️⃣ Não altere a ordem dos pontos\n\n`;
+        mensagem += `_Boa viagem e bom trabalho!_ 🎯`;
+
+        // 3. Enviar via Evolution API
+        const EVOLUTION_API_URL = 'http://10.0.2.12:60010';
+        const EVOLUTION_API_KEY = 'b0faf368ea81f396469c0bd26fa07bf9d6076117cd3b6fab6e0ca6004b3d710e';
+        const EVOLUTION_INSTANCE = 'Thiago Costa';
+
+        const evolutionUrl = `${EVOLUTION_API_URL}/message/sendText/${encodeURIComponent(EVOLUTION_INSTANCE)}`;
+
+        console.log(`📤 Enviando para Evolution API: ${evolutionUrl}`);
+
+        const evolutionResponse = await axios.post(
+            evolutionUrl,
+            {
+                number: telefone.replace(/\D/g, ''),
+                text: mensagem
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': EVOLUTION_API_KEY
+                },
+                timeout: 30000
+            }
+        );
+
+        console.log(`✅ WhatsApp enviado com sucesso!`);
+
+        // 4. Atualizar status da rota para 'enviada' via API PHP
+        await axios.put(
+            `https://floripa.in9automacao.com.br/rotas-api.php`,
+            {
+                id: rota_id,
+                status: 'enviada'
+            },
+            {
+                headers: { 'Content-Type': 'application/json' }
+            }
+        );
+
+        res.json({
+            success: true,
+            message: 'Rota enviada com sucesso via WhatsApp',
+            rota_id: rota_id,
+            telefone: telefone,
+            total_locais: locais.length
+        });
+
     } catch (error) {
         console.error("❌ Erro ao enviar WhatsApp:", error.message);
         if (error.response) {
@@ -4035,6 +4131,267 @@ app.post("/enviar-rota-whatsapp", async (req, res) => {
         });
     }
 });
+
+// ============================================================================
+// PROXY PARA API DE AUTENTICAÇÃO (evita CORS)
+// ============================================================================
+
+// Proxy para login
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const response = await axios.post(
+            'https://floripa.in9automacao.com.br/users-frotas-api.php?action=login',
+            req.body,
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Erro no proxy de login:', error.message);
+        res.status(error.response?.status || 500).json(
+            error.response?.data || { success: false, error: 'Erro ao fazer login' }
+        );
+    }
+});
+
+// Proxy para definir senha
+app.post('/api/auth/set-password', async (req, res) => {
+    try {
+        const response = await axios.post(
+            'https://floripa.in9automacao.com.br/users-frotas-api.php?action=set_password',
+            req.body,
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Erro no proxy de set-password:', error.message);
+        res.status(error.response?.status || 500).json(
+            error.response?.data || { success: false, error: 'Erro ao definir senha' }
+        );
+    }
+});
+
+// Proxy para registrar usuário
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const response = await axios.post(
+            'https://floripa.in9automacao.com.br/users-frotas-api.php?action=register',
+            req.body,
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Erro no proxy de register:', error.message);
+        res.status(error.response?.status || 500).json(
+            error.response?.data || { success: false, error: 'Erro ao registrar usuário' }
+        );
+    }
+});
+
+// Proxy para listar usuários
+app.get('/api/auth/users', async (req, res) => {
+    try {
+        const response = await axios.get(
+            'https://floripa.in9automacao.com.br/users-frotas-api.php?action=list',
+            { headers: { 'Content-Type': 'application/json' } }
+        );
+        res.json(response.data);
+    } catch (error) {
+        console.error('Erro no proxy de list users:', error.message);
+        res.status(error.response?.status || 500).json(
+            error.response?.data || { success: false, error: 'Erro ao listar usuários' }
+        );
+    }
+});
+
+// ========== PROXY PARA PYTHON API - OTIMIZAÇÃO SÍNCRONA ==========
+
+// POST - Otimizar rotas com Python API (síncrono)
+app.post('/api/routes/optimize-python', async (req, res) => {
+    try {
+        const pythonApiUrl = 'http://localhost:8000/otimizar';
+
+        console.log(`🐍 Proxy: Encaminhando otimização para Python API...`);
+        console.log(`📊 ${req.body.locais?.length || 0} locais para processar`);
+
+        const response = await axios.post(pythonApiUrl, req.body, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 1800000, // 30 minutos
+            maxContentLength: Infinity,
+            maxBodyLength: Infinity
+        });
+
+        console.log(`✅ Python API retornou ${response.data.blocos?.length || 0} blocos`);
+        res.json(response.data);
+
+    } catch (error) {
+        console.error('❌ Erro no proxy Python:', error.message);
+        res.status(error.response?.status || 500).json({
+            success: false,
+            error: 'Erro ao otimizar rotas: ' + error.message,
+            details: error.response?.data
+        });
+    }
+});
+
+// ========== PROXY PARA OSRM (Routing) ==========
+app.get('/api/osrm/route/:coordinates(*)', async (req, res) => {
+    try {
+        const coordinates = req.params.coordinates;
+        const queryString = Object.keys(req.query).length > 0
+            ? '?' + new URLSearchParams(req.query).toString()
+            : '';
+
+        const osrmUrl = `http://localhost:5001/route/v1/driving/${coordinates}${queryString}`;
+
+        const response = await axios.get(osrmUrl, {
+            timeout: 10000 // 10 segundos
+        });
+
+        res.json(response.data);
+
+    } catch (error) {
+        console.error('❌ Erro no proxy OSRM:', error.message);
+        res.status(error.response?.status || 500).json({
+            success: false,
+            error: 'Erro ao buscar rota OSRM: ' + error.message
+        });
+    }
+});
+
+// ========== PROXY PARA PYTHON API - OTIMIZAÇÃO ASSÍNCRONA (LEGADO) ==========
+const optimizationJobs = new Map(); // Armazena jobs em memória
+
+// POST - Iniciar job de otimização (LEGADO - NÃO USADO)
+app.post('/api/python/optimize', async (req, res) => {
+    try {
+        const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        console.log(`🐍 [${jobId}] Iniciando otimização Python...`);
+
+        // Armazenar job como "processing"
+        optimizationJobs.set(jobId, {
+            status: 'processing',
+            createdAt: new Date(),
+            input: req.body
+        });
+
+        // Chamar Python API de forma assíncrona (não bloquear resposta)
+        const pythonApiUrl = 'http://localhost:8000/optimize';
+
+        // Processar em background
+        (async () => {
+            try {
+                const response = await axios.post(pythonApiUrl, req.body, {
+                    headers: { 'Content-Type': 'application/json' },
+                    timeout: 900000 // 15 minutos
+                });
+
+                // Atualizar job com resultado
+                optimizationJobs.set(jobId, {
+                    status: 'completed',
+                    createdAt: optimizationJobs.get(jobId).createdAt,
+                    completedAt: new Date(),
+                    result: response.data
+                });
+
+                console.log(`✅ [${jobId}] Otimização concluída!`);
+            } catch (error) {
+                console.error(`❌ [${jobId}] Erro na otimização:`, error.message);
+
+                optimizationJobs.set(jobId, {
+                    status: 'failed',
+                    createdAt: optimizationJobs.get(jobId).createdAt,
+                    failedAt: new Date(),
+                    error: error.message,
+                    details: error.response?.data
+                });
+            }
+        })();
+
+        // Retornar job_id imediatamente
+        res.json({
+            success: true,
+            job_id: jobId,
+            message: 'Job de otimização iniciado'
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao iniciar job:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao iniciar otimização: ' + error.message
+        });
+    }
+});
+
+// GET - Verificar status de um job
+app.get('/api/python/optimize/:jobId', async (req, res) => {
+    try {
+        const { jobId } = req.params;
+
+        const job = optimizationJobs.get(jobId);
+
+        if (!job) {
+            return res.status(404).json({
+                success: false,
+                error: 'Job não encontrado'
+            });
+        }
+
+        if (job.status === 'completed') {
+            // Limpar job após 1 hora
+            setTimeout(() => {
+                optimizationJobs.delete(jobId);
+                console.log(`🗑️  [${jobId}] Job removido da memória`);
+            }, 3600000);
+
+            return res.json({
+                success: true,
+                status: 'completed',
+                result: job.result
+            });
+        } else if (job.status === 'failed') {
+            return res.json({
+                success: false,
+                status: 'failed',
+                error: job.error,
+                details: job.details
+            });
+        } else {
+            // Ainda processando
+            return res.json({
+                success: true,
+                status: 'processing',
+                message: 'Otimização em andamento...'
+            });
+        }
+
+    } catch (error) {
+        console.error('❌ Erro ao verificar status:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao verificar status: ' + error.message
+        });
+    }
+});
+
+// Limpar jobs antigos a cada hora
+setInterval(() => {
+    const now = new Date();
+    let removed = 0;
+
+    for (const [jobId, job] of optimizationJobs.entries()) {
+        const age = now - job.createdAt;
+        if (age > 3600000) { // 1 hora
+            optimizationJobs.delete(jobId);
+            removed++;
+        }
+    }
+
+    if (removed > 0) {
+        console.log(`🗑️  Removidos ${removed} jobs antigos da memória`);
+    }
+}, 3600000); // Executar a cada hora
 
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', async () => {

@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Login - Sistema de Gerenciamento de Frotas</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 24px;
+        }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="font-display">
+    <div class="relative min-h-screen w-full lg:grid lg:grid-cols-2">
+        <!-- Coluna Esquerda: Formulário de Login -->
+        <div class="flex flex-col items-center justify-center p-6 sm:p-12">
+            <div class="w-full max-w-md">
+                <!-- Logo e Título -->
+                <div class="flex items-center gap-3 mb-8">
+                    <div class="flex items-center justify-center h-12 w-12 bg-primary/20 text-primary rounded-xl">
+                        <span class="material-symbols-outlined !text-3xl">local_shipping</span>
+                    </div>
+                    <h1 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Sistema de Frotas i9</h1>
+                </div>
+
+                <!-- ========== TELA DE LOGIN ========== -->
+                <div id="loginScreen">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Bem-vindo de volta!</h2>
+                    <p class="mt-2 text-slate-600 dark:text-slate-400">Faça login para gerenciar sua frota.</p>
+
+                    <!-- Mensagem de Erro -->
+                    <div id="errorMessage" class="hidden mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+                            <p class="text-sm text-red-800 dark:text-red-200" id="errorText"></p>
+                        </div>
+                    </div>
+
+                    <!-- Formulário de Login -->
+                    <form id="loginForm" class="mt-10 space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="username">
+                                Nome de Usuário
+                            </label>
+                            <input
+                                autocomplete="username"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="username"
+                                name="username"
+                                placeholder="Digite seu usuário"
+                                required
+                                type="text"/>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="password">
+                                Senha
+                            </label>
+                            <input
+                                autocomplete="current-password"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="password"
+                                name="password"
+                                placeholder="••••••••"
+                                type="password"/>
+                        </div>
+
+                        <div>
+                            <button
+                                id="loginButton"
+                                class="flex w-full justify-center items-center gap-2 rounded-lg bg-primary px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                type="submit">
+                                <span id="loginButtonText">Entrar</span>
+                                <span id="loginSpinner" class="hidden">
+                                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 text-center">
+                        <button
+                            id="irParaCriarConta"
+                            type="button"
+                            class="text-sm text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+                            Não tem uma conta? <span class="font-semibold">Criar conta</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ========== TELA DE CRIAR SENHA ========== -->
+                <div id="criarSenhaScreen" class="hidden">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Criar Senha</h2>
+                    <p class="mt-2 text-slate-600 dark:text-slate-400">
+                        Olá, <strong id="nomeUsuarioCriarSenha" class="text-primary"></strong>!
+                        Você precisa criar uma senha para acessar o sistema.
+                    </p>
+
+                    <!-- Mensagem de Erro (Criar Senha) -->
+                    <div id="errorMessageCriarSenha" class="hidden mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+                            <p class="text-sm text-red-800 dark:text-red-200" id="errorTextCriarSenha"></p>
+                        </div>
+                    </div>
+
+                    <!-- Formulário de Criar Senha -->
+                    <form id="criarSenhaForm" class="mt-10 space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="novaSenha">
+                                Nova Senha (mínimo 4 caracteres)
+                            </label>
+                            <input
+                                autocomplete="new-password"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="novaSenha"
+                                name="novaSenha"
+                                placeholder="Digite sua nova senha"
+                                required
+                                minlength="4"
+                                type="password"/>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="confirmarSenha">
+                                Confirmar Senha
+                            </label>
+                            <input
+                                autocomplete="new-password"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="confirmarSenha"
+                                name="confirmarSenha"
+                                placeholder="Digite a senha novamente"
+                                required
+                                minlength="4"
+                                type="password"/>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button
+                                type="button"
+                                id="voltarLoginButton"
+                                class="flex-1 justify-center items-center gap-2 rounded-lg bg-slate-200 dark:bg-slate-700 px-3 py-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                                Voltar
+                            </button>
+                            <button
+                                id="criarSenhaButton"
+                                class="flex-1 justify-center items-center gap-2 rounded-lg bg-primary px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                type="submit">
+                                <span id="criarSenhaButtonText">Criar Senha</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 text-center">
+                        <button
+                            id="irParaLoginDeCriarSenha"
+                            type="button"
+                            class="text-sm text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+                            Voltar para o login
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ========== TELA DE CRIAR CONTA ========== -->
+                <div id="criarContaScreen" class="hidden">
+                    <h2 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50">Criar Conta</h2>
+                    <p class="mt-2 text-slate-600 dark:text-slate-400">Preencha os dados para criar sua conta no sistema.</p>
+
+                    <!-- Mensagem de Erro (Criar Conta) -->
+                    <div id="errorMessageCriarConta" class="hidden mt-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-red-600 dark:text-red-400">error</span>
+                            <p class="text-sm text-red-800 dark:text-red-200" id="errorTextCriarConta"></p>
+                        </div>
+                    </div>
+
+                    <!-- Formulário de Criar Conta -->
+                    <form id="criarContaForm" class="mt-10 space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="novoNomeCompleto">
+                                Nome Completo
+                            </label>
+                            <input
+                                autocomplete="name"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="novoNomeCompleto"
+                                name="novoNomeCompleto"
+                                placeholder="Digite seu nome completo"
+                                required
+                                type="text"/>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="novoUsername">
+                                Nome de Usuário
+                            </label>
+                            <input
+                                autocomplete="username"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="novoUsername"
+                                name="novoUsername"
+                                placeholder="Digite um nome de usuário"
+                                required
+                                type="text"/>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="novoEmail">
+                                E-mail (opcional)
+                            </label>
+                            <input
+                                autocomplete="email"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="novoEmail"
+                                name="novoEmail"
+                                placeholder="seuemail@exemplo.com"
+                                type="email"/>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="novaSenhaConta">
+                                Senha (mínimo 4 caracteres)
+                            </label>
+                            <input
+                                autocomplete="new-password"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="novaSenhaConta"
+                                name="novaSenhaConta"
+                                placeholder="Digite uma senha"
+                                required
+                                minlength="4"
+                                type="password"/>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2" for="confirmarSenhaConta">
+                                Confirmar Senha
+                            </label>
+                            <input
+                                autocomplete="new-password"
+                                class="block w-full rounded-lg border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 py-3 px-4 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-primary focus:ring-primary sm:text-sm"
+                                id="confirmarSenhaConta"
+                                name="confirmarSenhaConta"
+                                placeholder="Digite a senha novamente"
+                                required
+                                minlength="4"
+                                type="password"/>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button
+                                type="button"
+                                id="voltarLoginDeCriarConta"
+                                class="flex-1 justify-center items-center gap-2 rounded-lg bg-slate-200 dark:bg-slate-700 px-3 py-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                                Voltar
+                            </button>
+                            <button
+                                id="criarContaButton"
+                                class="flex-1 justify-center items-center gap-2 rounded-lg bg-primary px-3 py-3 text-sm font-semibold leading-6 text-white shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                type="submit">
+                                <span id="criarContaButtonText">Criar Conta</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-6 text-center">
+                        <button
+                            id="irParaLoginDeCriarConta2"
+                            type="button"
+                            class="text-sm text-slate-600 dark:text-slate-400 hover:text-primary transition-colors">
+                            Já tem uma conta? Fazer login
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Rodapé -->
+                <p class="mt-10 text-center text-xs text-slate-500 dark:text-slate-400">
+                    © 2025 Sistema de Frotas i9 Engenharia.
+                </p>
+            </div>
+        </div>
+
+        <!-- Coluna Direita: Imagem de Fundo -->
+        <div class="hidden lg:block relative">
+            <div class="absolute inset-0 h-full w-full bg-cover bg-center"
+                 style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDDmEy8-muk3IeKJbWO703EJQfb7PUpbdk8f2PJDePpOT-9erfjANGJ2I3OgtZsom4sj1N9VEm3soLa2cja78NKqDUAoPfQtSdqKa_Yo-nzl9UyX4rKPguknx1058qEHSeqw1G7UI6K9cvya8Jx0szr-zp-FV_2a1zIOb_gWzmoZsdmWPbu-jVWAgDnvwBvFRAcOQYJmE6oscNrcE3XroKcMnt9qGNkZ50WVlEJSf6ISAK3Mf4lrVDqH2xKuZQa_Bzh6SqpgbLvPSs');"></div>
+            <div class="absolute inset-0 h-full w-full bg-gradient-to-t from-slate-900/60 via-slate-900/20 to-transparent"></div>
+            <div class="relative flex h-full flex-col justify-end p-12">
+                <blockquote class="text-white">
+                    <p class="text-2xl font-semibold">
+                        "Gestão inteligente de frotas com tecnologia e eficiência."
+                    </p>
+                    <footer class="mt-4 text-base text-slate-300">
+                        Sistema de Frotas i9 Engenharia
+                    </footer>
+                </blockquote>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Verificar se já está logado
+        if (sessionStorage.getItem('usuario_id')) {
+            window.location.href = 'dashboard.html';
+        }
+
+        // Elementos
+        const loginScreen = document.getElementById('loginScreen');
+        const criarSenhaScreen = document.getElementById('criarSenhaScreen');
+        const criarContaScreen = document.getElementById('criarContaScreen');
+        const loginForm = document.getElementById('loginForm');
+        const criarSenhaForm = document.getElementById('criarSenhaForm');
+        const criarContaForm = document.getElementById('criarContaForm');
+        const loginButton = document.getElementById('loginButton');
+        const criarSenhaButton = document.getElementById('criarSenhaButton');
+        const criarContaButton = document.getElementById('criarContaButton');
+        const voltarLoginButton = document.getElementById('voltarLoginButton');
+        const voltarLoginDeCriarConta = document.getElementById('voltarLoginDeCriarConta');
+        const irParaCriarConta = document.getElementById('irParaCriarConta');
+        const irParaLoginDeCriarConta2 = document.getElementById('irParaLoginDeCriarConta2');
+        const irParaLoginDeCriarSenha = document.getElementById('irParaLoginDeCriarSenha');
+
+        // Variável para armazenar ID do usuário durante criação de senha
+        let usuarioIdCriarSenha = null;
+
+        // ========== LOGIN ==========
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+
+            if (!username) {
+                showError('Por favor, digite o nome de usuário.');
+                return;
+            }
+
+            setLoading(true);
+            hideError();
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const result = await response.json();
+                console.log('Login response:', result);
+
+                if (result.success) {
+                    // Login bem-sucedido
+                    const user = result.user;
+                    sessionStorage.setItem('usuario_id', user.id);
+                    sessionStorage.setItem('usuario_nome', user.full_name);
+                    sessionStorage.setItem('usuario_tipo', user.user_type);
+                    sessionStorage.setItem('token', result.token);
+
+                    window.location.href = 'dashboard.html';
+                } else if (result.needs_password) {
+                    // Usuário precisa criar senha
+                    usuarioIdCriarSenha = result.user.id;
+                    document.getElementById('nomeUsuarioCriarSenha').textContent = result.user.full_name;
+                    mostrarTelaCriarSenha();
+                } else {
+                    showError(result.error || result.message || 'Erro ao fazer login.');
+                }
+            } catch (error) {
+                console.error('Erro ao fazer login:', error);
+                showError('Erro ao conectar com o servidor. Tente novamente.');
+            } finally {
+                setLoading(false);
+            }
+        });
+
+        // ========== CRIAR SENHA ==========
+        criarSenhaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const novaSenha = document.getElementById('novaSenha').value;
+            const confirmarSenha = document.getElementById('confirmarSenha').value;
+
+            if (novaSenha.length < 4) {
+                showErrorCriarSenha('A senha deve ter no mínimo 4 caracteres.');
+                return;
+            }
+
+            if (novaSenha !== confirmarSenha) {
+                showErrorCriarSenha('As senhas não coincidem.');
+                return;
+            }
+
+            criarSenhaButton.disabled = true;
+            hideErrorCriarSenha();
+
+            try {
+                const response = await fetch('/api/auth/set-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: usuarioIdCriarSenha,
+                        new_password: novaSenha
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ Senha criada com sucesso! Faça login novamente.');
+                    voltarParaLogin();
+                } else {
+                    showErrorCriarSenha(result.error || result.message || 'Erro ao criar senha.');
+                }
+            } catch (error) {
+                console.error('Erro ao criar senha:', error);
+                showErrorCriarSenha('Erro ao conectar com o servidor.');
+            } finally {
+                criarSenhaButton.disabled = false;
+            }
+        });
+
+        // Botão voltar
+        voltarLoginButton.addEventListener('click', voltarParaLogin);
+
+        // ========== FUNÇÕES AUXILIARES ==========
+        function mostrarTelaCriarSenha() {
+            loginScreen.classList.add('hidden');
+            criarSenhaScreen.classList.remove('hidden');
+            document.getElementById('novaSenha').value = '';
+            document.getElementById('confirmarSenha').value = '';
+        }
+
+        function voltarParaLogin() {
+            criarSenhaScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            document.getElementById('password').value = '';
+            usuarioIdCriarSenha = null;
+        }
+
+        function setLoading(loading) {
+            loginButton.disabled = loading;
+            document.getElementById('loginButtonText').classList.toggle('hidden', loading);
+            document.getElementById('loginSpinner').classList.toggle('hidden', !loading);
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.add('hidden');
+        }
+
+        function showErrorCriarSenha(message) {
+            document.getElementById('errorTextCriarSenha').textContent = message;
+            document.getElementById('errorMessageCriarSenha').classList.remove('hidden');
+        }
+
+        function hideErrorCriarSenha() {
+            document.getElementById('errorMessageCriarSenha').classList.add('hidden');
+        }
+
+        function showErrorCriarConta(message) {
+            document.getElementById('errorTextCriarConta').textContent = message;
+            document.getElementById('errorMessageCriarConta').classList.remove('hidden');
+        }
+
+        function hideErrorCriarConta() {
+            document.getElementById('errorMessageCriarConta').classList.add('hidden');
+        }
+
+        function mostrarTelaCriarConta() {
+            loginScreen.classList.add('hidden');
+            criarSenhaScreen.classList.add('hidden');
+            criarContaScreen.classList.remove('hidden');
+            document.getElementById('novoNomeCompleto').value = '';
+            document.getElementById('novoUsername').value = '';
+            document.getElementById('novoEmail').value = '';
+            document.getElementById('novaSenhaConta').value = '';
+            document.getElementById('confirmarSenhaConta').value = '';
+            hideErrorCriarConta();
+        }
+
+        function voltarParaLoginDeCriarConta() {
+            criarContaScreen.classList.add('hidden');
+            loginScreen.classList.remove('hidden');
+            hideErrorCriarConta();
+        }
+
+        // ========== CRIAR CONTA ==========
+        criarContaForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const nomeCompleto = document.getElementById('novoNomeCompleto').value.trim();
+            const username = document.getElementById('novoUsername').value.trim();
+            const email = document.getElementById('novoEmail').value.trim();
+            const senha = document.getElementById('novaSenhaConta').value;
+            const confirmarSenha = document.getElementById('confirmarSenhaConta').value;
+
+            if (!nomeCompleto || !username) {
+                showErrorCriarConta('Nome completo e nome de usuário são obrigatórios.');
+                return;
+            }
+
+            if (senha.length < 4) {
+                showErrorCriarConta('A senha deve ter no mínimo 4 caracteres.');
+                return;
+            }
+
+            if (senha !== confirmarSenha) {
+                showErrorCriarConta('As senhas não coincidem.');
+                return;
+            }
+
+            criarContaButton.disabled = true;
+            hideErrorCriarConta();
+
+            try {
+                const response = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        full_name: nomeCompleto,
+                        username: username,
+                        email: email || null,
+                        password: senha,
+                        user_type: 'usuario'
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('✅ Conta criada com sucesso! Faça login para continuar.');
+                    voltarParaLoginDeCriarConta();
+                    document.getElementById('username').value = username;
+                } else {
+                    showErrorCriarConta(result.error || 'Erro ao criar conta.');
+                }
+            } catch (error) {
+                console.error('Erro ao criar conta:', error);
+                showErrorCriarConta('Erro ao conectar com o servidor.');
+            } finally {
+                criarContaButton.disabled = false;
+            }
+        });
+
+        // ========== NAVEGAÇÃO ==========
+        irParaCriarConta.addEventListener('click', mostrarTelaCriarConta);
+        voltarLoginDeCriarConta.addEventListener('click', voltarParaLoginDeCriarConta);
+        irParaLoginDeCriarConta2.addEventListener('click', voltarParaLoginDeCriarConta);
+        irParaLoginDeCriarSenha.addEventListener('click', voltarParaLogin);
+    </script>
+</body>
+</html>
