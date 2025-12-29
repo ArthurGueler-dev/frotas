@@ -273,10 +273,16 @@
                         <h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Painel Administrativo</h1>
                         <p class="text-gray-500 dark:text-gray-400 text-base font-normal">Gerenciamento de Checklists</p>
                     </div>
-                    <button onclick="carregarChecklists()" class="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
-                        <span class="material-symbols-outlined">refresh</span>
-                        <span>Atualizar</span>
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="visualizarUsuarios()" class="flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                            <span class="material-symbols-outlined">people</span>
+                            <span>Visualizar Usuários</span>
+                        </button>
+                        <button onclick="carregarChecklists()" class="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors">
+                            <span class="material-symbols-outlined">refresh</span>
+                            <span>Atualizar</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Estatísticas -->
@@ -386,6 +392,83 @@
     </div>
 </div>
 
+<!-- Modal de Usuários -->
+<div id="modal-usuarios" class="modal">
+    <div class="modal-content">
+        <div class="sticky top-0 z-10 flex items-center justify-between p-6 bg-primary text-white rounded-t-xl">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-2xl">people</span>
+                <h2 class="text-xl font-bold">Usuários do Sistema</h2>
+            </div>
+            <button onclick="fecharModalUsuarios()" class="text-white hover:text-gray-200">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
+        <div id="usuarios-conteudo" class="p-6">
+            <!-- Filtros -->
+            <div id="usuarios-filtros" class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-800 hidden">
+                <h3 class="text-lg font-semibold text-[#111418] dark:text-white mb-4">Filtros</h3>
+                
+                <!-- Busca por Nome -->
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Buscar por nome</label>
+                    <input type="text" id="filtro-usuario-nome" placeholder="Digite o nome do usuário..."
+                           class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                           oninput="aplicarFiltrosUsuarios()">
+                </div>
+
+                <!-- Filtros de Status e Tipo -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
+                        <select id="filtro-usuario-status" 
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                onchange="aplicarFiltrosUsuarios()">
+                            <option value="">Todos</option>
+                            <option value="ativo">Ativo</option>
+                            <option value="inativo">Inativo</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tipo de Usuário</label>
+                        <select id="filtro-usuario-tipo" 
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                onchange="aplicarFiltrosUsuarios()">
+                            <option value="">Todos</option>
+                            <option value="admin">Administrador</option>
+                            <option value="comum">Usuário Comum</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tutorial</label>
+                        <select id="filtro-usuario-tutorial" 
+                                class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                                onchange="aplicarFiltrosUsuarios()">
+                            <option value="">Todos</option>
+                            <option value="sim">Concluído</option>
+                            <option value="nao">Não Concluído</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button onclick="limparFiltrosUsuarios()" class="flex items-center justify-center gap-2 w-full px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                    <span>Limpar Filtros</span>
+                </button>
+            </div>
+
+            <!-- Loading -->
+            <div id="usuarios-loading" class="text-center py-12">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <p class="mt-4 text-gray-500 dark:text-gray-400">Carregando usuários...</p>
+            </div>
+
+            <!-- Lista de Usuários -->
+            <div id="usuarios-lista" class="hidden"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Modal de Foto Expandida -->
 <div id="modal-foto" class="modal">
     <div class="modal-content bg-black">
@@ -420,6 +503,8 @@
 let todosChecklists = [];
 let checklistsFiltrados = [];
 let zoomLevel = 1;
+let todosUsuarios = [];
+let usuariosFiltrados = [];
 
 // Carregar checklists ao iniciar
 document.addEventListener('DOMContentLoaded', () => {
@@ -899,16 +984,178 @@ function formatarData(data) {
     });
 }
 
+// Visualizar usuários
+async function visualizarUsuarios() {
+    const modal = document.getElementById('modal-usuarios');
+    const loading = document.getElementById('usuarios-loading');
+    const lista = document.getElementById('usuarios-lista');
+    const filtros = document.getElementById('usuarios-filtros');
+
+    modal.classList.add('active');
+    loading.classList.remove('hidden');
+    lista.classList.add('hidden');
+    filtros.classList.add('hidden');
+
+    try {
+        const response = await fetch('https://floripa.in9automacao.com.br/veicular_get.php?acao=usuarios');
+
+        if (!response.ok) {
+            throw new Error('Erro ao carregar usuários');
+        }
+
+        const usuarios = await response.json();
+
+        if (usuarios.erro) {
+            throw new Error(usuarios.erro);
+        }
+
+        todosUsuarios = usuarios;
+        usuariosFiltrados = usuarios;
+        
+        loading.classList.add('hidden');
+        filtros.classList.remove('hidden');
+        aplicarFiltrosUsuarios();
+    } catch (error) {
+        console.error('Erro ao carregar usuários:', error);
+        loading.classList.add('hidden');
+        lista.classList.remove('hidden');
+        lista.innerHTML = `
+            <div class="text-center py-12 text-red-500">
+                <span class="material-symbols-outlined text-5xl mb-4">error</span>
+                <p class="text-lg font-semibold">Erro ao carregar usuários</p>
+                <p class="text-sm mt-2">${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+// Aplicar filtros de usuários
+function aplicarFiltrosUsuarios() {
+    const filtroNome = document.getElementById('filtro-usuario-nome').value.toLowerCase();
+    const filtroStatus = document.getElementById('filtro-usuario-status').value;
+    const filtroTipo = document.getElementById('filtro-usuario-tipo').value;
+    const filtroTutorial = document.getElementById('filtro-usuario-tutorial').value;
+
+    usuariosFiltrados = todosUsuarios.filter(usuario => {
+        // Filtro por nome
+        if (filtroNome && !usuario.nome.toLowerCase().includes(filtroNome)) {
+            return false;
+        }
+
+        // Filtro por status
+        if (filtroStatus) {
+            if (filtroStatus === 'ativo' && !usuario.ativo) {
+                return false;
+            }
+            if (filtroStatus === 'inativo' && usuario.ativo) {
+                return false;
+            }
+        }
+
+        // Filtro por tipo
+        if (filtroTipo && usuario.tipo_usuario !== filtroTipo) {
+            return false;
+        }
+
+        // Filtro por tutorial
+        if (filtroTutorial) {
+            if (filtroTutorial === 'sim' && !usuario.tutorial_concluido) {
+                return false;
+            }
+            if (filtroTutorial === 'nao' && usuario.tutorial_concluido) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    const lista = document.getElementById('usuarios-lista');
+    lista.classList.remove('hidden');
+    lista.innerHTML = renderizarUsuarios(usuariosFiltrados);
+}
+
+// Limpar filtros de usuários
+function limparFiltrosUsuarios() {
+    document.getElementById('filtro-usuario-nome').value = '';
+    document.getElementById('filtro-usuario-status').value = '';
+    document.getElementById('filtro-usuario-tipo').value = '';
+    document.getElementById('filtro-usuario-tutorial').value = '';
+    aplicarFiltrosUsuarios();
+}
+
+// Renderizar lista de usuários
+function renderizarUsuarios(usuarios) {
+    if (!usuarios || usuarios.length === 0) {
+        return `
+            <div class="text-center py-12">
+                <span class="material-symbols-outlined text-5xl text-gray-400 mb-4">people_outline</span>
+                <p class="text-gray-500 dark:text-gray-400">Nenhum usuário encontrado</p>
+            </div>
+        `;
+    }
+
+    return `
+        <div class="space-y-3">
+            ${usuarios.map(usuario => `
+                <div class="detail-card p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-all">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-4 flex-1">
+                            <div class="w-12 h-12 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-primary text-2xl">person</span>
+                            </div>
+                            <div class="flex-1">
+                                <h3 class="font-bold text-lg text-[#111418] dark:text-white">${usuario.nome}</h3>
+                                <div class="flex flex-wrap gap-3 mt-2">
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${usuario.ativo ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}">
+                                        ${usuario.ativo ? 'Ativo' : 'Inativo'}
+                                    </span>
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold ${usuario.tipo_usuario === 'admin' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}">
+                                        ${usuario.tipo_usuario === 'admin' ? 'Administrador' : 'Usuário Comum'}
+                                    </span>
+                                    ${usuario.tutorial_concluido ? `
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                        Tutorial Concluído
+                                    </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">ID: ${usuario.id}</p>
+                            ${usuario.data_criacao ? `<p class="text-xs text-gray-500 dark:text-gray-400">Criado em: ${formatarData(usuario.data_criacao)}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
+            <p class="text-sm font-semibold text-blue-900 dark:text-blue-300">
+                Exibindo: <span class="text-lg">${usuarios.length}</span> de <span class="text-lg">${todosUsuarios.length}</span> usuários
+            </p>
+        </div>
+    `;
+}
+
+// Fechar modal de usuários
+function fecharModalUsuarios() {
+    document.getElementById('modal-usuarios').classList.remove('active');
+}
+
 // Fechar modal ao clicar fora
 window.onclick = function(event) {
     const modalDetalhes = document.getElementById('modal-detalhes');
     const modalFoto = document.getElementById('modal-foto');
+    const modalUsuarios = document.getElementById('modal-usuarios');
 
     if (event.target === modalDetalhes) {
         fecharModal();
     }
     if (event.target === modalFoto) {
         fecharFotoExpandida();
+    }
+    if (event.target === modalUsuarios) {
+        fecharModalUsuarios();
     }
 }
 </script>

@@ -111,7 +111,9 @@
       "Bash(ping:*)",
       "Bash(if not exist upload-cpanel mkdir upload-cpanel)",
       "Bash(copy cpanel-apiblocks-api.php upload-cpanel)",
-      "Bash(git stash pop:*)"
+      "Bash(git stash pop:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [],
     "ask": []

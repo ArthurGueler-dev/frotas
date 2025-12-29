@@ -241,6 +241,31 @@ try {
             echo json_encode($resultado);
             break;
 
+        case 'usuarios':
+            // Busca todos os usuários do sistema
+            $sql = "SELECT 
+                        id,
+                        nome,
+                        ativo,
+                        tipo_usuario,
+                        tutorial_concluido,
+                        data_criacao
+                    FROM aaa_usuario
+                    ORDER BY nome ASC";
+
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute();
+            $usuarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Converte ativo e tutorial_concluido para boolean
+            foreach ($usuarios as &$usuario) {
+                $usuario['ativo'] = (bool)$usuario['ativo'];
+                $usuario['tutorial_concluido'] = (bool)$usuario['tutorial_concluido'];
+            }
+
+            echo json_encode($usuarios);
+            break;
+
         case 'todos':
         default:
             $limite = isset($_GET['limite']) ? (int)$_GET['limite'] : 100;
