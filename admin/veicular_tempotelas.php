@@ -29,7 +29,7 @@ try {
             exit;
         }
 
-        $sql = "INSERT INTO aaa_tempo_telas
+        $sql = "INSERT INTO bbb_tempo_telas
                 (inspecao_id, usuario_id, tela, tempo_segundos, data_hora_inicio, data_hora_fim)
                 VALUES
                 (:inspecao_id, :usuario_id, :tela, :tempo_segundos, :data_hora_inicio, :data_hora_fim)";
@@ -66,7 +66,7 @@ try {
                     exit;
                 }
 
-                $sql = "SELECT * FROM aaa_tempo_telas
+                $sql = "SELECT * FROM bbb_tempo_telas
                         WHERE inspecao_id = :inspecao_id
                         ORDER BY data_hora_inicio ASC";
                 $stmt = $pdo->prepare($sql);
@@ -84,7 +84,7 @@ try {
                     exit;
                 }
 
-                $sql = "SELECT * FROM aaa_tempo_telas
+                $sql = "SELECT * FROM bbb_tempo_telas
                         WHERE usuario_id = :usuario_id
                         ORDER BY data_hora_inicio DESC
                         LIMIT 100";
@@ -104,7 +104,7 @@ try {
                             MIN(tempo_segundos) as tempo_minimo_segundos,
                             MAX(tempo_segundos) as tempo_maximo_segundos,
                             SUM(tempo_segundos) as tempo_total_segundos
-                        FROM aaa_tempo_telas
+                        FROM bbb_tempo_telas
                         GROUP BY tela
                         ORDER BY tempo_medio_segundos DESC";
                 $stmt = $pdo->prepare($sql);
@@ -119,7 +119,7 @@ try {
                 // Buscar todos os registros (com limite)
                 $limite = isset($_GET['limite']) ? intval($_GET['limite']) : 100;
 
-                $sql = "SELECT * FROM aaa_tempo_telas
+                $sql = "SELECT * FROM bbb_tempo_telas
                         ORDER BY data_hora_inicio DESC
                         LIMIT :limite";
                 $stmt = $pdo->prepare($sql);

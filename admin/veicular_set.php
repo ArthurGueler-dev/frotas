@@ -61,9 +61,9 @@ try {
     }
 
     // ============================================
-    // 1. Insere dados principais na aaa_inspecao_veiculo
+    // 1. Insere dados principais na bbb_inspecao_veiculo
     // ============================================
-    $sqlInspecao = "INSERT INTO aaa_inspecao_veiculo (
+    $sqlInspecao = "INSERT INTO bbb_inspecao_veiculo (
         placa,
         km_inicial,
         nivel_combustivel,
@@ -91,7 +91,7 @@ try {
 
     // Se não foi informado, busca qualquer usuário ativo (exceto Frota)
     if ($usuarioId === null) {
-        $stmtUsuario = $pdo->query("SELECT id FROM aaa_usuario WHERE ativo = 1 AND id != 1 ORDER BY id LIMIT 1");
+        $stmtUsuario = $pdo->query("SELECT id FROM bbb_usuario WHERE ativo = 1 AND id != 1 ORDER BY id LIMIT 1");
         $usuarioPadrao = $stmtUsuario->fetch();
         $usuarioId = $usuarioPadrao ? $usuarioPadrao['id'] : 1; // Se não achar nenhum, usa ID 1
     }
@@ -111,7 +111,7 @@ try {
     error_log("Inspeção criada com ID: " . $inspecaoId);
 
     // ============================================
-    // 2. Insere fotos do veículo na aaa_inspecao_foto
+    // 2. Insere fotos do veículo na bbb_inspecao_foto
     // ============================================
     $fotos = array(
         'foto_painel' => 'PAINEL',
@@ -121,7 +121,7 @@ try {
         'foto_lateral_esquerda' => 'LATERAL_ESQUERDA'
     );
 
-    $sqlFoto = "INSERT INTO aaa_inspecao_foto (inspecao_id, tipo, foto) VALUES (:inspecao_id, :tipo, :foto)";
+    $sqlFoto = "INSERT INTO bbb_inspecao_foto (inspecao_id, tipo, foto) VALUES (:inspecao_id, :tipo, :foto)";
     $stmtFoto = $pdo->prepare($sqlFoto);
 
     foreach ($fotos as $campo => $tipo) {
@@ -136,9 +136,9 @@ try {
     }
 
     // ============================================
-    // 3. Insere itens de inspeção na aaa_inspecao_item
+    // 3. Insere itens de inspeção na bbb_inspecao_item
     // ============================================
-    $sqlItem = "INSERT INTO aaa_inspecao_item (inspecao_id, categoria, item, status, foto, pressao, foto_caneta)
+    $sqlItem = "INSERT INTO bbb_inspecao_item (inspecao_id, categoria, item, status, foto, pressao, foto_caneta)
                 VALUES (:inspecao_id, :categoria, :item, :status, :foto, :pressao, :foto_caneta)";
     $stmtItem = $pdo->prepare($sqlItem);
 

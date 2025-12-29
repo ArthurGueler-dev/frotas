@@ -33,7 +33,7 @@ try {
             }
 
             // Busca inspeção principal
-            $sqlInspecao = "SELECT * FROM aaa_inspecao_veiculo WHERE id = :id";
+            $sqlInspecao = "SELECT * FROM bbb_inspecao_veiculo WHERE id = :id";
             $stmtInspecao = $pdo->prepare($sqlInspecao);
             $stmtInspecao->execute(['id' => $_GET['id']]);
             $inspecao = $stmtInspecao->fetch();
@@ -45,13 +45,13 @@ try {
             }
 
             // Busca fotos
-            $sqlFotos = "SELECT tipo, foto FROM aaa_inspecao_foto WHERE inspecao_id = :id";
+            $sqlFotos = "SELECT tipo, foto FROM bbb_inspecao_foto WHERE inspecao_id = :id";
             $stmtFotos = $pdo->prepare($sqlFotos);
             $stmtFotos->execute(['id' => $_GET['id']]);
             $fotos = $stmtFotos->fetchAll();
 
             // Busca itens
-            $sqlItens = "SELECT categoria, item, status, foto FROM aaa_inspecao_item WHERE inspecao_id = :id";
+            $sqlItens = "SELECT categoria, item, status, foto FROM bbb_inspecao_item WHERE inspecao_id = :id";
             $stmtItens = $pdo->prepare($sqlItens);
             $stmtItens->execute(['id' => $_GET['id']]);
             $itens = $stmtItens->fetchAll();
@@ -77,8 +77,8 @@ try {
             $sql = "SELECT
                         i.*,
                         COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
-                    FROM aaa_inspecao_veiculo i
-                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    FROM bbb_inspecao_veiculo i
+                    LEFT JOIN bbb_usuario u ON i.usuario_id = u.id
                     WHERE i.placa = :placa
                     ORDER BY i.data_realizacao DESC";
 
@@ -99,8 +99,8 @@ try {
             $sql = "SELECT
                         i.*,
                         COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
-                    FROM aaa_inspecao_veiculo i
-                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    FROM bbb_inspecao_veiculo i
+                    LEFT JOIN bbb_usuario u ON i.usuario_id = u.id
                     WHERE i.data_realizacao BETWEEN :data_inicio AND :data_fim
                     ORDER BY i.data_realizacao DESC";
 
@@ -128,8 +128,8 @@ try {
             $sqlInspecao = "SELECT
                                 i.*,
                                 COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
-                            FROM aaa_inspecao_veiculo i
-                            LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                            FROM bbb_inspecao_veiculo i
+                            LEFT JOIN bbb_usuario u ON i.usuario_id = u.id
                             WHERE i.id = :id";
             $stmtInspecao = $pdo->prepare($sqlInspecao);
             $stmtInspecao->execute(['id' => $id]);
@@ -142,7 +142,7 @@ try {
             }
 
             // Busca fotos organizadas por tipo
-            $sqlFotos = "SELECT tipo, foto FROM aaa_inspecao_foto WHERE inspecao_id = :id";
+            $sqlFotos = "SELECT tipo, foto FROM bbb_inspecao_foto WHERE inspecao_id = :id";
             $stmtFotos = $pdo->prepare($sqlFotos);
             $stmtFotos->execute(['id' => $id]);
             $fotosArray = $stmtFotos->fetchAll();
@@ -153,7 +153,7 @@ try {
             }
 
             // Busca itens organizados por categoria
-            $sqlItens = "SELECT categoria, item, status, foto, pressao, foto_caneta FROM aaa_inspecao_item WHERE inspecao_id = :id";
+            $sqlItens = "SELECT categoria, item, status, foto, pressao, foto_caneta FROM bbb_inspecao_item WHERE inspecao_id = :id";
             $stmtItens = $pdo->prepare($sqlItens);
             $stmtItens->execute(['id' => $id]);
             $itensArray = $stmtItens->fetchAll();
@@ -250,7 +250,7 @@ try {
                         tipo_usuario,
                         tutorial_concluido,
                         data_criacao
-                    FROM aaa_usuario
+                    FROM bbb_usuario
                     ORDER BY nome ASC";
 
             $stmt = $pdo->prepare($sql);
@@ -278,8 +278,8 @@ try {
                         i.nivel_combustivel,
                         i.status_geral,
                         COALESCE(u.nome, 'Usuário não identificado') as usuario_nome
-                    FROM aaa_inspecao_veiculo i
-                    LEFT JOIN aaa_usuario u ON i.usuario_id = u.id
+                    FROM bbb_inspecao_veiculo i
+                    LEFT JOIN bbb_usuario u ON i.usuario_id = u.id
                     ORDER BY i.data_realizacao DESC
                     LIMIT :limite";
 

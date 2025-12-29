@@ -58,7 +58,7 @@ if ($acao === 'definir_senha') {
 
     try {
         // Busca o usuário
-        $stmt = $pdo->prepare("SELECT id, nome, senha FROM aaa_usuario WHERE id = :id LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, nome, senha FROM bbb_usuario WHERE id = :id LIMIT 1");
         $stmt->execute(['id' => $usuarioId]);
         $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -83,7 +83,7 @@ if ($acao === 'definir_senha') {
 
         // Atualiza a senha
         $senhaHash = md5($novaSenha);
-        $stmtUpdate = $pdo->prepare("UPDATE aaa_usuario SET senha = :senha WHERE id = :id");
+        $stmtUpdate = $pdo->prepare("UPDATE bbb_usuario SET senha = :senha WHERE id = :id");
         $stmtUpdate->execute([
             'senha' => $senhaHash,
             'id' => $usuarioId
@@ -148,7 +148,7 @@ try {
             ativo,
             tipo_usuario,
             tutorial_concluido
-        FROM aaa_usuario
+        FROM bbb_usuario
         WHERE nome = :nome
         LIMIT 1
     ");
@@ -273,7 +273,7 @@ elseif ($acao === 'marcar_tutorial_concluido') {
     try {
         // Atualiza o campo tutorial_concluido para true
         $stmt = $pdo->prepare("
-            UPDATE aaa_usuario
+            UPDATE bbb_usuario
             SET tutorial_concluido = 1
             WHERE id = :id
         ");
