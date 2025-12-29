@@ -110,7 +110,8 @@
       "Bash(nslookup:*)",
       "Bash(ping:*)",
       "Bash(if not exist upload-cpanel mkdir upload-cpanel)",
-      "Bash(copy cpanel-apiblocks-api.php upload-cpanel)"
+      "Bash(copy cpanel-apiblocks-api.php upload-cpanel)",
+      "Bash(git stash pop:*)"
     ],
     "deny": [],
     "ask": []
