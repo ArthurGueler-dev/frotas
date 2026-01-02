@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Diagnóstico - Filtro de Área</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .result {
+            background: #000;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .warning {
+            color: #ffaa00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnóstico - Filtro de Área Ativo</h1>
+    <div id="results"></div>
+
+    <script>
+        async function diagnosticar() {
+            const results = document.getElementById('results');
+            let html = '';
+
+            // 1. Verificar select de área no dashboard
+            html += '<div class="result">';
+            html += '<h3>1. Verificando select de área (areaFilterSelect):</h3>';
+            const areaSelect = document.getElementById('areaFilterSelect');
+            if (areaSelect) {
+                html += `<p>✅ Select encontrado!</p>`;
+                html += `<p>Valor atual: <strong>${areaSelect.value || '(vazio)'}</strong></p>`;
+                html += `<p>Texto selecionado: <strong>${areaSelect.options[areaSelect.selectedIndex]?.text || 'N/A'}</strong></p>`;
+                html += `<p>Total de opções: ${areaSelect.options.length}</p>`;
+
+                // Listar todas as opções
+                html += '<p>Opções disponíveis:</p><ul>';
+                for (let i = 0; i < areaSelect.options.length; i++) {
+                    const opt = areaSelect.options[i];
+                    html += `<li>${opt.value || '(vazio)'} - ${opt.text}${i === areaSelect.selectedIndex ? ' <strong>(SELECIONADO)</strong>' : ''}</li>`;
+                }
+                html += '</ul>';
+            } else {
+                html += '<p class="warning">⚠️ Select "areaFilterSelect" NÃO encontrado!</p>';
+            }
+            html += '</div>';
+
+            // 2. Verificar baseSelect
+            html += '<div class="result">';
+            html += '<h3>2. Verificando baseSelect:</h3>';
+            const baseSelect = document.getElementById('baseSelect');
+            if (baseSelect) {
+                html += `<p>✅ Select encontrado!</p>`;
+                html += `<p>Valor atual: <strong>${baseSelect.value || '(vazio)'}</strong></p>`;
+                html += `<p>Texto selecionado: <strong>${baseSelect.options[baseSelect.selectedIndex]?.text || 'N/A'}</strong></p>`;
+            } else {
+                html += '<p class="warning">⚠️ Select "baseSelect" NÃO encontrado!</p>`;
+            }
+            html += '</div>';
+
+            // 3. Buscar API para comparar totais
+            html += '<div class="result">';
+            html += '<h3>3. Comparando dados da API:</h3>';
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                // Total SEM filtro
+                const urlSemFiltro = `https://floripa.in9automacao.com.br/daily-mileage-api.php?date_from=${today}&date_to=${today}&limit=1000`;
+                const resSemFiltro = await fetch(urlSemFiltro);
+                const dataSemFiltro = await resSemFiltro.json();
+
+                const totalSemFiltro = dataSemFiltro.success && dataSemFiltro.records
+                    ? dataSemFiltro.records.reduce((sum, r) => sum + (parseFloat(r.km_driven) || 0), 0)
+                    : 0;
+
+                html += `<p>📊 Total SEM filtro de área: <strong>${totalSemFiltro.toFixed(2)} km</strong> (${dataSemFiltro.records?.length || 0} veículos)</p>`;
+
+                // Se há um filtro de área ativo, buscar com filtro
+                if (areaSelect && areaSelect.value && areaSelect.value !== '') {
+                    const area_id = areaSelect.value;
+                    const urlComFiltro = `https://floripa.in9automacao.com.br/daily-mileage-api.php?date_from=${today}&date_to=${today}&area_id=${area_id}&limit=1000`;
+                    const resComFiltro = await fetch(urlComFiltro);
+                    const dataComFiltro = await resComFiltro.json();
+
+                    const totalComFiltro = dataComFiltro.success && dataComFiltro.records
+                        ? dataComFiltro.records.reduce((sum, r) => sum + (parseFloat(r.km_driven) || 0), 0)
+                        : 0;
+
+                    html += `<p>🔍 Total COM filtro de área ${area_id}: <strong>${totalComFiltro.toFixed(2)} km</strong> (${dataComFiltro.records?.length || 0} veículos)</p>`;
+                    html += `<p class="warning">⚠️ DIFERENÇA: ${(totalSemFiltro - totalComFiltro).toFixed(2)} km</p>`;
+
+                    if (Math.abs(totalComFiltro - 2127) < 10) {
+                        html += '<p class="error">🎯 BINGO! O filtro de área está causando a diferença nos cards!</p>';
+                    }
+                } else {
+                    html += '<p>✅ Nenhum filtro de área ativo no momento</p>';
+                }
+            } catch (error) {
+                html += `<p class="error">❌ Erro ao buscar API: ${error.message}</p>`;
+            }
+            html += '</div>';
+
+            // 4. Verificar valor exibido no card
+            html += '<div class="result">';
+            html += '<h3>4. Verificando card de KM Hoje:</h3>';
+            const cardKmToday = document.getElementById('stat-km-today');
+            if (cardKmToday) {
+                html += `<p>Valor exibido: <strong>${cardKmToday.textContent}</strong></p>`;
+
+                const kmNumerico = parseFloat(cardKmToday.textContent.replace(/[^\d,.-]/g, '').replace(',', '.'));
+                html += `<p>Valor numérico: ${kmNumerico.toFixed(2)} km</p>`;
+
+                if (Math.abs(kmNumerico - 2127) < 10) {
+                    html += '<p class="error">🎯 Card mostrando valor FILTRADO (~2,127 km)</p>';
+                } else if (Math.abs(kmNumerico - 2935) < 10) {
+                    html += '<p>✅ Card mostrando valor TOTAL (~2,935 km)</p>';
+                }
+            } else {
+                html += '<p class="warning">⚠️ Card "stat-km-today" NÃO encontrado!</p>';
+            }
+            html += '</div>';
+
+            results.innerHTML = html;
+        }
+
+        diagnosticar();
+    </script>
+</body>
+</html>

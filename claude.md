@@ -11,6 +11,23 @@
 
 ## 1. Andamento do Projeto (Changelog)
 
+### 2025-12-30
+- **FEATURE**: Sistema completo de cálculo automático de quilometragem implementado
+- **DATABASE**: Criadas tabelas `areas`, `daily_mileage` e alterada `Vehicles` (campo area_id)
+- **API DISCOVERY**: Identificada API Ituran `GetVehicleMileage_JSON` (Service3.asmx) - retorna odômetro total
+- **BACKEND**: Criado `fleet-backend/services/mileage_service.py` - serviço Python completo
+- **API**: Criado `cpanel-api/daily-mileage-api.php` - CRUD com UPSERT para quilometragem
+- **API**: Criado `cpanel-api/areas-api.php` - gerenciamento de áreas geográficas
+- **API**: Criado `cpanel-api/insert-correct-areas.php` - script para inserir 6 áreas
+- **INTERFACE**: Criado `cpanel-api/associate-vehicles-areas.php` - interface web com busca
+- **CELERY**: Adicionada task `sync_all_vehicles_mileage` em `tasks.py`
+- **AUTOMATION**: Schedule automático configurado (06:00, 12:00, 18:00, 23:59)
+- **TESTS**: Criado `test_mileage_integration.py` - 5 fases de teste completo
+- **DOCS**: Criado `README-MILEAGE.md` - documentação completa do sistema
+- **FIX**: Corrigida compatibilidade PHP - substituídas arrow functions por foreach
+- **DATA**: Cadastradas 6 áreas: Barra de São Francisco, Guarapari, Santa Tereza, Castelo, Aracruz, Nova Venécia
+- **CRITICAL**: SEMPRE usar sintaxe PHP compatível com versões antigas (sem arrow functions)
+
 ### 2025-12-19
 - **DOCS**: Atualizado claude.md com correções de tabelas MySQL, domínio de APIs (floripa.in9automacao.com.br), regras de segurança e histórico técnico separado
 - **CRÍTICO**: Implementado clustering com OSRM completo, chunking automático e garantia de ≤5 locais por bloco
@@ -336,6 +353,8 @@ frotas/
 - Sempre usar prepared statements (PDO)
 - Validação de input obrigatória
 - Headers CORS configurados corretamente
+- **CRITICAL**: NÃO usar arrow functions `fn()` - servidor pode ter PHP <7.4
+- **CRITICAL**: Usar `function() {}` tradicional ou loops `foreach` ao invés de `fn()`
 
 **SQL:**
 - UPPERCASE para keywords (SELECT, FROM, WHERE)

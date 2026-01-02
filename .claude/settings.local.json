@@ -114,7 +114,10 @@
       "Bash(test:*)",
       "Bash(do sed -i 's|<script src=\"\"sidebar.js|<script src=\"\"auth.js\"\" defer></script>\\n<script src=\"\"sidebar.js|' \"$file\")",
       "Bash(ssh:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "Bash(git fetch:*)",
+      "Bash(if not exist \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\" mkdir \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\")",
+      "Bash(copy \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\db-config.php\" \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\\\\db-config.php\")"
     ],
     "deny": [],
     "ask": []

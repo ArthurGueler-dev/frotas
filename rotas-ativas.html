@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotas Ativas | Sistema de Frotas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-pendente {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status-em_andamento {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .status-concluida {
+            background: #d1fae5;
+            color: #065f46;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Sidebar -->
+    <div id="sidebar-container" data-page="rotas-ativas"></div>
+
+    <!-- Main Content -->
+    <div class="ml-64 p-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                        <span class="material-symbols-outlined text-blue-600" style="font-size: 36px;">local_shipping</span>
+                        Rotas Ativas
+                    </h1>
+                    <p class="text-gray-600 mt-2">Rotas enviadas via WhatsApp e em andamento</p>
+                </div>
+                <button onclick="loadRotas()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2">
+                    <span class="material-symbols-outlined" style="font-size: 20px;">refresh</span>
+                    Atualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="bg-white p-4 rounded-lg shadow mb-6 flex gap-4">
+            <select id="statusFilter" onchange="loadRotas()" class="px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="">Todos os Status</option>
+                <option value="pendente">Pendente</option>
+                <option value="em_andamento" selected>Em Andamento</option>
+                <option value="concluida">Concluída</option>
+            </select>
+        </div>
+
+        <!-- Tabela de Rotas -->
+        <div class="bg-white rounded-lg shadow">
+            <table class="w-full">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Bloco</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Veículo</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Motorista</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Status</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Distância</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Tempo Est.</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Enviado em</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold text-gray-700">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="rotasTableBody" class="divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="9" class="px-6 py-8 text-center text-gray-500">
+                            Carregando rotas...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script src="auth.js" defer></script>
+    <script src="sidebar.js"></script>
+    <script>
+        const API_BASE = 'https://floripa.in9automacao.com.br';
+
+        async function loadRotas() {
+            const statusFilter = document.getElementById('statusFilter').value;
+            const tbody = document.getElementById('rotasTableBody');
+
+            try {
+                tbody.innerHTML = '<tr><td colspan="9" class="px-6 py-8 text-center text-gray-500">Carregando...</td></tr>';
+
+                let url = `${API_BASE}/rotas-api.php`;
+                if (statusFilter) {
+                    url += `?status=${statusFilter}`;
+                }
+
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Erro ao carregar rotas');
+                }
+
+                const rotas = data.rotas || [];
+
+                if (rotas.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="9" class="px-6 py-8 text-center text-gray-500">
+                                <span class="material-symbols-outlined text-gray-400" style="font-size: 48px;">inbox</span><br>
+                                Nenhuma rota encontrada
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = rotas.map(rota => `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">#${rota.id}</td>
+                        <td class="px-6 py-4 text-sm text-gray-700">${rota.bloco_nome || '-'}</td>
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                            ${rota.veiculo_placa ? `<span class="text-blue-600">${rota.veiculo_placa}</span>` : '<span class="text-gray-400">Não atribuído</span>'}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">
+                            ${rota.motorista_nome || '<span class="text-gray-400">Não atribuído</span>'}
+                        </td>
+                        <td class="px-6 py-4">
+                            <span class="status-badge status-${rota.status}">${rota.status.replace('_', ' ')}</span>
+                        </td>
+                        <td class="px-6 py-4 text-sm text-gray-700">${parseFloat(rota.distancia_total_km).toFixed(1)} km</td>
+                        <td class="px-6 py-4 text-sm text-gray-700">${rota.tempo_estimado_min} min</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">
+                            ${rota.data_envio ? new Date(rota.data_envio).toLocaleString('pt-BR') : '-'}
+                        </td>
+                        <td class="px-6 py-4 text-sm">
+                            <a href="${rota.link_google_maps}" target="_blank" class="text-blue-600 hover:text-blue-800">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">map</span>
+                            </a>
+                        </td>
+                    </tr>
+                `).join('');
+
+            } catch (error) {
+                console.error('Erro ao carregar rotas:', error);
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="9" class="px-6 py-8 text-center text-red-600">
+                            ❌ Erro ao carregar rotas: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Carregar ao abrir página
+        document.addEventListener('DOMContentLoaded', loadRotas);
+
+        // Auto-refresh a cada 30 segundos
+        setInterval(loadRotas, 30000);
+    </script>
+</body>
+</html>

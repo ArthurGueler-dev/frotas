@@ -15,6 +15,9 @@ let driversList = [];
 let selectedVehicle = null;
 let selectedDriver = null;
 
+// Flag para garantir que listeners são adicionados apenas uma vez
+let listenersAdded = false;
+
 /**
  * Abrir modal ao clicar "Enviar WhatsApp"
  */
@@ -44,6 +47,104 @@ async function abrirModalEnvioWhatsApp(blockId, rotaId) {
 
     // Mostrar modal
     document.getElementById('assignRouteModal').classList.remove('hidden');
+
+    // Adicionar event listeners (apenas uma vez)
+    if (!listenersAdded) {
+        setupEventListeners();
+        listenersAdded = true;
+        console.log('✅ Event listeners adicionados');
+    }
+}
+
+/**
+ * Configurar event listeners para os dropdowns
+ */
+function setupEventListeners() {
+    console.log('🔧 setupEventListeners() chamado');
+
+    // 🐛 DEBUG: Listener global para ver QUALQUER clique
+    document.addEventListener('click', function(e) {
+        console.log('🌍 CLIQUE GLOBAL:', e.target);
+        console.log('   - classes:', e.target.className);
+        console.log('   - id:', e.target.id);
+        console.log('   - parent:', e.target.parentElement);
+    }, true); // true = capture phase (antes de outros listeners)
+
+    // Event delegation para cliques nas sugestões de veículos
+    const vehicleSuggestions = document.getElementById('vehicleSuggestions');
+    console.log('📋 vehicleSuggestions element:', vehicleSuggestions);
+
+    if (vehicleSuggestions) {
+        vehicleSuggestions.addEventListener('click', function(e) {
+            console.log('🖱️ CLIQUE DETECTADO no container de veículos!');
+            console.log('   - e.target:', e.target);
+            console.log('   - e.target.className:', e.target.className);
+
+            const item = e.target.closest('.suggestion-item');
+            console.log('   - item encontrado:', item);
+
+            if (item) {
+                const plate = item.getAttribute('data-plate');
+                const model = item.getAttribute('data-model');
+
+                console.log('🚗 Clicou no veículo:', plate, model);
+
+                // Encontrar veículo na lista global
+                selectedVehicle = vehiclesList.find(v => v.plate === plate);
+
+                if (selectedVehicle) {
+                    document.getElementById('routeVehicleInput').value = `${plate} - ${model}`;
+                    vehicleSuggestions.classList.add('hidden');
+                    console.log('✅ Veículo selecionado:', selectedVehicle);
+                } else {
+                    console.error('❌ Veículo não encontrado na lista:', plate);
+                }
+            } else {
+                console.warn('⚠️ Clique foi no container, mas não em um item válido');
+            }
+        });
+        console.log('✅ Listener de veículos adicionado');
+    } else {
+        console.error('❌ vehicleSuggestions element NÃO encontrado!');
+    }
+
+    // Event delegation para cliques nas sugestões de motoristas
+    const driverSuggestions = document.getElementById('driverSuggestions');
+    console.log('📋 driverSuggestions element:', driverSuggestions);
+
+    if (driverSuggestions) {
+        driverSuggestions.addEventListener('click', function(e) {
+            console.log('🖱️ CLIQUE DETECTADO no container de motoristas!');
+            console.log('   - e.target:', e.target);
+            console.log('   - e.target.className:', e.target.className);
+
+            const item = e.target.closest('.suggestion-item');
+            console.log('   - item encontrado:', item);
+
+            if (item) {
+                const driverId = parseInt(item.getAttribute('data-driver-id'));
+                const driverName = item.getAttribute('data-driver-name');
+
+                console.log('👤 Clicou no motorista:', driverId, driverName);
+
+                // Encontrar motorista na lista global
+                selectedDriver = driversList.find(d => d.id == driverId);
+
+                if (selectedDriver) {
+                    document.getElementById('routeDriverInput').value = driverName;
+                    driverSuggestions.classList.add('hidden');
+                    console.log('✅ Motorista selecionado:', selectedDriver);
+                } else {
+                    console.error('❌ Motorista não encontrado na lista:', driverId);
+                }
+            } else {
+                console.warn('⚠️ Clique foi no container, mas não em um item válido');
+            }
+        });
+        console.log('✅ Listener de motoristas adicionado');
+    } else {
+        console.error('❌ driverSuggestions element NÃO encontrado!');
+    }
 }
 
 /**
@@ -112,11 +213,13 @@ async function carregarMotoristasParaEnvio() {
  * Exibir lista completa de veículos
  */
 function showAllVehicles() {
+    console.log('📋 showAllVehicles() chamado');
     const suggestions = document.getElementById('vehicleSuggestions');
 
     if (vehiclesList.length === 0) {
         suggestions.innerHTML = '<div class="p-2 text-gray-500 text-sm">Nenhum veículo disponível</div>';
         suggestions.classList.remove('hidden');
+        console.log('⚠️ Nenhum veículo disponível');
         return;
     }
 
@@ -155,15 +258,23 @@ function filterVehicles(searchTerm) {
 function renderVehicleSuggestions(vehicles) {
     const suggestions = document.getElementById('vehicleSuggestions');
 
-    suggestions.innerHTML = vehicles.slice(0, 50).map(vehicle => `
+    console.log('🔄 renderVehicleSuggestions() chamado com', vehicles.length, 'veículos');
+
+    suggestions.innerHTML = vehicles.slice(0, 50).map((vehicle) => `
         <div class="suggestion-item p-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600"
-             onclick="selectVehicle('${vehicle.plate}', '${(vehicle.model || 'Sem modelo').replace(/'/g, "\\'")}')">
+             data-plate="${vehicle.plate.replace(/"/g, '&quot;')}"
+             data-model="${(vehicle.model || 'Sem modelo').replace(/"/g, '&quot;')}">
             <div class="font-semibold text-sm text-gray-900 dark:text-white">${vehicle.plate}</div>
             <div class="text-xs text-gray-600 dark:text-gray-400">${vehicle.model || 'Sem modelo'}</div>
         </div>
     `).join('');
 
     suggestions.classList.remove('hidden');
+    console.log('📋 Lista de veículos EXIBIDA (hidden removido)');
+    console.log('   - Element:', suggestions);
+    console.log('   - Classes:', suggestions.className);
+    console.log('   - Display:', window.getComputedStyle(suggestions).display);
+    console.log('   - Visibility:', window.getComputedStyle(suggestions).visibility);
 }
 
 /**
@@ -230,9 +341,10 @@ function filterDrivers(searchTerm) {
 function renderDriverSuggestions(drivers) {
     const suggestions = document.getElementById('driverSuggestions');
 
-    suggestions.innerHTML = drivers.slice(0, 50).map(driver => `
+    suggestions.innerHTML = drivers.slice(0, 50).map((driver) => `
         <div class="suggestion-item p-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer border-b border-gray-200 dark:border-gray-600"
-             onclick="selectDriver(${driver.id}, '${driver.name.replace(/'/g, "\\'")}')">
+             data-driver-id="${driver.id}"
+             data-driver-name="${driver.name.replace(/"/g, '&quot;')}">
             <div class="font-semibold text-sm text-gray-900 dark:text-white">${driver.name}</div>
             <div class="text-xs text-gray-600 dark:text-gray-400">ID: ${driver.id}</div>
         </div>
@@ -285,9 +397,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Esconder sugestões ao clicar fora
         vehicleInput.addEventListener('blur', function() {
+            console.log('⏱️ Input BLUR - vai esconder lista em 500ms');
             setTimeout(() => {
+                console.log('🙈 Escondendo lista de veículos');
                 document.getElementById('vehicleSuggestions').classList.add('hidden');
-            }, 200);
+            }, 500);
         });
     }
 
@@ -314,11 +428,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Esconder sugestões ao clicar fora
         driverInput.addEventListener('blur', function() {
+            console.log('⏱️ Input BLUR (motorista) - vai esconder lista em 500ms');
             setTimeout(() => {
+                console.log('🙈 Escondendo lista de motoristas');
                 document.getElementById('driverSuggestions').classList.add('hidden');
-            }, 200);
+            }, 500);
         });
     }
+
+    // ⚠️ LISTENERS DE CLICK movidos para setupEventListeners()
+    // (chamado quando modal abre, para garantir que elementos existem)
 
     // Form submit
     const form = document.getElementById('assignRouteForm');

@@ -57,6 +57,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadVehiclesAndDrivers();
     console.log('✅ Veículos e motoristas carregando...');
 
+    loadSavedRoutes();
+    console.log('✅ Rotas salvas carregando...');
+
+    // Auto-refresh rotas a cada 30 segundos
+    setInterval(loadSavedRoutes, 30000);
+
     // Carregar blocos existentes automaticamente
     console.log('🔄 Carregando blocos existentes automaticamente...');
     loadExistingBlocks();
@@ -3026,6 +3032,122 @@ function showHelpModal() {
 }
 
 window.showHelpModal = showHelpModal;
+
+/**
+ * Carregar rotas salvas da API
+ */
+async function loadSavedRoutes() {
+    console.log('🔄 loadSavedRoutes() chamada');
+    try {
+        console.log('📡 Buscando rotas da API...');
+        const response = await fetch('https://floripa.in9automacao.com.br/rotas-api.php');
+        const data = await response.json();
+        console.log('📦 Resposta da API:', data);
+
+        if (!data.success) {
+            console.error('❌ Erro ao carregar rotas:', data.error);
+            return;
+        }
+
+        const todasRotas = data.rotas || [];
+        console.log(`📊 ${todasRotas.length} rotas encontradas no total`);
+
+        // DEBUG: Ver estrutura da primeira rota
+        if (todasRotas.length > 0) {
+            console.log('🔍 ESTRUTURA DA PRIMEIRA ROTA:', todasRotas[0]);
+            console.log('🚗 veiculo_placa:', todasRotas[0].veiculo_placa);
+            console.log('📊 status:', todasRotas[0].status);
+            console.log('🔑 Todas as chaves:', Object.keys(todasRotas[0]));
+        }
+
+        // Filtrar apenas rotas ATIVAS (pendente, enviada ou em_andamento) COM PLACA DEFINIDA
+        const rotas = todasRotas.filter(r => {
+            const temPlaca = r.veiculo_placa && r.veiculo_placa.trim() !== '';
+            const estaAtiva = ['pendente', 'enviada', 'em_andamento'].includes(r.status);
+            console.log(`🔍 Rota #${r.id}: placa="${r.veiculo_placa}" status="${r.status}" temPlaca=${temPlaca} estaAtiva=${estaAtiva}`);
+            return temPlaca && estaAtiva;
+        });
+        console.log(`🚗 ${rotas.length} rotas ATIVAS com placa definida`);
+
+        const tbody = document.getElementById('savedRoutesTable');
+        console.log('🎯 Elemento tbody:', tbody);
+
+        if (!tbody) {
+            console.error('❌ Elemento savedRoutesTable não encontrado!');
+            return;
+        }
+
+        if (rotas.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <span class="material-symbols-outlined text-4xl mb-2 block">route</span>
+                        <p class="text-sm">Nenhuma rota ativa com placa definida</p>
+                        <p class="text-xs mt-1">Atribua placas às rotas pendentes para vê-las aqui</p>
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = rotas.map(rota => {
+            const sequencia = JSON.parse(rota.sequencia_locais_json || '[]');
+            const statusClass = {
+                'pendente': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+                'em_andamento': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+                'concluida': 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+            }[rota.status] || 'bg-gray-100 text-gray-800';
+
+            return `
+                <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                    <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">
+                        ${rota.bloco_nome || `Rota #${rota.id}`}
+                    </td>
+                    <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
+                        ${rota.veiculo_placa ? `<span class="font-semibold text-blue-600 dark:text-blue-400">${rota.veiculo_placa}</span>` : '<span class="text-gray-400">Não atribuído</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
+                        ${rota.motorista_nome || '<span class="text-gray-400">Não atribuído</span>'}
+                    </td>
+                    <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
+                        ${sequencia.length} paradas
+                    </td>
+                    <td class="px-6 py-4 text-gray-700 dark:text-gray-300">
+                        ${parseFloat(rota.distancia_total_km).toFixed(1)} km
+                    </td>
+                    <td class="px-6 py-4">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${statusClass}">
+                            ${rota.status.replace('_', ' ')}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <div class="flex gap-2 justify-end">
+                            <a href="${rota.link_google_maps}" target="_blank"
+                               class="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                               title="Ver no Google Maps">
+                                <span class="material-symbols-outlined">map</span>
+                            </a>
+                            ${rota.status === 'pendente' ? `
+                                <button onclick="enviarRotaWhatsApp(${rota.bloco_id}, ${rota.id})"
+                                        class="text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-300"
+                                        title="Enviar via WhatsApp">
+                                    <span class="material-symbols-outlined">send</span>
+                                </button>
+                            ` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        console.log(`✅ ${rotas.length} rotas carregadas`);
+
+    } catch (error) {
+        console.error('❌ Erro ao carregar rotas salvas:', error);
+    }
+}
+
+// loadSavedRoutes() is now called in the main DOMContentLoaded listener at the top of the file
 
 console.log('✅ Otimizador de Blocos carregado - v20251210160831');
 console.log('🔍 DEBUG MODE ATIVO - Verificando distâncias dos blocos');

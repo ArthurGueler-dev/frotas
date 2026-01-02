@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>FIX CARDS AGORA</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #000;
+            color: #0f0;
+        }
+        .box {
+            background: #111;
+            padding: 20px;
+            margin: 10px 0;
+            border: 2px solid #0f0;
+        }
+        .error { color: #f00; }
+        .warning { color: #fa0; }
+        .success { color: #0f0; }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 FIX CARDS - FORÇAR ATUALIZAÇÃO</h1>
+
+    <div class="box">
+        <button onclick="executeFullFix()">▶ EXECUTAR FIX COMPLETO AGORA</button>
+    </div>
+
+    <div id="output" class="box">
+        <div id="log"></div>
+    </div>
+
+    <script>
+        function log(msg, type = 'normal') {
+            const logDiv = document.getElementById('log');
+            const color = type === 'error' ? 'error' : type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'normal';
+            logDiv.innerHTML += `<p class="${color}">${new Date().toLocaleTimeString()} - ${msg}</p>`;
+        }
+
+        async function executeFullFix() {
+            log('🚀 INICIANDO FIX COMPLETO...', 'success');
+
+            // 1. Limpar TODO o localStorage
+            log('🗑️ Limpando TODO o localStorage...');
+            localStorage.clear();
+            log('✅ LocalStorage limpo', 'success');
+
+            // 2. Buscar dados FRESCOS da API
+            log('📡 Buscando dados FRESCOS da API (sem cache)...');
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const url = `https://floripa.in9automacao.com.br/daily-mileage-api.php?date_from=${today}&date_to=${today}&limit=1000&nocache=${Date.now()}`;
+
+                log(`   URL: ${url}`);
+                const response = await fetch(url, { cache: 'no-store' });
+                const data = await response.json();
+
+                if (data.success && data.records) {
+                    const totalKm = data.records.reduce((sum, r) => sum + (parseFloat(r.km_driven) || 0), 0);
+                    const count = data.records.length;
+
+                    log(`✅ API RESPONDEU:`, 'success');
+                    log(`   📊 Total de veículos: ${count}`, 'success');
+                    log(`   📊 Total KM HOJE: ${totalKm.toFixed(2)} km`, 'success');
+
+                    // 3. Salvar no localStorage para o dashboard usar
+                    const cacheData = {
+                        date: today,
+                        timestamp: Date.now(),
+                        todayTotal: totalKm,
+                        yesterdayTotal: 0,
+                        monthTotal: 0,
+                        isComplete: true,
+                        vehiclesData: []
+                    };
+                    localStorage.setItem('fleetflow_daily_km_data', JSON.stringify(cacheData));
+                    log('💾 Dados salvos no cache local', 'success');
+
+                    // 4. Abrir dashboard em NOVA ABA com nocache
+                    log('🚀 Abrindo dashboard em 3 segundos...', 'warning');
+                    log('⚠️ IMPORTANTE: NÃO feche esta aba até ver o dashboard atualizado!', 'warning');
+
+                    setTimeout(() => {
+                        const dashboardUrl = `http://localhost:5000?nocache=${Date.now()}`;
+                        window.open(dashboardUrl, '_blank');
+                        log('✅ Dashboard aberto! Verifique a nova aba.', 'success');
+                        log(`📊 O card deve mostrar: ${totalKm.toFixed(2)} km`, 'success');
+                    }, 3000);
+
+                } else {
+                    log('❌ API não retornou dados válidos', 'error');
+                    log(`   Resposta: ${JSON.stringify(data)}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ ERRO: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-executar após 1 segundo
+        setTimeout(() => {
+            log('⏰ Auto-executando em 1 segundo...', 'warning');
+            setTimeout(executeFullFix, 1000);
+        }, 100);
+    </script>
+</body>
+</html>

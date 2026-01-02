@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache de Auto-Sync</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold mb-4">🗑️ Limpar Cache de Auto-Sync</h1>
+
+        <div id="status" class="mb-4"></div>
+
+        <button onclick="clearCache()" class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 font-semibold">
+            Limpar Cache e Recarregar
+        </button>
+
+        <div class="mt-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+            <p class="text-sm text-blue-800">
+                <strong>O que isso faz:</strong><br>
+                Remove o timestamp da última sincronização automática do localStorage,
+                permitindo que uma nova sincronização seja testada imediatamente.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        function clearCache() {
+            const statusDiv = document.getElementById('status');
+
+            // Mostrar valores antes de limpar
+            const before = localStorage.getItem('fleetflow_last_auto_sync');
+            if (before) {
+                const date = new Date(parseInt(before));
+                statusDiv.innerHTML = `
+                    <div class="p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded mb-4">
+                        <p class="font-semibold">Última sincronização automática:</p>
+                        <p>${date.toLocaleString('pt-BR')}</p>
+                    </div>
+                `;
+            } else {
+                statusDiv.innerHTML = `
+                    <div class="p-4 bg-gray-100 border-l-4 border-gray-500 rounded mb-4">
+                        <p>Nenhuma sincronização automática registrada.</p>
+                    </div>
+                `;
+            }
+
+            // Limpar
+            localStorage.removeItem('fleetflow_last_auto_sync');
+
+            // Confirmar
+            statusDiv.innerHTML += `
+                <div class="p-4 bg-green-100 border-l-4 border-green-500 rounded">
+                    <p class="font-semibold text-green-800">✅ Cache limpo com sucesso!</p>
+                    <p class="text-sm text-green-700">Redirecionando para página de teste...</p>
+                </div>
+            `;
+
+            // Redirecionar após 2 segundos
+            setTimeout(() => {
+                window.location.href = '/test-background-sync.html';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

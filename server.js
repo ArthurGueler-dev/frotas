@@ -4393,6 +4393,690 @@ setInterval(() => {
     }
 }, 3600000); // Executar a cada hora
 
+// ============================================================
+// ROTAS DE QUILOMETRAGEM E TELEMETRIA (Proxy para PHP APIs)
+// ============================================================
+
+/**
+ * GET /api/telemetry/daily
+ * Busca dados de telemetria diária (quilometragem)
+ * Proxy para daily-mileage-api.php
+ */
+app.get('/api/telemetry/daily', async (req, res) => {
+    try {
+        const { plate, startDate, endDate, limit = 100 } = req.query;
+
+        const params = new URLSearchParams();
+        if (plate) params.append('plate', plate);
+        if (startDate) params.append('date_from', startDate);
+        if (endDate) params.append('date_to', endDate);
+        params.append('limit', limit);
+
+        const phpUrl = `https://floripa.in9automacao.com.br/daily-mileage-api.php?${params.toString()}`;
+
+        const response = await axios.get(phpUrl, { timeout: 10000 });
+        const data = response.data;
+
+        if (data.success) {
+            // Transformar formato PHP para formato esperado pelo frontend
+            const transformedData = data.records.map(record => ({
+                licensePlate: record.vehicle_plate,
+                date: record.date,
+                kmInicial: parseFloat(record.odometer_start) || 0,
+                kmFinal: parseFloat(record.odometer_end) || 0,
+                kmRodado: parseFloat(record.km_driven) || 0,
+                source: record.source,
+                syncStatus: record.sync_status,
+                syncedAt: record.synced_at,
+                areaName: record.area_name || null
+            }));
+
+            res.json({
+                success: true,
+                data: transformedData,
+                total: data.total,
+                statistics: data.statistics
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: data.error || 'Erro ao buscar telemetria'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar telemetria:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar dados de telemetria',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/telemetry/save-daily
+ * Salva dados de telemetria diária
+ * Proxy para daily-mileage-api.php
+ */
+app.post('/api/telemetry/save-daily', async (req, res) => {
+    try {
+        const { licensePlate, date, kmInicial, kmFinal, kmRodado } = req.body;
+
+        if (!licensePlate || !date) {
+            return res.status(400).json({
+                success: false,
+                error: 'Placa e data são obrigatórios'
+            });
+        }
+
+        // Transformar formato frontend para formato PHP
+        const phpData = {
+            vehicle_plate: licensePlate,
+            date: date,
+            odometer_start: kmInicial,
+            odometer_end: kmFinal,
+            km_driven: kmRodado || (kmFinal - kmInicial),
+            source: 'API',
+            sync_status: 'success',
+            synced_at: new Date().toISOString()
+        };
+
+        const phpUrl = 'https://floripa.in9automacao.com.br/daily-mileage-api.php';
+
+        const response = await axios.post(phpUrl, phpData, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 10000
+        });
+
+        const data = response.data;
+
+        res.json(data);
+    } catch (error) {
+        console.error('❌ Erro ao salvar telemetria:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao salvar dados de telemetria',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/km/by-period
+ * Busca quilometragem agregada por período
+ */
+app.get('/api/km/by-period', async (req, res) => {
+    try {
+        const { period = 'today' } = req.query;
+
+        // Calcular datas baseado no período
+        const now = new Date();
+        let startDate, endDate;
+
+        switch (period) {
+            case 'today':
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+                break;
+            case 'yesterday':
+                const yesterday = new Date(now);
+                yesterday.setDate(yesterday.getDate() - 1);
+                startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+                endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59);
+                break;
+            case 'week':
+                const weekAgo = new Date(now);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                startDate = weekAgo;
+                endDate = now;
+                break;
+            case 'month':
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = now;
+                break;
+            default:
+                startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        }
+
+        const dateFrom = startDate.toISOString().split('T')[0];
+        const dateTo = endDate.toISOString().split('T')[0];
+
+        const params = new URLSearchParams({
+            date_from: dateFrom,
+            date_to: dateTo,
+            limit: 1000
+        });
+
+        const phpUrl = `https://floripa.in9automacao.com.br/daily-mileage-api.php?${params.toString()}`;
+
+        const response = await axios.get(phpUrl, { timeout: 10000 });
+        const data = response.data;
+
+        if (data.success) {
+            res.json({
+                success: true,
+                period: period,
+                totalKm: data.statistics.total_km || 0,
+                avgKmPerDay: data.statistics.avg_km_per_day || 0,
+                recordCount: data.total || 0
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                error: data.error || 'Erro ao buscar quilometragem'
+            });
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar quilometragem por período:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar quilometragem por período',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * POST /api/mileage/sync
+ * Sincroniza quilometragem usando a lógica do backend Python
+ * (busca odômetro hoje e ontem via Ituran, calcula diferença)
+ */
+app.post('/api/mileage/sync', async (req, res) => {
+    try {
+        const { plates, date } = req.body;
+
+        // Se não especificou placas, buscar todas as ativas
+        let vehiclesToSync = [];
+
+        if (!plates || plates.length === 0) {
+            const veiculosUrl = 'https://floripa.in9automacao.com.br/veiculos-api.php?action=list';
+            const veiculosResponse = await axios.get(veiculosUrl, { timeout: 10000 });
+            const veiculosData = veiculosResponse.data;
+
+            if (veiculosData.success && veiculosData.vehicles) {
+                vehiclesToSync = veiculosData.vehicles
+                    .map(v => v.LicensePlate);
+            }
+        } else {
+            vehiclesToSync = plates;
+        }
+
+        console.log(`🔄 Iniciando sincronização de ${vehiclesToSync.length} veículos`);
+
+        // Determinar data alvo (padrão: ontem)
+        const targetDate = date ? new Date(date) : new Date();
+        if (!date) {
+            targetDate.setDate(targetDate.getDate() - 1);
+        }
+        const targetDateStr = targetDate.toISOString().split('T')[0];
+
+        // Data anterior (para pegar odômetro inicial)
+        const previousDate = new Date(targetDate);
+        previousDate.setDate(previousDate.getDate() - 1);
+        const previousDateStr = previousDate.toISOString().split('T')[0];
+
+        const results = {
+            total: vehiclesToSync.length,
+            success: 0,
+            failed: 0,
+            details: []
+        };
+
+        // Processar cada veículo
+        for (const plate of vehiclesToSync) {
+            try {
+                console.log(`  🚗 Processando ${plate}...`);
+
+                // 1. Buscar odômetro de ontem (início)
+                const odometerStartResponse = await axios.get(
+                    'https://iweb.ituran.com.br/ituranwebservice3/Service3.asmx/GetVehicleMileage_JSON',
+                    {
+                        params: {
+                            Plate: plate,
+                            LocTime: previousDateStr,
+                            UserName: 'api@i9tecnologia',
+                            Password: 'Api@In9Eng'
+                        },
+                        timeout: 30000
+                    }
+                );
+
+                // Parse XML response
+                const startXml = odometerStartResponse.data;
+                const startMatch = startXml.match(/<string[^>]*>(.*?)<\/string>/s);
+                if (!startMatch) {
+                    throw new Error('Resposta Ituran inválida (início)');
+                }
+                const startData = JSON.parse(startMatch[1]);
+
+                if (startData.ResultCode !== 'OK') {
+                    throw new Error(`Ituran erro (início): ${startData.ResultCode}`);
+                }
+
+                const odometerStart = parseFloat(startData.resMileage) || 0;
+
+                // 2. Buscar odômetro de hoje (fim)
+                const odometerEndResponse = await axios.get(
+                    'https://iweb.ituran.com.br/ituranwebservice3/Service3.asmx/GetVehicleMileage_JSON',
+                    {
+                        params: {
+                            Plate: plate,
+                            LocTime: targetDateStr,
+                            UserName: 'api@i9tecnologia',
+                            Password: 'Api@In9Eng'
+                        },
+                        timeout: 30000
+                    }
+                );
+
+                const endXml = odometerEndResponse.data;
+                const endMatch = endXml.match(/<string[^>]*>(.*?)<\/string>/s);
+                if (!endMatch) {
+                    throw new Error('Resposta Ituran inválida (fim)');
+                }
+                const endData = JSON.parse(endMatch[1]);
+
+                if (endData.ResultCode !== 'OK') {
+                    throw new Error(`Ituran erro (fim): ${endData.ResultCode}`);
+                }
+
+                const odometerEnd = parseFloat(endData.resMileage) || 0;
+
+                // 3. Calcular KM rodados
+                let kmDriven = odometerEnd - odometerStart;
+
+                // Validar (KM não pode ser negativo)
+                if (kmDriven < 0) {
+                    console.warn(`  ⚠️ ${plate}: KM negativo (${kmDriven}), resetando para 0`);
+                    kmDriven = 0;
+                }
+
+                console.log(`  ✅ ${plate}: ${kmDriven.toFixed(2)} km (${odometerStart.toFixed(2)} → ${odometerEnd.toFixed(2)})`);
+
+                // 4. Salvar no banco via PHP API
+                // Converter data ISO para formato MySQL (YYYY-MM-DD HH:MM:SS)
+                const now = new Date();
+                const mysqlDateTime = now.toISOString().slice(0, 19).replace('T', ' ');
+
+                const saveData = {
+                    vehicle_plate: plate,
+                    date: targetDateStr,
+                    odometer_start: odometerStart,
+                    odometer_end: odometerEnd,
+                    km_driven: kmDriven,
+                    source: 'API',
+                    sync_status: 'success',
+                    synced_at: mysqlDateTime
+                };
+
+                console.log(`  📤 Enviando para PHP API:`, JSON.stringify(saveData));
+
+                const saveResponse = await axios.post(
+                    'https://floripa.in9automacao.com.br/daily-mileage-api.php',
+                    saveData,
+                    {
+                        headers: { 'Content-Type': 'application/json' },
+                        timeout: 10000
+                    }
+                );
+
+                console.log(`  📥 Resposta PHP API (${plate}):`, saveResponse.status, saveResponse.data);
+
+                if (saveResponse.data.success) {
+                    results.success++;
+                    results.details.push({
+                        plate,
+                        success: true,
+                        km_driven: kmDriven,
+                        odometer_start: odometerStart,
+                        odometer_end: odometerEnd
+                    });
+                } else {
+                    throw new Error(`Erro ao salvar: ${saveResponse.data.error}`);
+                }
+
+                // Delay para não sobrecarregar API Ituran
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+            } catch (error) {
+                let errorMsg = error.message;
+
+                // Se for erro HTTP, tentar pegar detalhes da resposta
+                if (error.response) {
+                    console.error(`  ❌ ${plate} - HTTP ${error.response.status}:`, error.response.data);
+                    errorMsg = `HTTP ${error.response.status}: ${JSON.stringify(error.response.data)}`;
+                } else {
+                    console.error(`  ❌ ${plate}:`, error.message);
+                }
+
+                results.failed++;
+                results.details.push({
+                    plate,
+                    success: false,
+                    error: errorMsg
+                });
+            }
+        }
+
+        console.log(`✅ Sincronização concluída: ${results.success} sucesso, ${results.failed} falhas`);
+
+        res.json({
+            success: true,
+            message: `Sincronização concluída: ${results.success}/${results.total} veículos`,
+            results
+        });
+
+    } catch (error) {
+        console.error('❌ Erro na sincronização:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao sincronizar quilometragem',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/mileage/report
+ * Relatório de quilometragem por área e período
+ *
+ * Query params:
+ * - date_start: Data inicial (YYYY-MM-DD)
+ * - date_end: Data final (YYYY-MM-DD)
+ * - area_id: ID da área (opcional, sem filtro = todas as áreas)
+ * - group_by: 'area' | 'vehicle' | 'date' (opcional)
+ */
+app.get('/api/mileage/report', async (req, res) => {
+    try {
+        const { date_start, date_end, area_id, group_by = 'area' } = req.query;
+
+        // Validar parâmetros
+        if (!date_start || !date_end) {
+            return res.status(400).json({
+                success: false,
+                error: 'Parâmetros date_start e date_end são obrigatórios'
+            });
+        }
+
+        // Buscar dados via PHP API
+        const params = new URLSearchParams({
+            date_from: date_start,
+            date_to: date_end,
+            limit: 10000
+        });
+
+        if (area_id) {
+            params.append('area_id', area_id);
+        }
+
+        const phpUrl = `https://floripa.in9automacao.com.br/daily-mileage-api.php?${params.toString()}`;
+        const response = await axios.get(phpUrl, { timeout: 30000 });
+        const data = response.data;
+
+        if (!data.success) {
+            return res.status(500).json({
+                success: false,
+                error: data.error || 'Erro ao buscar dados'
+            });
+        }
+
+        const records = data.records || [];
+
+        // Processar dados conforme agrupamento
+        let reportData = {};
+
+        if (group_by === 'area') {
+            // Agrupar por área
+            reportData = records.reduce((acc, record) => {
+                const areaName = record.area_name || 'Sem área';
+                if (!acc[areaName]) {
+                    acc[areaName] = {
+                        area_name: areaName,
+                        area_id: record.area_id,
+                        total_km: 0,
+                        vehicle_count: new Set(),
+                        records_count: 0,
+                        avg_km_per_vehicle: 0
+                    };
+                }
+                acc[areaName].total_km += parseFloat(record.km_driven) || 0;
+                acc[areaName].vehicle_count.add(record.vehicle_plate);
+                acc[areaName].records_count++;
+                return acc;
+            }, {});
+
+            // Converter Set para número e calcular média
+            Object.values(reportData).forEach(area => {
+                const vehicleCount = area.vehicle_count.size;
+                area.vehicle_count = vehicleCount;
+                area.avg_km_per_vehicle = vehicleCount > 0 ? area.total_km / vehicleCount : 0;
+                area.total_km = parseFloat(area.total_km.toFixed(2));
+                area.avg_km_per_vehicle = parseFloat(area.avg_km_per_vehicle.toFixed(2));
+            });
+
+        } else if (group_by === 'vehicle') {
+            // Agrupar por veículo
+            reportData = records.reduce((acc, record) => {
+                const plate = record.vehicle_plate;
+                if (!acc[plate]) {
+                    acc[plate] = {
+                        vehicle_plate: plate,
+                        area_name: record.area_name || 'Sem área',
+                        area_id: record.area_id,
+                        total_km: 0,
+                        records_count: 0,
+                        avg_km_per_day: 0
+                    };
+                }
+                acc[plate].total_km += parseFloat(record.km_driven) || 0;
+                acc[plate].records_count++;
+                return acc;
+            }, {});
+
+            // Calcular média por dia
+            Object.values(reportData).forEach(vehicle => {
+                vehicle.avg_km_per_day = vehicle.records_count > 0
+                    ? vehicle.total_km / vehicle.records_count
+                    : 0;
+                vehicle.total_km = parseFloat(vehicle.total_km.toFixed(2));
+                vehicle.avg_km_per_day = parseFloat(vehicle.avg_km_per_day.toFixed(2));
+            });
+
+        } else if (group_by === 'date') {
+            // Agrupar por data
+            reportData = records.reduce((acc, record) => {
+                const date = record.date;
+                if (!acc[date]) {
+                    acc[date] = {
+                        date: date,
+                        total_km: 0,
+                        vehicle_count: new Set(),
+                        records_count: 0
+                    };
+                }
+                acc[date].total_km += parseFloat(record.km_driven) || 0;
+                acc[date].vehicle_count.add(record.vehicle_plate);
+                acc[date].records_count++;
+                return acc;
+            }, {});
+
+            // Converter Set para número
+            Object.values(reportData).forEach(dateData => {
+                dateData.vehicle_count = dateData.vehicle_count.size;
+                dateData.total_km = parseFloat(dateData.total_km.toFixed(2));
+            });
+        }
+
+        // Calcular totais gerais
+        const totalKm = records.reduce((sum, r) => sum + (parseFloat(r.km_driven) || 0), 0);
+        const uniqueVehicles = new Set(records.map(r => r.vehicle_plate)).size;
+        const uniqueDays = new Set(records.map(r => r.date)).size;
+
+        res.json({
+            success: true,
+            report: {
+                period: {
+                    start: date_start,
+                    end: date_end,
+                    days: uniqueDays
+                },
+                summary: {
+                    total_km: parseFloat(totalKm.toFixed(2)),
+                    vehicle_count: uniqueVehicles,
+                    records_count: records.length,
+                    avg_km_per_vehicle: uniqueVehicles > 0 ? parseFloat((totalKm / uniqueVehicles).toFixed(2)) : 0,
+                    avg_km_per_day: uniqueDays > 0 ? parseFloat((totalKm / uniqueDays).toFixed(2)) : 0
+                },
+                data: Object.values(reportData),
+                group_by: group_by
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar relatório:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao gerar relatório de quilometragem',
+            message: error.message
+        });
+    }
+});
+
+/**
+ * GET /api/km/filters
+ * Retorna opções de filtros disponíveis
+ */
+app.get('/api/km/filters', async (req, res) => {
+    try {
+        // Buscar áreas disponíveis
+        const areasUrl = 'https://floripa.in9automacao.com.br/areas-api.php?active_only=true';
+        const areasResponse = await axios.get(areasUrl, { timeout: 10000 });
+        const areasData = areasResponse.data;
+
+        const areas = areasData.success ? areasData.areas.map(a => ({
+            id: a.id,
+            name: a.name,
+            state: a.state
+        })) : [];
+
+        res.json({
+            success: true,
+            filters: {
+                areas: areas,
+                periods: [
+                    { value: 'today', label: 'Hoje' },
+                    { value: 'yesterday', label: 'Ontem' },
+                    { value: 'week', label: 'Últimos 7 dias' },
+                    { value: 'month', label: 'Este mês' },
+                    { value: 'custom', label: 'Período personalizado' }
+                ]
+            }
+        });
+    } catch (error) {
+        console.error('❌ Erro ao buscar filtros:', error.message);
+        res.status(500).json({
+            success: false,
+            error: 'Erro ao buscar filtros',
+            message: error.message
+        });
+    }
+});
+
+// ============================================================
+// JOBS AGENDADOS - SINCRONIZAÇÃO AUTOMÁTICA DE QUILOMETRAGEM
+// ============================================================
+
+/**
+ * Função auxiliar para sincronizar KM em background
+ */
+async function syncKmBackground() {
+    const timestamp = new Date().toISOString();
+    console.log(`\n${'='.repeat(70)}`);
+    console.log(`🤖 [AUTO-SYNC] Iniciando sincronização automática`);
+    console.log(`   Timestamp: ${timestamp}`);
+    console.log(`${'='.repeat(70)}\n`);
+
+    try {
+        const response = await axios.post('http://localhost:5000/api/mileage/sync', {}, {
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 600000 // 10 minutos de timeout (para muitos veículos)
+        });
+
+        const result = response.data;
+
+        if (result.success) {
+            console.log(`\n✅ [AUTO-SYNC] Sincronização concluída com sucesso`);
+            console.log(`   Total: ${result.results.total} veículos`);
+            console.log(`   Sucesso: ${result.results.success}`);
+            console.log(`   Falhas: ${result.results.failed}`);
+
+            if (result.results.failed > 0) {
+                console.log(`\n⚠️  [AUTO-SYNC] Veículos com falha:`);
+                result.results.details
+                    .filter(d => !d.success)
+                    .forEach(d => {
+                        console.log(`   ❌ ${d.plate}: ${d.error}`);
+                    });
+            }
+        } else {
+            console.error(`\n❌ [AUTO-SYNC] Erro na sincronização: ${result.error}`);
+        }
+
+    } catch (error) {
+        console.error(`\n❌ [AUTO-SYNC] Erro fatal:`, error.message);
+        if (error.response) {
+            console.error(`   Status: ${error.response.status}`);
+            console.error(`   Data:`, error.response.data);
+        }
+    }
+
+    console.log(`\n${'='.repeat(70)}\n`);
+}
+
+// Job 1: Sincronização às 06:00 (início do expediente)
+cron.schedule('0 6 * * *', async () => {
+    console.log('⏰ [CRON] Executando sincronização das 06:00');
+    await syncKmBackground();
+}, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo"
+});
+
+// Job 2: Sincronização às 12:00 (meio-dia)
+cron.schedule('0 12 * * *', async () => {
+    console.log('⏰ [CRON] Executando sincronização das 12:00');
+    await syncKmBackground();
+}, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo"
+});
+
+// Job 3: Sincronização às 18:00 (final do expediente)
+cron.schedule('0 18 * * *', async () => {
+    console.log('⏰ [CRON] Executando sincronização das 18:00');
+    await syncKmBackground();
+}, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo"
+});
+
+// Job 4: Sincronização às 23:59 (final do dia)
+cron.schedule('59 23 * * *', async () => {
+    console.log('⏰ [CRON] Executando sincronização das 23:59');
+    await syncKmBackground();
+}, {
+    scheduled: true,
+    timezone: "America/Sao_Paulo"
+});
+
+console.log('📅 Jobs agendados configurados:');
+console.log('   ⏰ 06:00 - Sincronização matinal');
+console.log('   ⏰ 12:00 - Sincronização meio-dia');
+console.log('   ⏰ 18:00 - Sincronização vespertina');
+console.log('   ⏰ 23:59 - Sincronização final do dia');
+console.log('   🌍 Timezone: America/Sao_Paulo\n');
+
 // Iniciar servidor
 app.listen(PORT, '0.0.0.0', async () => {
     try {

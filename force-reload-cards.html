@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Forçar Reload dos Cards</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .result {
+            background: #000;
+            padding: 15px;
+            margin: 10px 0;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+        }
+        button {
+            background: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #00cc00;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Forçar Reload dos Cards de KM</h1>
+
+    <div class="result">
+        <h3>Correção Aplicada:</h3>
+        <p>✅ A função filterByArea() foi modificada para NÃO atualizar os cards</p>
+        <p>✅ Agora os cards SEMPRE mostram o total geral (todas as áreas)</p>
+        <p>✅ Filtros afetam APENAS as tabelas detalhadas</p>
+    </div>
+
+    <div class="result">
+        <h3>Ações:</h3>
+        <button onclick="limparCache()">1. Limpar Cache LocalStorage</button>
+        <button onclick="recarregarDados()">2. Recarregar Dados do Banco</button>
+        <button onclick="abrirDashboard()">3. Abrir Dashboard</button>
+    </div>
+
+    <div id="output" class="result">
+        <h3>Log:</h3>
+        <div id="log">Clique nos botões acima...</div>
+    </div>
+
+    <script>
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `<p>${new Date().toLocaleTimeString()} - ${msg}</p>`;
+        }
+
+        function limparCache() {
+            log('🗑️ Limpando cache do localStorage...');
+
+            const keys = [
+                'fleetflow_daily_km_data',
+                'fleetflow_km_cache_v2',
+                'fleetflow_odometer_snapshots',
+                'fleetflow_month_cache',
+                'fleetflow_last_auto_sync'
+            ];
+
+            keys.forEach(key => {
+                if (localStorage.getItem(key)) {
+                    localStorage.removeItem(key);
+                    log(`   ✅ Removido: ${key}`);
+                } else {
+                    log(`   ℹ️ Não encontrado: ${key}`);
+                }
+            });
+
+            log('✅ Cache limpo com sucesso!');
+        }
+
+        async function recarregarDados() {
+            log('🔄 Recarregando dados do banco...');
+
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const url = `https://floripa.in9automacao.com.br/daily-mileage-api.php?date_from=${today}&date_to=${today}&limit=1000`;
+
+                log(`   📡 Buscando: ${url}`);
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success && data.records) {
+                    const total = data.records.reduce((sum, r) => sum + (parseFloat(r.km_driven) || 0), 0);
+                    log(`   ✅ Dados recebidos: ${data.records.length} veículos`);
+                    log(`   📊 Total KM HOJE (SEM filtro): ${total.toFixed(2)} km`);
+                    log(`   ✅ Este é o valor que DEVE aparecer no card "KM Rodados Hoje"`);
+                } else {
+                    log(`   ❌ Erro: ${data.error || 'Nenhum dado encontrado'}`);
+                }
+            } catch (error) {
+                log(`   ❌ Erro: ${error.message}`);
+            }
+        }
+
+        function abrirDashboard() {
+            log('🚀 Abrindo dashboard em nova aba...');
+            log('⚠️ IMPORTANTE: Pressione Ctrl+F5 para forçar reload sem cache!');
+            window.open('http://localhost:5000', '_blank');
+        }
+
+        // Auto-executar limpeza ao carregar
+        setTimeout(() => {
+            log('🤖 Executando limpeza automática...');
+            limparCache();
+            setTimeout(() => {
+                recarregarDados();
+            }, 1000);
+        }, 500);
+    </script>
+</body>
+</html>

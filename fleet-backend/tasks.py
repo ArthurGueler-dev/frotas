@@ -16,9 +16,11 @@ from config import Config
 from models import db, Vehicle, DailyMileage, SyncLog, RouteCompliance, RouteDeviation, AlertRecipient
 from services.ituran_service import ituran_service
 from services.route_compliance_service import RouteComplianceService
+from services.mileage_service import MileageService
 
 logger = logging.getLogger(__name__)
 route_compliance_service = RouteComplianceService()
+mileage_service = MileageService()
 
 
 def make_celery(app: Flask) -> Celery:
@@ -405,6 +407,74 @@ def recalculate_failed_records():
 
 @celery.task(
     bind=True,
+    name='tasks.sync_all_vehicles_mileage'
+)
+def sync_all_vehicles_mileage(self, target_date: str = None):
+    """
+    Sincroniza quilometragem de TODOS os veículos ativos
+
+    Esta task é executada automaticamente em horários programados:
+    - 06:00, 12:00, 18:00, 23:59
+
+    Usa o MileageService que:
+    1. Busca todos os veículos ativos via PHP API
+    2. Para cada veículo, busca odômetro via Ituran API
+    3. Calcula KM rodados (odômetro_hoje - odômetro_ontem)
+    4. Salva no banco via PHP API
+
+    Args:
+        target_date: Data para sincronizar (ISO format), padrão: ontem
+
+    Returns:
+        Dict com estatísticas de sucesso/falha
+    """
+    task_id = self.request.id
+    logger.info(f"🚀 Iniciando sincronização de quilometragem (task: {task_id})")
+
+    try:
+        # Parse target date
+        if target_date:
+            sync_date = datetime.fromisoformat(target_date)
+        else:
+            sync_date = None  # MileageService usa ontem por padrão
+
+        # Executar sincronização usando o serviço
+        stats = mileage_service.sync_all_vehicles(sync_date)
+
+        logger.info(
+            f"✅ Sincronização concluída: "
+            f"{stats['success']} sucesso, {stats['failed']} falhas, "
+            f"total: {stats['total']} veículos"
+        )
+
+        # Update progress
+        self.update_state(
+            state='SUCCESS',
+            meta={
+                'total': stats['total'],
+                'success': stats['success'],
+                'failed': stats['failed']
+            }
+        )
+
+        return {
+            'success': True,
+            'statistics': stats,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Erro fatal na sincronização de quilometragem: {e}")
+
+        return {
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+
+@celery.task(
+    bind=True,
     name='tasks.check_all_routes_compliance'
 )
 def check_all_routes_compliance(self):
@@ -557,6 +627,31 @@ def get_beat_schedule():
     schedule['check-route-compliance'] = {
         'task': 'tasks.check_all_routes_compliance',
         'schedule': crontab(minute='*/5'),  # Every 5 minutes
+        'args': ()
+    }
+
+    # ⭐ NEW: Automatic mileage sync - 4 times daily
+    schedule['sync-mileage-06h'] = {
+        'task': 'tasks.sync_all_vehicles_mileage',
+        'schedule': crontab(hour=6, minute=0),  # 06:00
+        'args': ()
+    }
+
+    schedule['sync-mileage-12h'] = {
+        'task': 'tasks.sync_all_vehicles_mileage',
+        'schedule': crontab(hour=12, minute=0),  # 12:00
+        'args': ()
+    }
+
+    schedule['sync-mileage-18h'] = {
+        'task': 'tasks.sync_all_vehicles_mileage',
+        'schedule': crontab(hour=18, minute=0),  # 18:00
+        'args': ()
+    }
+
+    schedule['sync-mileage-23h59'] = {
+        'task': 'tasks.sync_all_vehicles_mileage',
+        'schedule': crontab(hour=23, minute=59),  # 23:59
         'args': ()
     }
 

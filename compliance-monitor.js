@@ -52,7 +52,23 @@ async function loadDashboardData() {
     try {
         console.log('📊 Carregando dados do dashboard...');
 
-        // Buscar desvios não resolvidos
+        // 1. Buscar rotas ativas (pendente + em_andamento)
+        const [pendentesResp, emAndamentoResp] = await Promise.all([
+            fetch(`${API_BASE}/rotas-api.php?status=pendente`),
+            fetch(`${API_BASE}/rotas-api.php?status=em_andamento`)
+        ]);
+
+        const pendentesData = await pendentesResp.json();
+        const emAndamentoData = await emAndamentoResp.json();
+
+        const activeRoutes = [
+            ...(pendentesData.rotas || []),
+            ...(emAndamentoData.rotas || [])
+        ];
+
+        console.log(`📍 Encontradas ${activeRoutes.length} rotas ativas (${pendentesData.rotas?.length || 0} pendentes, ${emAndamentoData.rotas?.length || 0} em andamento)`);
+
+        // 2. Buscar desvios não resolvidos
         const severityFilter = document.getElementById('severity-filter').value;
         const params = new URLSearchParams({
             resolved: '0',
@@ -63,17 +79,17 @@ async function loadDashboardData() {
             params.append('severity', severityFilter);
         }
 
-        const response = await fetch(`${API_BASE}/route-deviations-api.php?${params}`);
-        const data = await response.json();
+        const deviationsResponse = await fetch(`${API_BASE}/route-deviations-api.php?${params}`);
+        const deviationsData = await deviationsResponse.json();
 
-        if (!data.success) {
-            throw new Error(data.error || 'Erro ao carregar desvios');
+        if (!deviationsData.success) {
+            console.warn('⚠️ Aviso:', deviationsData.message || 'Sistema de desvios ainda não inicializado');
         }
 
-        const deviations = data.deviations || [];
+        const deviations = deviationsData.deviations || [];
 
         // Atualizar KPIs
-        updateKPIs(deviations);
+        updateKPIs(activeRoutes, deviations);
 
         // Atualizar mapa
         updateMap(deviations);
@@ -84,7 +100,7 @@ async function loadDashboardData() {
         // Atualizar timestamp
         document.getElementById('last-update').textContent = new Date().toLocaleTimeString('pt-BR');
 
-        console.log(`✅ Dashboard atualizado: ${deviations.length} desvios`);
+        console.log(`✅ Dashboard atualizado: ${activeRoutes.length} rotas ativas, ${deviations.length} desvios`);
 
     } catch (error) {
         console.error('❌ Erro ao carregar dashboard:', error);
@@ -95,8 +111,18 @@ async function loadDashboardData() {
 /**
  * Atualizar KPIs do dashboard
  */
-function updateKPIs(deviations) {
-    // Contar por severidade
+function updateKPIs(activeRoutes, deviations) {
+    // Total de rotas ativas
+    const totalActiveRoutes = activeRoutes.length;
+
+    // Rotas com desvios (únicas)
+    const routesWithDeviations = [...new Set(deviations.map(d => d.route_id))];
+    const routesWithDeviationsCount = routesWithDeviations.length;
+
+    // Rotas conformes = Total ativo - Com desvios
+    const compliantRoutes = totalActiveRoutes - routesWithDeviationsCount;
+
+    // Contar desvios por severidade
     const criticalCount = deviations.filter(d => d.severity === 'critical').length;
     const highCount = deviations.filter(d => d.severity === 'high').length;
     const mediumCount = deviations.filter(d => d.severity === 'medium').length;
@@ -104,19 +130,13 @@ function updateKPIs(deviations) {
 
     const totalDeviations = deviations.length;
 
-    // Extrair rotas únicas
-    const uniqueRoutes = [...new Set(deviations.map(d => d.route_id))];
-    const activeRoutes = uniqueRoutes.length;
-
-    // Assumir que rotas sem desvios estão conformes (simplificação)
-    // TODO: Buscar total de rotas ativas da API
-    const compliantRoutes = 0; // Por enquanto
-
     // Atualizar DOM
-    document.getElementById('kpi-active-routes').textContent = activeRoutes;
+    document.getElementById('kpi-active-routes').textContent = totalActiveRoutes;
     document.getElementById('kpi-compliant').textContent = compliantRoutes;
-    document.getElementById('kpi-deviations').textContent = totalDeviations;
+    document.getElementById('kpi-deviations').textContent = routesWithDeviationsCount;
     document.getElementById('kpi-critical').textContent = criticalCount;
+
+    console.log(`📊 KPIs: ${totalActiveRoutes} ativas, ${compliantRoutes} conformes, ${routesWithDeviationsCount} com desvios, ${criticalCount} críticos`);
 
     // Remover loading
     document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));

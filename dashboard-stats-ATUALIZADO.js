@@ -1011,7 +1011,7 @@ async function calculateInBackground(startFrom = 0, initialData = null, progress
             if (progressText) progressText.textContent = `${progress}%`;
 
             // Chamar API com lote específico
-            // IMPORTANTE: Passar date como HOJE para mostrar dados de HOJE no dashboard
+            // IMPORTANTE: Passar date para calcular HOJE (não ontem)
             const today = new Date().toISOString().split('T')[0];
             const response = await fetch('/api/mileage/sync', {
                 method: 'POST',
@@ -1020,7 +1020,7 @@ async function calculateInBackground(startFrom = 0, initialData = null, progress
                 },
                 body: JSON.stringify({
                     plates: batch,  // Enviar apenas este lote
-                    date: today     // Passar data de HOJE explicitamente
+                    date: today     // CORRIGIDO: calcular KM de HOJE
                 })
             });
 
@@ -1634,49 +1634,6 @@ async function loadStatsFromDatabase() {
                 updateStatElement('stat-km-month', monthTotal);
             }
 
-            // ============= POPULAR TOP 10 VEÍCULOS =============
-            // Montar array de veículos com KM de hoje e ontem
-            const vehiclesMap = {};
-
-            // Adicionar KM de hoje
-            todayRecords.forEach(record => {
-                const plate = (record.vehicle_plate || record.plate || '').trim().toUpperCase();
-                if (!plate) return; // Pular se não tiver placa
-
-                if (!vehiclesMap[plate]) {
-                    vehiclesMap[plate] = {
-                        plate: plate,
-                        model: record.vehicle_name || '',
-                        kmToday: 0,
-                        kmYesterday: 0
-                    };
-                }
-                vehiclesMap[plate].kmToday += parseFloat(record.km_driven) || 0;
-            });
-
-            // Adicionar KM de ontem
-            yesterdayRecords.forEach(record => {
-                const plate = (record.vehicle_plate || record.plate || '').trim().toUpperCase();
-                if (!plate) return; // Pular se não tiver placa
-                if (!vehiclesMap[plate]) {
-                    vehiclesMap[plate] = {
-                        plate: plate,
-                        model: '',
-                        kmToday: 0,
-                        kmYesterday: 0
-                    };
-                }
-                vehiclesMap[plate].kmYesterday += parseFloat(record.km_driven) || 0;
-            });
-
-            const vehiclesArray = Object.values(vehiclesMap);
-
-            if (vehiclesArray.length > 0) {
-                console.log(`🏆 Atualizando Top 10 com ${vehiclesArray.length} veículos`);
-                updateTopVehiclesRanking(vehiclesArray);
-            }
-            // ===================================================
-
             // Retorna true se encontrou QUALQUER dado
             return todayCount > 0 || yesterdayCount > 0;
         }
@@ -1803,76 +1760,69 @@ async function updateDashboardStats() {
  * @param {string|null} syncedAt - Timestamp da última sincronização (formato MySQL: YYYY-MM-DD HH:MM:SS)
  */
 function updateLastSyncTime(syncedAt) {
-    // Atualizar todos os elementos de sincronização
-    const elementIds = ['last-sync-time', 'last-sync-time-yesterday', 'last-sync-time-month'];
+    const element = document.getElementById('last-sync-time');
+    if (!element) {
+        console.warn('⚠️ Elemento last-sync-time não encontrado');
+        return;
+    }
 
-    elementIds.forEach(elementId => {
-        const element = document.getElementById(elementId);
-        if (!element) {
-            console.warn(`⚠️ Elemento ${elementId} não encontrado`);
-            return;
-        }
+    if (!syncedAt) {
+        element.textContent = 'Nunca sincronizado';
+        element.className = 'text-yellow-600 dark:text-yellow-400';
+        return;
+    }
 
-        if (!syncedAt) {
-            element.textContent = 'Nunca sincronizado';
-            element.className = 'text-yellow-600 dark:text-yellow-400';
-            return;
-        }
+    try {
+        // Converter timestamp MySQL para objeto Date
+        // Formato: "2025-12-30 18:58:29" (horário do servidor)
+        const syncDate = new Date(syncedAt.replace(' ', 'T'));
+        const now = new Date();
+        const diffMs = now - syncDate;
+        const diffMinutes = Math.floor(diffMs / 60000);
 
-        try {
-            // Converter timestamp MySQL para objeto Date
-            // Formato: "2025-12-30 18:58:29" (horário do servidor)
-            const syncDate = new Date(syncedAt.replace(' ', 'T'));
-            const now = new Date();
-            const diffMs = now - syncDate;
-            const diffMinutes = Math.floor(diffMs / 60000);
+        let timeAgo = '';
+        let colorClass = 'text-green-600 dark:text-green-400';
 
-            let timeAgo = '';
-            let colorClass = 'text-green-600 dark:text-green-400';
-
-            if (diffMinutes < 1) {
-                timeAgo = 'Agora mesmo';
-            } else if (diffMinutes < 60) {
-                timeAgo = `Há ${diffMinutes} min`;
-                colorClass = diffMinutes > 30 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400';
-            } else if (diffMinutes < 1440) {
-                const hours = Math.floor(diffMinutes / 60);
-                timeAgo = `Há ${hours}h`;
-                colorClass = hours > 2 ? 'text-orange-600 dark:text-orange-400' : 'text-yellow-600 dark:text-yellow-400';
-            } else {
-                // Mais de 24h - mostrar data completa
-                timeAgo = syncDate.toLocaleString('pt-BR', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                colorClass = 'text-red-600 dark:text-red-400';
-            }
-
-            // Formatar data/hora completa para o title (tooltip)
-            const fullDateTime = syncDate.toLocaleString('pt-BR', {
+        if (diffMinutes < 1) {
+            timeAgo = 'Agora mesmo';
+        } else if (diffMinutes < 60) {
+            timeAgo = `Há ${diffMinutes} min`;
+            colorClass = diffMinutes > 30 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400';
+        } else if (diffMinutes < 1440) {
+            const hours = Math.floor(diffMinutes / 60);
+            timeAgo = `Há ${hours}h`;
+            colorClass = hours > 2 ? 'text-orange-600 dark:text-orange-400' : 'text-yellow-600 dark:text-yellow-400';
+        } else {
+            // Mais de 24h - mostrar data completa
+            timeAgo = syncDate.toLocaleString('pt-BR', {
                 day: '2-digit',
                 month: '2-digit',
-                year: 'numeric',
                 hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
+                minute: '2-digit'
             });
-
-            element.textContent = `Última sync: ${timeAgo}`;
-            element.className = `${colorClass} text-sm font-medium`;
-            element.title = `Última sincronização: ${fullDateTime}`;
-
-            if (elementId === 'last-sync-time') {
-                console.log(`🕐 Última sincronização: ${fullDateTime} (${timeAgo})`);
-            }
-        } catch (error) {
-            console.error(`❌ Erro ao processar timestamp para ${elementId}:`, error);
-            element.textContent = 'Erro ao carregar';
-            element.className = 'text-red-600 dark:text-red-400';
+            colorClass = 'text-red-600 dark:text-red-400';
         }
-    });
+
+        // Formatar data/hora completa para o title (tooltip)
+        const fullDateTime = syncDate.toLocaleString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+
+        element.textContent = `Última sync: ${timeAgo}`;
+        element.className = `${colorClass} text-sm font-medium`;
+        element.title = `Última sincronização: ${fullDateTime}`;
+
+        console.log(`🕐 Última sincronização: ${fullDateTime} (${timeAgo})`);
+    } catch (error) {
+        console.error('❌ Erro ao processar timestamp:', error);
+        element.textContent = 'Erro ao carregar';
+        element.className = 'text-red-600 dark:text-red-400';
+    }
 }
 
 /**
@@ -2102,8 +2052,8 @@ async function loadKmByArea() {
         // Buscar dados de hoje
         const today = new Date().toISOString().split('T')[0];
 
-        // Buscar quilometragem do dia (CORRIGIDO: usar date_from/date_to para pegar apenas HOJE)
-        const mileageResponse = await fetch(`https://floripa.in9automacao.com.br/daily-mileage-api.php?date_from=${today}&date_to=${today}&limit=1000`);
+        // Buscar quilometragem do dia
+        const mileageResponse = await fetch(`https://floripa.in9automacao.com.br/daily-mileage-api.php?date=${today}`);
         const mileageData = await mileageResponse.json();
 
         // Buscar áreas
@@ -2338,18 +2288,18 @@ async function filterByArea() {
             const totalKm = records.reduce((sum, record) => sum + (parseFloat(record.km_driven) || 0), 0);
             const vehicleCount = records.length;
 
-            console.log(`   Resultados filtrados: ${vehicleCount} veículos, ${totalKm.toFixed(2)} km`);
+            console.log(`   Resultados: ${vehicleCount} veículos, ${totalKm.toFixed(2)} km`);
 
-            // ⚠️ NÃO atualizar cards! Cards SEMPRE mostram total geral (sem filtro)
-            // Os filtros afetam APENAS as tabelas detalhadas
+            // Atualizar card de KM Rodados Hoje com valor filtrado
+            updateStatElement('stat-km-today', totalKm);
 
-            // Atualizar seção de KM por Região (tabela detalhada)
+            // Atualizar seção de KM por Região também
             if (typeof loadKmByArea === 'function') {
                 loadKmByArea();
             }
         } else {
             console.warn('⚠️ Nenhum dado encontrado para o filtro selecionado');
-            // NÃO zerar o card - ele mostra sempre o total geral
+            updateStatElement('stat-km-today', 0);
         }
     } catch (error) {
         console.error('❌ Erro ao filtrar por área:', error);
@@ -2579,152 +2529,18 @@ function debounce(func, wait) {
 }
 
 /**
- * Mostrar modal de data customizada com calendário visual
+ * Mostrar modal de data customizada
  */
 function showCustomDateModal() {
-    const modal = document.getElementById('customDateModal');
-    const dateFromInput = document.getElementById('modalDateFrom');
-    const dateToInput = document.getElementById('modalDateTo');
+    const dateFrom = prompt('Data inicial (YYYY-MM-DD):', detailedFilters.dateFrom || new Date().toISOString().split('T')[0]);
+    const dateTo = prompt('Data final (YYYY-MM-DD):', detailedFilters.dateTo || new Date().toISOString().split('T')[0]);
 
-    if (!modal || !dateFromInput || !dateToInput) {
-        console.error('❌ Elementos do modal não encontrados');
-        return;
-    }
-
-    // Preencher com valores atuais ou hoje
-    const today = new Date().toISOString().split('T')[0];
-    dateFromInput.value = detailedFilters.dateFrom || today;
-    dateToInput.value = detailedFilters.dateTo || today;
-
-    // Mostrar modal
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    // Preview automático quando mudar as datas
-    const updatePreview = async () => {
-        const from = dateFromInput.value;
-        const to = dateToInput.value;
-
-        if (from && to && from <= to) {
-            await loadDateRangePreview(from, to);
-        }
-    };
-
-    // Remover listeners antigos
-    dateFromInput.removeEventListener('change', updatePreview);
-    dateToInput.removeEventListener('change', updatePreview);
-
-    // Adicionar listeners
-    dateFromInput.addEventListener('change', updatePreview);
-    dateToInput.addEventListener('change', updatePreview);
-
-    // Carregar preview inicial
-    updatePreview();
-}
-
-/**
- * Fechar modal de data customizada
- */
-function closeCustomDateModal() {
-    const modal = document.getElementById('customDateModal');
-    if (modal) {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+    if (dateFrom && dateTo) {
+        detailedFilters.dateFrom = dateFrom;
+        detailedFilters.dateTo = dateTo;
+        loadDetailedMileageData();
     }
 }
-
-/**
- * Aplicar filtro de data customizada
- */
-async function applyCustomDateFilter() {
-    const dateFromInput = document.getElementById('modalDateFrom');
-    const dateToInput = document.getElementById('modalDateTo');
-
-    if (!dateFromInput || !dateToInput) return;
-
-    const dateFrom = dateFromInput.value;
-    const dateTo = dateToInput.value;
-
-    if (!dateFrom || !dateTo) {
-        alert('Por favor, selecione ambas as datas.');
-        return;
-    }
-
-    if (dateFrom > dateTo) {
-        alert('A data inicial não pode ser maior que a data final.');
-        return;
-    }
-
-    // Atualizar filtros
-    detailedFilters.dateFrom = dateFrom;
-    detailedFilters.dateTo = dateTo;
-
-    // Fechar modal
-    closeCustomDateModal();
-
-    // Recarregar dados
-    await loadDetailedMileageData();
-
-    console.log(`✅ Filtro aplicado: ${dateFrom} a ${dateTo}`);
-}
-
-/**
- * Carregar preview do total de KM para o período selecionado
- */
-async function loadDateRangePreview(dateFrom, dateTo) {
-    try {
-        const previewDiv = document.getElementById('modalTotalPreview');
-        const totalKmSpan = document.getElementById('modalTotalKm');
-        const vehicleCountSpan = document.getElementById('modalVehicleCount');
-        const dayCountSpan = document.getElementById('modalDayCount');
-
-        if (!previewDiv || !totalKmSpan) return;
-
-        // Mostrar loading
-        previewDiv.classList.remove('hidden');
-        totalKmSpan.textContent = 'Carregando...';
-
-        // Buscar dados do período
-        const url = `https://floripa.in9automacao.com.br/daily-mileage-api.php?date_from=${dateFrom}&date_to=${dateTo}&limit=10000`;
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.success && data.records) {
-            // Agrupar por veículo para contar veículos únicos
-            const uniqueVehicles = new Set(data.records.map(r => r.vehicle_plate));
-
-            // Calcular total KM
-            const totalKm = data.records.reduce((sum, r) => sum + (parseFloat(r.km_driven) || 0), 0);
-
-            // Calcular dias
-            const start = new Date(dateFrom);
-            const end = new Date(dateTo);
-            const dayCount = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
-
-            // Atualizar preview
-            totalKmSpan.textContent = `${totalKm.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km`;
-            vehicleCountSpan.textContent = `${uniqueVehicles.size} veículos`;
-            dayCountSpan.textContent = `${dayCount} ${dayCount === 1 ? 'dia' : 'dias'}`;
-
-            console.log(`📊 Preview: ${totalKm.toFixed(2)} km | ${uniqueVehicles.size} veículos | ${dayCount} dias`);
-        } else {
-            totalKmSpan.textContent = '0 km';
-            vehicleCountSpan.textContent = '0 veículos';
-            dayCountSpan.textContent = '0 dias';
-        }
-    } catch (error) {
-        console.error('❌ Erro ao carregar preview:', error);
-        const totalKmSpan = document.getElementById('modalTotalKm');
-        if (totalKmSpan) {
-            totalKmSpan.textContent = 'Erro';
-        }
-    }
-}
-
-// Expor funções globalmente
-window.showCustomDateModal = showCustomDateModal;
-window.closeCustomDateModal = closeCustomDateModal;
-window.applyCustomDateFilter = applyCustomDateFilter;
 
 /**
  * Carregar dados de quilometragem detalhada com filtros aplicados
@@ -2770,13 +2586,6 @@ async function loadDetailedMileageData() {
 
         let records = data.records;
 
-        // DEBUG: Ver estrutura dos dados
-        console.log('📊 Dados recebidos da API:', {
-            totalRecords: records.length,
-            firstRecord: records[0],
-            recordKeys: records[0] ? Object.keys(records[0]) : []
-        });
-
         // Buscar dados de veículos para ter informações completas
         const vehiclesResponse = await fetch('https://floripa.in9automacao.com.br/veiculos-api.php?action=list');
         const vehiclesData = await vehiclesResponse.json();
@@ -2784,31 +2593,18 @@ async function loadDetailedMileageData() {
         const vehiclesMap = {};
         if (vehiclesData.success && vehiclesData.vehicles) {
             vehiclesData.vehicles.forEach(v => {
-                // Tentar diferentes formatos de placa (API retorna LicensePlate)
-                const plate = (v.LicensePlate || v.plate || v.Plate || v.vehicle_plate || '').trim().toUpperCase();
-                if (plate) {
-                    vehiclesMap[plate] = v;
-                }
+                vehiclesMap[v.plate] = v;
             });
         }
 
-        console.log('🚗 Veículos carregados:', {
-            totalVehicles: Object.keys(vehiclesMap).length,
-            primeiras3Placas: Object.keys(vehiclesMap).slice(0, 3),
-            exemplo: vehiclesMap[Object.keys(vehiclesMap)[0]]
-        });
-
         // Aplicar filtros locais (placa, tipo, status)
         records = records.filter(record => {
-            // Normalizar nome do campo da placa
-            const recordPlate = (record.plate || record.vehicle_plate || record.Plate || '').trim().toUpperCase();
-
             // Filtro de placa
-            if (detailedFilters.plate && !recordPlate.toLowerCase().includes(detailedFilters.plate.toLowerCase())) {
+            if (detailedFilters.plate && !record.plate.toLowerCase().includes(detailedFilters.plate.toLowerCase())) {
                 return false;
             }
 
-            const vehicle = vehiclesMap[recordPlate];
+            const vehicle = vehiclesMap[record.plate];
 
             // Filtro de tipo de veículo
             if (detailedFilters.vehicleType && vehicle && vehicle.type !== detailedFilters.vehicleType) {
@@ -2823,47 +2619,23 @@ async function loadDetailedMileageData() {
             return true;
         });
 
-        // DEBUG: Ver estrutura antes de agrupar
-        console.log('🔍 Antes de agrupar:', {
-            totalRecords: records.length,
-            primeirasPlacas: records.slice(0, 3).map(r => ({
-                plate: r.plate,
-                Plate: r.Plate,
-                vehicle_plate: r.vehicle_plate,
-                allKeys: Object.keys(r)
-            }))
-        });
-
         // Agrupar por placa (somar KM do período)
         const groupedData = {};
         records.forEach(record => {
-            // Tentar diferentes nomes de campo para a placa (priorizar vehicle_plate que é o que a API retorna)
-            const plateField = (record.vehicle_plate || record.plate || record.Plate || record.VehiclePlate || '').trim().toUpperCase();
-
-            if (!plateField) {
-                console.warn('⚠️ Registro sem placa:', record);
-                return;
-            }
-
-            if (!groupedData[plateField]) {
-                groupedData[plateField] = {
-                    plate: plateField,
+            if (!groupedData[record.plate]) {
+                groupedData[record.plate] = {
+                    plate: record.plate,
                     totalKm: 0,
                     days: 0,
-                    vehicle: vehiclesMap[plateField] || {}
+                    vehicle: vehiclesMap[record.plate] || {}
                 };
             }
 
-            groupedData[plateField].totalKm += parseFloat(record.km_driven || record.KmDriven || record.km) || 0;
-            groupedData[plateField].days++;
+            groupedData[record.plate].totalKm += parseFloat(record.km_driven) || 0;
+            groupedData[record.plate].days++;
         });
 
         const groupedRecords = Object.values(groupedData);
-
-        console.log('📦 Depois de agrupar:', {
-            totalVehicles: groupedRecords.length,
-            primeiros3: groupedRecords.slice(0, 3)
-        });
 
         // Ordenar por maior KM
         groupedRecords.sort((a, b) => b.totalKm - a.totalKm);
@@ -2886,27 +2658,16 @@ async function loadDetailedMileageData() {
             const consumption = vehicle.avg_consumption || '-';
             const costPerKm = vehicle.cost_per_km || '-';
 
-            // DEBUG: Log de cada registro antes de renderizar
-            console.log('🔍 Renderizando registro:', {
-                plate: record.plate,
-                totalKm: record.totalKm,
-                days: record.days,
-                vehicle: vehicle,
-                vehicleKeys: Object.keys(vehicle),
-                hasModel: !!vehicle.model,
-                hasDriver: !!vehicle.driver
-            });
-
             return `
                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                     <td class="p-4">
                         <div class="flex flex-col">
                             <span class="font-medium text-gray-900 dark:text-white">${record.plate}</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">${vehicle.VehicleName || vehicle.model || 'Modelo não informado'}</span>
+                            <span class="text-xs text-gray-500 dark:text-gray-400">${vehicle.model || 'Modelo não informado'}</span>
                         </div>
                     </td>
                     <td class="p-4 text-gray-700 dark:text-gray-300">
-                        ${vehicle.DriverName || vehicle.driver || (vehicle.DriverId && vehicle.DriverId !== '0' ? 'Motorista ID: ' + vehicle.DriverId : 'Não atribuído')}
+                        ${vehicle.driver || 'Não atribuído'}
                     </td>
                     <td class="p-4">
                         <div class="flex flex-col">
@@ -2926,40 +2687,7 @@ async function loadDetailedMileageData() {
 
         tableBody.innerHTML = rows;
 
-        // ========== ATUALIZAR FOOTER COM TOTAIS ==========
-        const tableFooter = document.getElementById('detailedTableFooter');
-        if (tableFooter && groupedRecords.length > 0) {
-            // Calcular totais
-            const totalKm = groupedRecords.reduce((sum, record) => sum + record.totalKm, 0);
-            const vehicleCount = groupedRecords.length;
-            const avgKm = vehicleCount > 0 ? totalKm / vehicleCount : 0;
-
-            tableFooter.innerHTML = `
-                <tr class="font-semibold">
-                    <td colspan="2" class="p-4 text-gray-700 dark:text-gray-300">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-primary">analytics</span>
-                            <span>Total do Período</span>
-                        </div>
-                    </td>
-                    <td class="p-4">
-                        <div class="flex flex-col">
-                            <span class="text-lg font-bold text-primary">${totalKm.toFixed(2)} km</span>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">${vehicleCount} veículo${vehicleCount !== 1 ? 's' : ''}</span>
-                        </div>
-                    </td>
-                    <td class="p-4 text-gray-500 dark:text-gray-400 text-sm">
-                        Média: ${avgKm.toFixed(2)} km/veículo
-                    </td>
-                    <td class="p-4"></td>
-                </tr>
-            `;
-        } else if (tableFooter) {
-            tableFooter.innerHTML = '';
-        }
-        // ===================================================
-
-        console.log(`✅ Tabela detalhada atualizada: ${groupedRecords.length} veículos, ${groupedRecords.reduce((s,r) => s + r.totalKm, 0).toFixed(2)} km total`);
+        console.log(`✅ Tabela detalhada atualizada: ${groupedRecords.length} veículos`);
 
     } catch (error) {
         console.error('❌ Erro ao carregar dados detalhados:', error);
