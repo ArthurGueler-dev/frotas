@@ -11,6 +11,20 @@
 
 ## 1. Andamento do Projeto (Changelog)
 
+### 2026-01-08
+- **FEATURE**: Sistema de peças compatíveis integrado ao lançamento de OS (lancar-os.html)
+- **UX**: Implementado filtro em cascata inteligente: Tipo → Categoria → Descrição
+- **INTEGRATION**: Busca automática de peças ao selecionar placa do veículo
+- **UI**: Badges visuais para peças originais (azul) e similares (verde)
+- **INFO**: Exibição de economia nas peças similares (ex: "Economia de R$ 46,00")
+- **API**: Integração com pecas-compatibilidade-api.php para buscar peças por modelo
+- **MAPPING**: Sistema de mapeamento de modelos (HILUX→HILUX CD, S10→S10 CD LS 2.8, etc)
+- **CACHE**: Cache inteligente de peças após primeira busca por veículo
+- **FRONTEND**: Modificado os-items-manager.js (34KB) - sistema completo de peças
+- **FRONTEND**: Atualizado lancar-os.html (39KB) - ordem de colunas alterada
+- **SQL**: Gerado INSERT-PECAS-HYUNDAI-HR-2.5-DIESEL-COMPLETO.sql (132 peças)
+- **DEPLOY**: Arquivos enviados para VPS via SCP (31.97.169.36:/root/frotas/)
+
 ### 2025-12-30
 - **FEATURE**: Sistema completo de cálculo automático de quilometragem implementado
 - **DATABASE**: Criadas tabelas `areas`, `daily_mileage` e alterada `Vehicles` (campo area_id)
