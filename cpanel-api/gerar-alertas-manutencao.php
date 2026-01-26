@@ -292,14 +292,33 @@ function gerarAlertasVeiculo($conn, $veiculo) {
         // Buscar última OS deste item
         $ultimaOS = buscarKmUltimaOS($conn, $placa, $descricao);
 
-        // Calcular KM base (última OS ou 0 se nunca feito)
-        $kmBase = $ultimaOS ? $ultimaOS['km'] : 0;
+        // Calcular próximo KM programado
+        // LÓGICA CORRETA: calcular do KM atual para FRENTE, não de trás pra frente
+        if ($ultimaOS && $ultimaOS['km'] > 0) {
+            // Se há histórico: próxima = última + intervalo
+            $kmBase = $ultimaOS['km'];
+            $kmProgramado = $kmBase + $kmRecomendado;
+
+            // Se já passou do programado, calcular o PRÓXIMO intervalo
+            // (não mostrar como vencido se nunca foi registrado que venceu)
+            while ($kmProgramado < $kmAtual - 500) {
+                // Tolerância de 500km para não pular manutenções realmente vencidas
+                $kmProgramado += $kmRecomendado;
+            }
+        } else {
+            // SEM histórico: calcular próximo múltiplo do intervalo a partir do KM atual
+            // Ex: km atual = 47.000, intervalo = 10.000 → próximo = 50.000
+            $kmProgramado = ceil($kmAtual / $kmRecomendado) * $kmRecomendado;
+
+            // Se o veículo está exatamente no múltiplo, a próxima é o intervalo seguinte
+            if ($kmProgramado == $kmAtual) {
+                $kmProgramado += $kmRecomendado;
+            }
+        }
+
         $dataUltimaOS = $ultimaOS ? $ultimaOS['data'] : null;
 
-        // Calcular próximo KM programado
-        $kmProgramado = $kmBase + $kmRecomendado;
-
-        // Calcular KM restantes
+        // Calcular KM restantes (agora sempre será positivo ou levemente negativo)
         $kmRestantes = $kmProgramado - $kmAtual;
 
         // Calcular dias restantes (se houver intervalo de tempo)
@@ -310,6 +329,7 @@ function gerarAlertasVeiculo($conn, $veiculo) {
             $diasIntervalo = converterIntervaloEmDias($intervaloTempo);
 
             if ($diasIntervalo && $dataUltimaOS) {
+                // Se há histórico de OS, calcular próxima data baseada na última
                 $dataBase = new DateTime($dataUltimaOS);
                 $dataProximaObj = clone $dataBase;
                 $dataProximaObj->modify("+{$diasIntervalo} days");
@@ -319,8 +339,12 @@ function gerarAlertasVeiculo($conn, $veiculo) {
                 $diff = $hoje->diff($dataProximaObj);
                 $diasRestantes = $diff->invert ? -$diff->days : $diff->days;
             } elseif ($diasIntervalo && !$dataUltimaOS) {
-                // Se nunca foi feito, calcular baseado na data de cadastro ou hoje
-                $diasRestantes = $diasIntervalo; // Assumir que está vencendo
+                // SEM histórico: não gerar alerta de tempo vencido
+                // Próxima manutenção será daqui a [intervalo] dias
+                $dataProximaObj = new DateTime();
+                $dataProximaObj->modify("+{$diasIntervalo} days");
+                $dataProxima = $dataProximaObj->format('Y-m-d');
+                $diasRestantes = $diasIntervalo; // Faltam X dias (positivo)
             }
         }
 
@@ -456,6 +480,19 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     $action = isset($_GET['action']) ? $_GET['action'] : '';
     $placaFiltro = isset($_GET['placa']) ? trim($_GET['placa']) : null;
+
+    // GET - Reset: Limpar alertas antigos e regenerar
+    if ($method === 'GET' && $action === 'reset') {
+        // Limpar todos os alertas não concluídos (vão ser recalculados)
+        $sqlDelete = "DELETE FROM avisos_manutencao WHERE status NOT IN ('Concluido')";
+        $conn->exec($sqlDelete);
+        $deletados = $conn->query("SELECT ROW_COUNT()")->fetchColumn();
+
+        sendResponse(true, [
+            'message' => 'Alertas limpos com sucesso. Execute POST para regenerar.',
+            'alertas_removidos' => intval($deletados)
+        ]);
+    }
 
     // GET - Estatísticas
     if ($method === 'GET' && $action === 'stats') {
