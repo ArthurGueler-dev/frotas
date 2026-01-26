@@ -37,8 +37,8 @@ require_once __DIR__ . '/db-config.php';
 // Configurações de thresholds para níveis de alerta
 define('THRESHOLD_CRITICO_KM', 0);      // Vencido (km <= 0)
 define('THRESHOLD_ALTO_KM', 1000);      // < 1.000 km
-define('THRESHOLD_MEDIO_KM', 2000);     // < 2.000 km
-define('THRESHOLD_BAIXO_KM', 3000);     // < 3.000 km
+define('THRESHOLD_MEDIO_KM', 3000);     // < 3.000 km
+define('THRESHOLD_BAIXO_KM', 5000);     // < 5.000 km (mostrar mais veículos)
 
 define('THRESHOLD_CRITICO_DIAS', 0);    // Vencido (dias <= 0)
 define('THRESHOLD_ALTO_DIAS', 15);      // < 15 dias
@@ -287,6 +287,24 @@ function gerarAlertasVeiculo($conn, $veiculo) {
 
         if ($kmRecomendado <= 0) {
             continue; // Pular itens sem KM definido
+        }
+
+        // FILTRO: Ignorar manutenções ÚNICAS (revisão de amaciamento, pós-venda, etc)
+        // Se o intervalo é muito pequeno (< 5.000 km) e o veículo já passou muito (> 3x o intervalo),
+        // provavelmente é uma manutenção única que não se repete
+        $descricaoLower = mb_strtolower($descricao, 'UTF-8');
+        $ehManutencaoUnica = (
+            strpos($descricaoLower, 'amaciamento') !== false ||
+            strpos($descricaoLower, 'pós-venda') !== false ||
+            strpos($descricaoLower, 'pos-venda') !== false ||
+            strpos($descricaoLower, 'primeira revisão') !== false ||
+            strpos($descricaoLower, 'primeira revisao') !== false ||
+            strpos($descricaoLower, 'break-in') !== false ||
+            ($kmRecomendado <= 5000 && $kmAtual > ($kmRecomendado * 5))
+        );
+
+        if ($ehManutencaoUnica) {
+            continue; // Pular manutenções únicas para veículos com km alto
         }
 
         // Buscar última OS deste item
