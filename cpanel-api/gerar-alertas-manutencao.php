@@ -253,26 +253,65 @@ function gerarAlertasVeiculo($conn, $veiculo) {
     }
 
     // Buscar plano de manutenção do modelo
+    // Lista de palavras-chave de modelos conhecidos para fazer matching inteligente
+    $modelosConhecidos = [
+        'HILUX', 'S10', 'SAVEIRO', 'STRADA', 'MOBI', 'ONIX', 'HB20', 'HR-V', 'HRV',
+        'MONTANA', 'CELTA', 'CLASSIC', 'L200', 'TRITON', 'SANDERO', 'CARGO', 'DAILY',
+        'ACCELO', 'ATEGO', 'DELIVERY', '10.160', '11.180', 'TORO', 'RANGER', 'AMAROK',
+        'DUSTER', 'CAPTUR', 'KICKS', 'COMPASS', 'RENEGADE', 'TRACKER', 'SPIN', 'COBALT'
+    ];
+
+    // Extrair palavra-chave do modelo do veículo
+    $modeloUpper = mb_strtoupper($modelo, 'UTF-8');
+    $palavraChaveModelo = null;
+
+    foreach ($modelosConhecidos as $modeloConhecido) {
+        if (strpos($modeloUpper, $modeloConhecido) !== false) {
+            $palavraChaveModelo = $modeloConhecido;
+            break;
+        }
+    }
+
+    // Buscar plano usando palavra-chave encontrada ou modelo original
+    $termoBusca = $palavraChaveModelo ? $palavraChaveModelo : $modelo;
+
     $sqlPlano = "SELECT * FROM `Planos_Manutenção` WHERE modelo_carro LIKE ? ORDER BY km_recomendado ASC";
     $stmtPlano = $conn->prepare($sqlPlano);
-    $stmtPlano->bindValue(1, '%' . $modelo . '%');
+    $stmtPlano->bindValue(1, '%' . $termoBusca . '%');
     $stmtPlano->execute();
     $itensPlano = $stmtPlano->fetchAll(PDO::FETCH_ASSOC);
 
-    if (empty($itensPlano)) {
-        // Tentar buscar por modelo parcial
-        $modeloParcial = explode(' ', $modelo)[0]; // Primeira palavra
+    if (empty($itensPlano) && $palavraChaveModelo) {
+        // Se não encontrou com palavra-chave, tentar com modelo original
         $stmtPlano2 = $conn->prepare($sqlPlano);
-        $stmtPlano2->bindValue(1, '%' . $modeloParcial . '%');
+        $stmtPlano2->bindValue(1, '%' . $modelo . '%');
         $stmtPlano2->execute();
         $itensPlano = $stmtPlano2->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    if (empty($itensPlano)) {
+        // Última tentativa: primeira palavra significativa (ignorando marcas)
+        $palavrasIgnorar = ['VW', 'FIAT', 'CHEVROLET', 'TOYOTA', 'FORD', 'HYUNDAI', 'HONDA', 'RENAULT', 'IVECO', 'MB', 'MERCEDES', 'VOLKSWAGEN', 'GM', 'NOVA', 'NOVO'];
+        $palavras = preg_split('/[\s\/]+/', $modelo);
+        foreach ($palavras as $palavra) {
+            $palavraUpper = mb_strtoupper(trim($palavra), 'UTF-8');
+            if (strlen($palavraUpper) > 2 && !in_array($palavraUpper, $palavrasIgnorar)) {
+                $stmtPlano3 = $conn->prepare($sqlPlano);
+                $stmtPlano3->bindValue(1, '%' . $palavraUpper . '%');
+                $stmtPlano3->execute();
+                $itensPlano = $stmtPlano3->fetchAll(PDO::FETCH_ASSOC);
+                if (!empty($itensPlano)) {
+                    break;
+                }
+            }
+        }
     }
 
     if (empty($itensPlano)) {
         return [
             'gerados' => 0,
             'atualizados' => 0,
-            'erros' => ['Plano de manutenção não encontrado para modelo: ' . $modelo]
+            'erros' => ['Plano não encontrado para: ' . $modelo . ' (buscou: ' . $termoBusca . ')']
         ];
     }
 
