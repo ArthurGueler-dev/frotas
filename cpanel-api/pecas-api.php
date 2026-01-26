@@ -151,6 +151,26 @@ try {
                 ]);
                 $stmt->close();
 
+            } elseif (isset($_GET['universal'])) {
+                // Buscar apenas peças universais (compatíveis com todos os veículos)
+                $universal = intval($_GET['universal']);
+                $stmt = $conn->prepare("SELECT * FROM FF_Pecas WHERE universal = ? AND ativo = 1 ORDER BY categoria ASC, nome ASC");
+                $stmt->bind_param("i", $universal);
+                $stmt->execute();
+                $result = $stmt->get_result();
+
+                $pecas = [];
+                while ($row = $result->fetch_assoc()) {
+                    $pecas[] = $row;
+                }
+
+                echo json_encode([
+                    'success' => true,
+                    'count' => count($pecas),
+                    'data' => $pecas
+                ]);
+                $stmt->close();
+
             } else {
                 // Listar todas as peças
                 $sql = "SELECT * FROM FF_Pecas WHERE ativo = 1 ORDER BY nome ASC";
@@ -221,8 +241,8 @@ try {
             // Inserir no banco
             $stmt = $conn->prepare(
                 "INSERT INTO FF_Pecas
-                (codigo, nome, descricao, unidade, custo_unitario, estoque_minimo, estoque_atual, fornecedor, categoria, vida_util_km, vida_util_meses, ativo, criado_em)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, NOW())"
+                (codigo, nome, descricao, unidade, custo_unitario, estoque_minimo, estoque_atual, fornecedor, categoria, vida_util_km, vida_util_meses, ativo, universal, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, NOW())"
             );
 
             $codigo = isset($input['codigo']) ? $input['codigo'] : null;
@@ -236,9 +256,10 @@ try {
             $categoria = isset($input['categoria']) ? $input['categoria'] : null;
             $vida_util_km = isset($input['vida_util_km']) ? intval($input['vida_util_km']) : null;
             $vida_util_meses = isset($input['vida_util_meses']) ? intval($input['vida_util_meses']) : null;
+            $universal = isset($input['universal']) ? intval($input['universal']) : 0;
 
             $stmt->bind_param(
-                "ssssdiissii",
+                "ssssdiissiii",
                 $codigo,
                 $nome,
                 $descricao,
@@ -249,7 +270,8 @@ try {
                 $fornecedor,
                 $categoria,
                 $vida_util_km,
-                $vida_util_meses
+                $vida_util_meses,
+                $universal
             );
 
             if ($stmt->execute()) {
@@ -365,6 +387,11 @@ try {
                 $campos_update[] = "vida_util_meses = ?";
                 $tipos .= "i";
                 $valores[] = intval($input['vida_util_meses']);
+            }
+            if (isset($input['universal'])) {
+                $campos_update[] = "universal = ?";
+                $tipos .= "i";
+                $valores[] = intval($input['universal']);
             }
 
             if (empty($campos_update)) {

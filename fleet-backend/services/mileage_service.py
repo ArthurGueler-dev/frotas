@@ -3,9 +3,13 @@ Serviço de Quilometragem Automática
 
 Responsável por:
 - Buscar odômetro diário de veículos via API Ituran
-- Calcular KM rodados (odômetro hoje - odômetro ontem)
+- Calcular KM rodados (odômetro atual - odômetro início do dia)
 - Salvar dados na tabela daily_mileage via API PHP
 - Gestão de erros e retry automático
+
+IMPORTANTE - Lógica de cálculo:
+- DIA ATUAL (hoje): odômetro_atual (tempo real) - odômetro_meia_noite_de_hoje
+- DIAS PASSADOS: odômetro_meia_noite_próximo_dia - odômetro_meia_noite_do_dia
 """
 
 import requests
@@ -41,6 +45,7 @@ class MileageService:
     def get_vehicle_odometer(self, plate: str, date: datetime) -> Optional[Dict]:
         """
         Busca o odômetro do veículo em uma data específica via API Ituran
+        NOTA: Retorna o odômetro de MEIA-NOITE da data especificada
 
         Args:
             plate: Placa do veículo (ex: 'RTS9B92')
@@ -63,7 +68,7 @@ class MileageService:
                 'Password': self.ITURAN_PASSWORD
             }
 
-            logger.info(f"🔍 Buscando odômetro: {plate} em {date_str}")
+            logger.info(f"🔍 Buscando odômetro (meia-noite): {plate} em {date_str}")
 
             # Fazer requisição
             response = self.session.get(url, params=params, timeout=30)
@@ -112,55 +117,182 @@ class MileageService:
             logger.error(f"❌ Erro inesperado ao buscar {plate}: {e}")
             return None
 
-    def calculate_daily_mileage(self, plate: str, date: datetime) -> Optional[Dict]:
+    def get_current_odometer(self, plate: str) -> Optional[Dict]:
         """
-        Calcula a quilometragem diária de um veículo
-
-        Busca odômetro de hoje e de ontem, calcula a diferença
+        Busca o odômetro ATUAL (tempo real) do veículo via GetFullReport
+        Usa o período de hoje 00:00 até agora para pegar o registro mais recente
 
         Args:
             plate: Placa do veículo
-            date: Data para calcular (normalmente hoje ou ontem)
 
         Returns:
-            Dict com odometer_start, odometer_end, km_driven
+            Dict com 'odometer' (float), 'timestamp' (str)
             ou None se houver erro
         """
         try:
-            # Buscar odômetro do dia anterior (início do dia)
-            previous_date = date - timedelta(days=1)
-            odometer_start_data = self.get_vehicle_odometer(plate, previous_date)
+            # Período: hoje 00:00 até agora
+            now = datetime.now()
+            start = now.replace(hour=0, minute=0, second=0).strftime('%Y-%m-%d %H:%M:%S')
+            end = now.strftime('%Y-%m-%d %H:%M:%S')
 
-            # Buscar odômetro do dia atual (fim do dia)
-            odometer_end_data = self.get_vehicle_odometer(plate, date)
+            url = f"{self.ITURAN_BASE_URL}/GetFullReport"
+            params = {
+                'UserName': self.ITURAN_USERNAME,
+                'Password': self.ITURAN_PASSWORD,
+                'Plate': plate,
+                'Start': start,
+                'End': end,
+                'UAID': '0',
+                'MaxNumberOfRecords': '1000'
+            }
 
-            # Verificar se ambas as consultas foram bem-sucedidas
-            if not odometer_start_data or not odometer_end_data:
-                logger.warning(f"⚠️ Não foi possível obter odômetros completos para {plate}")
+            logger.info(f"🔍 Buscando odômetro ATUAL: {plate} (período: {start} até {end})")
+
+            response = self.session.get(url, params=params, timeout=30)
+            response.raise_for_status()
+
+            # Parse XML - remover namespace para facilitar parse
+            xml_content = response.content.decode('utf-8')
+            # Remover namespace do XML
+            xml_content = xml_content.replace('xmlns="http://www.ituran.com/ituranWebService3"', '')
+            root = ET.fromstring(xml_content)
+
+            # Buscar registros - estrutura: Records -> RecordWithPlate
+            records = root.findall('.//RecordWithPlate')
+
+            if not records:
+                # Tentar estrutura alternativa
+                records = root.findall('.//Record')
+
+            if not records:
+                logger.warning(f"⚠️ Nenhum registro encontrado para {plate} hoje (total elementos: {len(list(root.iter()))})")
                 return None
 
-            odometer_start = odometer_start_data['odometer']
-            odometer_end = odometer_end_data['odometer']
+            # Encontrar o registro mais recente (maior Mileage ou mais recente Date)
+            latest_odometer = 0
+            latest_timestamp = None
 
-            # Calcular KM rodados
-            km_driven = odometer_end - odometer_start
+            for record in records:
+                mileage_elem = record.find('Mileage')
+                date_elem = record.find('Date')
+
+                if mileage_elem is not None:
+                    mileage = float(mileage_elem.text or 0)
+                    # Mileage já vem em KM (não em metros)
+                    mileage_km = mileage
+
+                    if mileage_km > latest_odometer:
+                        latest_odometer = mileage_km
+                        if date_elem is not None:
+                            latest_timestamp = date_elem.text
+
+            if latest_odometer > 0:
+                logger.info(f"✅ Odômetro ATUAL de {plate}: {latest_odometer:,.2f} km")
+                return {
+                    'odometer': latest_odometer,
+                    'timestamp': latest_timestamp or now.isoformat(),
+                    'plate': plate
+                }
+
+            logger.warning(f"⚠️ Não foi possível obter odômetro atual para {plate}")
+            return None
+
+        except Exception as e:
+            logger.error(f"❌ Erro ao buscar odômetro atual de {plate}: {e}")
+            return None
+
+    def calculate_daily_mileage(self, plate: str, target_date: datetime) -> Optional[Dict]:
+        """
+        Calcula a quilometragem diária de um veículo
+
+        LÓGICA:
+        - Se target_date = HOJE: usa odômetro ATUAL (tempo real) - odômetro meia-noite de hoje
+        - Se target_date = dia PASSADO: usa odômetro meia-noite(dia+1) - odômetro meia-noite(dia)
+
+        Args:
+            plate: Placa do veículo
+            target_date: Data para calcular
+
+        Returns:
+            Dict com odometer_start, odometer_end, km_driven, date
+            ou None se houver erro
+        """
+        try:
+            today = datetime.now().date()
+            target_day = target_date.date() if isinstance(target_date, datetime) else target_date
+
+            # Verificar se é o dia atual
+            is_today = (target_day == today)
+
+            if is_today:
+                # ============================================
+                # CÁLCULO PARA O DIA ATUAL (tempo real)
+                # ============================================
+                logger.info(f"📊 Calculando KM de HOJE para {plate} (tempo real)")
+
+                # Odômetro de meia-noite de hoje (início do dia)
+                odometer_start_data = self.get_vehicle_odometer(plate, target_date)
+                if not odometer_start_data:
+                    logger.warning(f"⚠️ Não foi possível obter odômetro inicial para {plate}")
+                    return None
+
+                # Odômetro ATUAL (tempo real via GetFullReport)
+                odometer_end_data = self.get_current_odometer(plate)
+                if not odometer_end_data:
+                    # Fallback: usar odômetro de meia-noite (KM = 0 se não rodou ainda hoje)
+                    logger.warning(f"⚠️ Usando fallback para {plate} - sem dados de hoje ainda")
+                    odometer_end_data = {'odometer': odometer_start_data['odometer']}
+
+                odometer_start = odometer_start_data['odometer']
+                odometer_end = odometer_end_data['odometer']
+
+                # KM rodados HOJE (parcial, até o momento atual)
+                km_driven = odometer_end - odometer_start
+
+                # Data do registro = HOJE
+                result_date = target_day
+
+            else:
+                # ============================================
+                # CÁLCULO PARA DIAS PASSADOS
+                # ============================================
+                logger.info(f"📊 Calculando KM de {target_day} para {plate} (dia passado)")
+
+                # Odômetro de meia-noite do dia alvo (início do dia)
+                odometer_start_data = self.get_vehicle_odometer(plate, target_date)
+
+                # Odômetro de meia-noite do dia SEGUINTE (fim do dia alvo)
+                next_day = target_date + timedelta(days=1)
+                odometer_end_data = self.get_vehicle_odometer(plate, next_day)
+
+                if not odometer_start_data or not odometer_end_data:
+                    logger.warning(f"⚠️ Não foi possível obter odômetros completos para {plate}")
+                    return None
+
+                odometer_start = odometer_start_data['odometer']
+                odometer_end = odometer_end_data['odometer']
+
+                # KM rodados no dia alvo
+                km_driven = odometer_end - odometer_start
+
+                # Data do registro = dia alvo
+                result_date = target_day
 
             # Validar resultado (KM não pode ser negativo)
             if km_driven < 0:
                 logger.warning(f"⚠️ KM negativo detectado para {plate}: {km_driven:.2f} km")
-                # Pode ser erro de leitura ou reset de odômetro
-                # Vamos registrar como 0 e marcar erro
                 km_driven = 0
 
-            logger.info(f"📊 {plate}: {km_driven:.2f} km rodados em {date.strftime('%Y-%m-%d')}")
+            logger.info(f"📊 {plate}: {km_driven:.2f} km rodados em {result_date}")
 
             return {
                 'plate': plate,
-                'date': date.strftime('%Y-%m-%d'),
+                'date': result_date.strftime('%Y-%m-%d') if hasattr(result_date, 'strftime') else str(result_date),
                 'odometer_start': odometer_start,
                 'odometer_end': odometer_end,
                 'km_driven': km_driven,
-                'synced_at': datetime.now().isoformat()
+                'synced_at': datetime.now().isoformat(),
+                'is_partial': is_today  # Marca se é cálculo parcial (dia atual)
             }
 
         except Exception as e:
@@ -180,7 +312,7 @@ class MileageService:
             True se salvou com sucesso, False caso contrário
         """
         try:
-            # Endpoint da API PHP (vamos criar este endpoint)
+            # Endpoint da API PHP
             url = f"{self.PHP_API_BASE_URL}/daily-mileage-api.php"
 
             # Preparar payload
@@ -195,7 +327,7 @@ class MileageService:
                 'synced_at': mileage_data.get('synced_at', datetime.now().isoformat())
             }
 
-            logger.info(f"💾 Salvando no banco: {payload['vehicle_plate']} - {payload['km_driven']:.2f} km")
+            logger.info(f"💾 Salvando no banco: {payload['vehicle_plate']} - {payload['km_driven']:.2f} km em {payload['date']}")
 
             # Fazer requisição POST
             response = self.session.post(url, json=payload, timeout=10)
@@ -223,15 +355,15 @@ class MileageService:
 
         Args:
             plate: Placa do veículo
-            date: Data para sincronizar (padrão: ontem)
+            date: Data para sincronizar (padrão: HOJE para KM em tempo real)
 
         Returns:
             True se sincronizou com sucesso
         """
         try:
-            # Se não especificou data, usar ontem (dados completos do dia anterior)
+            # Se não especificou data, usar HOJE (KM parcial em tempo real)
             if date is None:
-                date = datetime.now() - timedelta(days=1)
+                date = datetime.now()
 
             logger.info(f"🔄 Sincronizando {plate} para {date.strftime('%Y-%m-%d')}")
 
@@ -256,13 +388,17 @@ class MileageService:
         Sincroniza quilometragem de TODOS os veículos ativos
 
         Args:
-            date: Data para sincronizar (padrão: ontem)
+            date: Data para sincronizar (padrão: HOJE para KM em tempo real)
 
         Returns:
             Dict com estatísticas: {'success': X, 'failed': Y, 'total': Z}
         """
         try:
-            logger.info("🚀 Iniciando sincronização de todos os veículos")
+            # Se não especificou data, usar HOJE
+            if date is None:
+                date = datetime.now()
+
+            logger.info(f"🚀 Iniciando sincronização de todos os veículos para {date.strftime('%Y-%m-%d')}")
 
             # Buscar lista de veículos via API PHP
             vehicles_url = f"{self.PHP_API_BASE_URL}/veiculos-api.php?action=list"
@@ -332,9 +468,21 @@ def test_api_connection():
         print("❌ Erro ao conectar com API Ituran")
 
 
+def test_current_odometer(plate: str):
+    """Testa busca de odômetro atual em tempo real"""
+    service = MileageService()
+    result = service.get_current_odometer(plate)
+    if result:
+        print(f"✅ Odômetro atual de {plate}: {result}")
+    else:
+        print(f"❌ Não foi possível obter odômetro atual de {plate}")
+
+
 if __name__ == '__main__':
     # Teste rápido
     print("🧪 Testando serviço de quilometragem...\n")
     test_api_connection()
     print("\n" + "="*60 + "\n")
-    test_single_vehicle('RTS9B92')
+    test_current_odometer('RBA2F98')
+    print("\n" + "="*60 + "\n")
+    test_single_vehicle('RBA2F98')

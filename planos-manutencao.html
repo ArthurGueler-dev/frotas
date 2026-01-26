@@ -3,6 +3,9 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <title>Planos de Manutenção</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
@@ -328,6 +331,157 @@ async function carregarModeloEPlano(modeloId) {
     }
 }
 
+// Extrair informações estruturadas do campo descricao_observacao
+function parseDescricaoObservacao(descricao) {
+    if (!descricao) return { categoria: '-', tempo: '-', descricao: '-', pecas: [] };
+
+    // Extrair [CATEGORIA: X]
+    const categoriaMatch = descricao.match(/\[CATEGORIA:\s*([^\]]+)\]/);
+    const categoria = categoriaMatch ? categoriaMatch[1].trim() : '-';
+
+    // Extrair [TEMPO: X]
+    const tempoMatch = descricao.match(/\[TEMPO:\s*([^\]]+)\]/);
+    const tempo = tempoMatch ? tempoMatch[1].trim() : '-';
+
+    // Extrair peças do formato [PECAS]...[/PECAS]
+    const pecas = [];
+    const pecasMatch = descricao.match(/\[PECAS\]([\s\S]*?)\[\/PECAS\]/);
+    if (pecasMatch) {
+        const pecasText = pecasMatch[1].trim();
+
+        // Encontrar todas as peças usando regex mais robusto
+        // Formato ORIGINAL: ORIGINAL|CODIGO|NOME|QTD|PRECO
+        // Formato SIMILAR: SIMILAR|CODIGO|MARCA|NOME|QTD|PRECO
+        const regexOriginal = /ORIGINAL\|([^|]+)\|([^|]+)\|([^|]+)\|([0-9.,]+)/g;
+        const regexSimilar = /SIMILAR\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([0-9.,]+)/g;
+
+        // Extrair peças ORIGINAIS
+        let matchOrig;
+        while ((matchOrig = regexOriginal.exec(pecasText)) !== null) {
+            const codigo = matchOrig[1].trim();
+            const nome = matchOrig[2].trim();
+            const qtdStr = matchOrig[3].trim();
+            const precoStr = matchOrig[4].trim();
+
+            const qtdMatch = qtdStr.match(/(\d+)/);
+            const quantidade = qtdMatch ? parseInt(qtdMatch[1]) : 1;
+            const unidade = qtdStr.replace(/\d+/g, '').trim() || 'un';
+            const preco = parseFloat(precoStr.replace(',', '.')) || 0;
+
+            pecas.push({
+                tipo: 'ORIGINAL',
+                codigo: codigo,
+                nome: nome,
+                quantidade: quantidade,
+                unidade: unidade,
+                custo_unitario: preco
+            });
+        }
+
+        // Extrair peças SIMILARES
+        let matchSim;
+        while ((matchSim = regexSimilar.exec(pecasText)) !== null) {
+            const codigo = matchSim[1].trim();
+            const marca = matchSim[2].trim();
+            const nome = matchSim[3].trim();
+            const qtdStr = matchSim[4].trim();
+            const precoStr = matchSim[5].trim();
+
+            const qtdMatch = qtdStr.match(/(\d+)/);
+            const quantidade = qtdMatch ? parseInt(qtdMatch[1]) : 1;
+            const unidade = qtdStr.replace(/\d+/g, '').trim() || 'un';
+            const preco = parseFloat(precoStr.replace(',', '.')) || 0;
+
+            pecas.push({
+                tipo: 'SIMILAR',
+                codigo: codigo,
+                marca: marca,
+                nome: `${marca} - ${nome}`,
+                quantidade: quantidade,
+                unidade: unidade,
+                custo_unitario: preco
+            });
+        }
+
+        console.log('🔧 Peças parseadas:', pecas);
+    }
+
+    // Remover tags e pegar descrição limpa
+    let descricaoLimpa = descricao
+        .replace(/\[CATEGORIA:[^\]]+\]/g, '')
+        .replace(/\[TEMPO:[^\]]+\]/g, '')
+        .replace(/\[PECAS\][\s\S]*?\[\/PECAS\]/g, '')
+        .trim();
+
+    return { categoria, tempo, descricao: descricaoLimpa, pecas };
+}
+
+// Renderizar detalhes completos do item
+function renderizarDetalhesCompletos(item, criticidade, custo) {
+    console.log('🔍 renderizarDetalhesCompletos chamada:', item);
+    console.log('📝 descricao_observacao:', item.descricao_observacao);
+
+    // Parsear campo descricao_observacao
+    const detalhes = parseDescricaoObservacao(item.descricao_observacao || item.descricao || '');
+    console.log('✅ Detalhes parseados:', detalhes);
+
+    // Usar peças do item se existirem, senão usar as parseadas do texto
+    const pecasParaExibir = (item.pecas && item.pecas.length > 0) ? item.pecas : detalhes.pecas;
+    console.log('🔧 Peças para exibir:', pecasParaExibir);
+
+    let html = `
+        <!-- Informações Principais -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Categoria</p>
+                <p class="font-bold text-gray-900 dark:text-white">${detalhes.categoria}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tempo Estimado</p>
+                <p class="font-bold text-gray-900 dark:text-white">${detalhes.tempo}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Criticidade</p>
+                <p class="font-bold text-gray-900 dark:text-white">${criticidade}</p>
+            </div>
+            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Custo Mão de Obra</p>
+                <p class="font-bold text-primary text-lg">${custo}</p>
+            </div>
+        </div>
+
+        <!-- Intervalos -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p class="text-xs text-blue-600 dark:text-blue-400 mb-1">Intervalo por KM</p>
+                <p class="font-bold text-blue-900 dark:text-blue-300 text-lg">${(item.km_recomendado || item.intervalo_km) ? parseInt(item.km_recomendado || item.intervalo_km).toLocaleString('pt-BR') + ' km' : 'N/A'}</p>
+            </div>
+            <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                <p class="text-xs text-purple-600 dark:text-purple-400 mb-1">Intervalo por Tempo</p>
+                <p class="font-bold text-purple-900 dark:text-purple-300 text-lg">${(item.intervalo_tempo || item.intervalo_meses) ? parseInt(item.intervalo_tempo || item.intervalo_meses) + ' meses' : 'N/A'}</p>
+            </div>
+            <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                <p class="text-xs text-green-600 dark:text-green-400 mb-1">Critério de Ativação</p>
+                <p class="font-bold text-green-900 dark:text-green-300">Qual vier primeiro</p>
+            </div>
+        </div>
+
+        <!-- Descrição Completa -->
+        <div class="bg-white dark:bg-slate-700 p-6 rounded-lg border border-gray-200 dark:border-slate-600 mb-6">
+            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                <span class="material-symbols-outlined text-lg">description</span>
+                Descrição Técnica Detalhada
+            </h4>
+            <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">${detalhes.descricao}</div>
+        </div>
+
+        <!-- Peças Necessárias -->
+        ${renderizarTabelaPecasComTipo(pecasParaExibir)}
+    `;
+
+    return html;
+}
+
 // Renderizar itens do plano de manutenção
 function renderizarItensPlano(modelo, planos) {
     const container = document.getElementById('container-itens-plano');
@@ -385,21 +539,7 @@ function renderizarItensPlano(modelo, planos) {
                 </div>
                 <!-- Detalhes expandíveis -->
                 <div id="detalhes-item-${item.id}" class="hidden p-6 bg-gray-50 dark:bg-slate-800/50">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Tipo de Manutenção</p><p class="font-medium">${item.tipo_manutencao || 'Preventiva'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Categoria</p><p class="font-medium">${item.categoria || '-'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Criticidade</p><p class="font-medium">${criticidade}</p></div>
-                        <div class="md:col-span-3"><p class="text-sm text-gray-500 dark:text-gray-400">Descrição</p><p class="font-medium">${item.descricao || '-'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por KM</p><p class="font-medium">${(item.km_recomendado || item.intervalo_km) ? parseInt(item.km_recomendado || item.intervalo_km).toLocaleString('pt-BR') + ' km' : 'N/A'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Intervalo por Tempo</p><p class="font-medium">${(item.intervalo_tempo || item.intervalo_meses) ? parseInt(item.intervalo_tempo || item.intervalo_meses) + ' meses' : 'N/A'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Critério de Ativação</p><p class="font-medium">${item.criterio || 'Qual vier primeiro'}</p></div>
-                    </div>
-                    ${renderizarTabelaPecas(item.pecas || [])}
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mt-6 pt-6 border-t dark:border-slate-700">
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Tempo Estimado (minutos)</p><p class="font-medium">${item.tempo_estimado || '-'}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Custo Estimado</p><p class="font-medium">${formatarMoeda(item.custo_estimado || item.custo_mao_obra || 0)}</p></div>
-                        <div><p class="text-sm text-gray-500 dark:text-gray-400">Custo Total</p><p class="font-bold text-lg text-primary">${custo}</p></div>
-                    </div>
+                    ${renderizarDetalhesCompletos(item, criticidade, custo)}
                 </div>
             </div>
         `;
@@ -436,56 +576,178 @@ function formatarMoeda(valor) {
     }).format(numero);
 }
 
-// Renderizar tabela de peças
-function renderizarTabelaPecas(pecas) {
+// Renderizar tabela de peças com tipo (ORIGINAL/SIMILAR)
+function renderizarTabelaPecasComTipo(pecas) {
     if (!pecas || pecas.length === 0) {
-        return '<p class="text-sm text-gray-500 dark:text-gray-400 italic">Nenhuma peça cadastrada</p>';
+        return `
+            <div class="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                <p class="text-sm text-gray-500 dark:text-gray-400 italic text-center">Nenhuma peça cadastrada para este item</p>
+            </div>
+        `;
     }
 
-    let totalPecas = 0;
-    let html = `
-        <h4 class="text-lg font-semibold text-gray-800 dark:text-white mb-3">Tabela de Peças</h4>
+    // Separar peças originais e similares
+    const pecasOriginais = pecas.filter(p => p.tipo === 'ORIGINAL');
+    const pecasSimilares = pecas.filter(p => p.tipo === 'SIMILAR');
+
+    let html = `<div class="mt-6">
+        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg">build</span>
+            Peças Necessárias
+        </h4>`;
+
+    // Tabela de peças ORIGINAIS
+    if (pecasOriginais.length > 0) {
+        let totalOriginais = 0;
+        html += `
+        <div class="mb-4">
+            <h5 class="text-xs font-semibold text-blue-600 dark:text-blue-400 mb-2 flex items-center gap-1">
+                <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+                PEÇAS ORIGINAIS
+            </h5>
+            <div class="overflow-x-auto border border-blue-200 dark:border-blue-800 rounded-lg">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-blue-700 dark:text-blue-300 uppercase bg-blue-50 dark:bg-blue-900/30">
+                        <tr>
+                            <th class="px-4 py-2">Código</th>
+                            <th class="px-4 py-2">Nome da Peça</th>
+                            <th class="px-4 py-2 text-right">Qtd.</th>
+                            <th class="px-4 py-2 text-right">Preço Unit.</th>
+                            <th class="px-4 py-2 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-slate-800">`;
+
+        pecasOriginais.forEach(peca => {
+            const custoUnit = parseFloat(peca.custo_unitario) || 0;
+            const quantidade = parseInt(peca.quantidade) || 1;
+            const total = quantidade * custoUnit;
+            totalOriginais += total;
+            html += `
+                <tr class="border-b border-blue-100 dark:border-blue-900 hover:bg-blue-50/50 dark:hover:bg-blue-900/20">
+                    <td class="px-4 py-2 text-xs font-mono text-gray-500">${peca.codigo || '-'}</td>
+                    <td class="px-4 py-2">${peca.nome || '-'}</td>
+                    <td class="px-4 py-2 text-right">${quantidade}${peca.unidade && peca.unidade !== 'un' ? peca.unidade : ''}</td>
+                    <td class="px-4 py-2 text-right">${formatarMoeda(custoUnit)}</td>
+                    <td class="px-4 py-2 text-right font-medium text-blue-600 dark:text-blue-400">${formatarMoeda(total)}</td>
+                </tr>`;
+        });
+
+        html += `
+                    </tbody>
+                    <tfoot class="bg-blue-50 dark:bg-blue-900/30">
+                        <tr class="font-semibold text-blue-800 dark:text-blue-200">
+                            <td class="px-4 py-2 text-right" colspan="4">Subtotal Originais</td>
+                            <td class="px-4 py-2 text-right">${formatarMoeda(totalOriginais)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>`;
+    }
+
+    // Tabela de peças SIMILARES
+    if (pecasSimilares.length > 0) {
+        let totalSimilares = 0;
+        html += `
+        <div class="mb-4">
+            <h5 class="text-xs font-semibold text-green-600 dark:text-green-400 mb-2 flex items-center gap-1">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                PEÇAS SIMILARES (Alternativas)
+            </h5>
+            <div class="overflow-x-auto border border-green-200 dark:border-green-800 rounded-lg">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-green-700 dark:text-green-300 uppercase bg-green-50 dark:bg-green-900/30">
+                        <tr>
+                            <th class="px-4 py-2">Código</th>
+                            <th class="px-4 py-2">Marca / Nome</th>
+                            <th class="px-4 py-2 text-right">Qtd.</th>
+                            <th class="px-4 py-2 text-right">Preço Unit.</th>
+                            <th class="px-4 py-2 text-right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-slate-800">`;
+
+        pecasSimilares.forEach(peca => {
+            const custoUnit = parseFloat(peca.custo_unitario) || 0;
+            const quantidade = parseInt(peca.quantidade) || 1;
+            const total = quantidade * custoUnit;
+            totalSimilares += total;
+            html += `
+                <tr class="border-b border-green-100 dark:border-green-900 hover:bg-green-50/50 dark:hover:bg-green-900/20">
+                    <td class="px-4 py-2 text-xs font-mono text-gray-500">${peca.codigo || '-'}</td>
+                    <td class="px-4 py-2">${peca.nome || '-'}</td>
+                    <td class="px-4 py-2 text-right">${quantidade}${peca.unidade && peca.unidade !== 'un' ? peca.unidade : ''}</td>
+                    <td class="px-4 py-2 text-right">${formatarMoeda(custoUnit)}</td>
+                    <td class="px-4 py-2 text-right font-medium text-green-600 dark:text-green-400">${formatarMoeda(total)}</td>
+                </tr>`;
+        });
+
+        html += `
+                    </tbody>
+                    <tfoot class="bg-green-50 dark:bg-green-900/30">
+                        <tr class="font-semibold text-green-800 dark:text-green-200">
+                            <td class="px-4 py-2 text-right" colspan="4">Subtotal Similares</td>
+                            <td class="px-4 py-2 text-right">${formatarMoeda(totalSimilares)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>`;
+    }
+
+    // Se não tem tipo definido (peças do banco de dados antigo)
+    const pecasSemTipo = pecas.filter(p => !p.tipo);
+    if (pecasSemTipo.length > 0) {
+        let totalPecas = 0;
+        html += `
         <div class="overflow-x-auto border rounded-lg dark:border-slate-700">
             <table class="w-full text-sm text-left">
                 <thead class="text-xs text-gray-700 dark:text-gray-300 uppercase bg-gray-100 dark:bg-slate-700">
                     <tr>
-                        <th class="px-4 py-2">Nome da Peça</th>
-                        <th class="px-4 py-2 text-right">Qtd.</th>
-                        <th class="px-4 py-2">Unidade</th>
-                        <th class="px-4 py-2 text-right">Custo Unitário</th>
-                        <th class="px-4 py-2 text-right">Total</th>
+                        <th class="px-4 py-3">Nome da Peça</th>
+                        <th class="px-4 py-3 text-right">Qtd.</th>
+                        <th class="px-4 py-3">Unidade</th>
+                        <th class="px-4 py-3 text-right">Custo Unitário</th>
+                        <th class="px-4 py-3 text-right">Total</th>
                     </tr>
                 </thead>
-                <tbody>
-    `;
+                <tbody class="bg-white dark:bg-slate-800">`;
 
-    pecas.forEach(peca => {
-        const total = (peca.quantidade || 1) * (peca.custo_unitario || 0);
-        totalPecas += total;
+        pecasSemTipo.forEach(peca => {
+            const custoUnit = parseFloat(peca.custo_unitario) || 0;
+            const quantidade = parseInt(peca.quantidade) || 1;
+            const total = quantidade * custoUnit;
+            totalPecas += total;
+            html += `
+                <tr class="border-b dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700/50">
+                    <td class="px-4 py-3">${peca.nome || '-'}</td>
+                    <td class="px-4 py-3 text-right font-medium">${quantidade}</td>
+                    <td class="px-4 py-3">${peca.unidade || 'un'}</td>
+                    <td class="px-4 py-3 text-right">${formatarMoeda(custoUnit)}</td>
+                    <td class="px-4 py-3 text-right font-medium text-primary">${formatarMoeda(total)}</td>
+                </tr>`;
+        });
+
         html += `
-            <tr class="border-b dark:border-slate-700">
-                <td class="px-4 py-2">${peca.nome}</td>
-                <td class="px-4 py-2 text-right">${peca.quantidade || 1}</td>
-                <td class="px-4 py-2">${peca.unidade || 'un'}</td>
-                <td class="px-4 py-2 text-right">${formatarMoeda(peca.custo_unitario || 0)}</td>
-                <td class="px-4 py-2 text-right">${formatarMoeda(total)}</td>
-            </tr>
-        `;
-    });
-
-    html += `
                 </tbody>
-                <tfoot>
+                <tfoot class="bg-gray-50 dark:bg-slate-700">
                     <tr class="font-semibold text-gray-800 dark:text-white">
-                        <td class="px-4 py-2 text-right" colspan="4">Total Peças</td>
-                        <td class="px-4 py-2 text-right">${formatarMoeda(totalPecas)}</td>
+                        <td class="px-4 py-3 text-right" colspan="4">Total em Peças</td>
+                        <td class="px-4 py-3 text-right text-lg text-primary">${formatarMoeda(totalPecas)}</td>
                     </tr>
                 </tfoot>
             </table>
-        </div>
-    `;
+        </div>`;
+    }
 
+    html += `</div>`;
     return html;
+}
+
+// Renderizar tabela de peças (versão antiga para compatibilidade)
+function renderizarTabelaPecas(pecas) {
+    return renderizarTabelaPecasComTipo(pecas);
 }
 
 // Toggle para mostrar/ocultar detalhes
@@ -1046,7 +1308,7 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 
 </body>
 </html>

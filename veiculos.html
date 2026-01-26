@@ -93,14 +93,13 @@
 <div>
 <select id="base-filter" onchange="filterVehiclesByBase()" class="form-select rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-4 text-sm min-w-[200px]">
 <option value="">Todas as Bases</option>
+<option value="Aracruz">Aracruz</option>
+<option value="Barra de São Francisco">Barra de São Francisco</option>
+<option value="Castelo">Castelo</option>
+<option value="Guarapari">Guarapari</option>
+<option value="Nova Venécia">Nova Venécia</option>
+<option value="Santa Tereza">Santa Tereza</option>
 <option value="Serra">Serra</option>
-<option value="Vitória">Vitória</option>
-<option value="Vila Velha">Vila Velha</option>
-<option value="Cariacica">Cariacica</option>
-<option value="Cachoeiro">Cachoeiro de Itapemirim</option>
-<option value="Linhares">Linhares</option>
-<option value="Colatina">Colatina</option>
-<option value="São Mateus">São Mateus</option>
 </select>
 </div>
 </div>
@@ -309,14 +308,14 @@ Concluído
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium pb-1">Combustível</p>
-<select class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
-<option>Flex (Álcool/Gasolina)</option>
-<option>Gasolina</option>
-<option>Etanol</option>
-<option>Diesel</option>
-<option>GNV</option>
-<option>Híbrido</option>
-<option>Elétrico</option>
+<select id="input-combustivel" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
+<option value="ALCOOL/GASOLINA">Flex (Álcool/Gasolina)</option>
+<option value="GASOLINA">Gasolina</option>
+<option value="ETANOL">Etanol</option>
+<option value="DIESEL">Diesel</option>
+<option value="GNV">GNV</option>
+<option value="HIBRIDO">Híbrido</option>
+<option value="ELETRICO">Elétrico</option>
 </select>
 </label>
 <label class="flex flex-col">
@@ -339,7 +338,7 @@ Concluído
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
 <label class="flex flex-col">
 <p class="text-sm font-medium pb-1">Cor Predominante</p>
-<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Branco"/>
+<input id="input-cor" class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 placeholder:text-gray-400 px-3 text-sm" placeholder="Ex: Branco"/>
 </label>
 <label class="flex flex-col">
 <p class="text-sm font-medium pb-1">Categoria</p>
@@ -476,14 +475,13 @@ Concluído
 <p class="text-sm font-medium pb-1">Base/Filial</p>
 <select id="input-base" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-text-light dark:text-text-dark focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 h-11 px-3 text-sm">
 <option value="">Selecione a base</option>
-<option value="Serra">Serra</option>
-<option value="Vitória">Vitória</option>
-<option value="Vila Velha">Vila Velha</option>
-<option value="Cariacica">Cariacica</option>
-<option value="Cachoeiro">Cachoeiro de Itapemirim</option>
-<option value="Linhares">Linhares</option>
-<option value="Colatina">Colatina</option>
-<option value="São Mateus">São Mateus</option>
+<option value="12">Aracruz</option>
+<option value="8">Barra de São Francisco</option>
+<option value="11">Castelo</option>
+<option value="9">Guarapari</option>
+<option value="13">Nova Venécia</option>
+<option value="10">Santa Tereza</option>
+<option value="14">Serra</option>
 </select>
 </label>
 <label class="flex flex-col">
@@ -750,40 +748,22 @@ Semana Passada
                 const response = await fetch('/api/vehicles');
                 const ituranVehicles = await response.json();
 
-                // Simulação de bases (em produção, viria do backend)
-                const basesMap = {
-                    'ABC-1234': 'Serra',
-                    'JKL-3456': 'Vitória',
-                    'MNO-7890': 'Serra',
-                    'DEF-5678': 'Vila Velha',
-                    'QWE-1122': 'Cachoeiro',
-                    'RST-3344': 'Serra',
-                    'UVW-5566': 'Vitória'
-                };
+                // Custo padrão do rastreador
+                const defaultTrackerCost = 150;
 
-                // Simulação de custo de rastreador (em produção, viria do backend)
-                const trackerCostMap = {
-                    'ABC-1234': 150,
-                    'JKL-3456': 150,
-                    'MNO-7890': 150,
-                    'DEF-5678': 150,
-                    'QWE-1122': 150,
-                    'RST-3344': 150,
-                    'UVW-5566': 150
-                };
-
-                // Converte dados do Ituran para formato do FleetFlow
+                // Converte dados do banco para formato do FleetFlow
                 const vehicles = ituranVehicles.map(v => {
                     const plate = v.plate || '-';
                     return {
                         id: v.id || plate,
                         plate: plate,
-                        model: v.platformName || v.model || plate || 'Veículo Desconhecido', // Usa PlatformName primeiro
-                        brand: v.brand || 'Veículo',
+                        model: v.model || plate || 'Veículo Desconhecido',
+                        brand: v.brand || 'N/A',
                         year: v.year || new Date().getFullYear(),
-                        mileage: v.odometer || 0,
-                        base: basesMap[plate] || 'Serra', // Padrão Serra se não encontrar
-                        trackerCost: trackerCostMap[plate] || 150, // Custo do rastreador
+                        mileage: v.mileage || 0,
+                        base: v.base || 'Sem Base', // Usa base real do banco
+                        area_id: v.area_id || null,
+                        trackerCost: defaultTrackerCost,
                         status: v.status === 'active' ? 'Ativo' :
                                 v.status === 'maintenance' ? 'Manutenção' :
                                 v.status === 'inactive' ? 'Inativo' : 'Ativo'
@@ -821,7 +801,7 @@ Semana Passada
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button class="text-primary hover:text-primary/80 dark:text-info dark:hover:text-info/80 mr-3 cursor-pointer underline vehicle-details-btn" data-plate="${v.plate}" data-name="${v.model} - ${v.plate}">Detalhes</button>
-                                <a class="text-warning hover:text-warning/80 cursor-pointer" href="editar.html?id=${v.id}">Editar</a>
+                                <button class="text-success hover:text-success/80 cursor-pointer underline vehicle-cadastro-btn" data-plate="${v.plate}">Cadastro</button>
                             </td>
                         </tr>
                     `).join('');
@@ -833,6 +813,15 @@ Semana Passada
                             const name = e.target.dataset.name;
                             console.log(`🔍 Clicou em Detalhes: ${plate}`);
                             openVehicleDetails(plate, name);
+                        });
+                    });
+
+                    // Adiciona event listeners aos botões de cadastro
+                    document.querySelectorAll('.vehicle-cadastro-btn').forEach(btn => {
+                        btn.addEventListener('click', (e) => {
+                            const plate = e.target.dataset.plate;
+                            console.log(`📋 Clicou em Cadastro: ${plate}`);
+                            openVehicleCadastro(plate);
                         });
                     });
                 }
@@ -1810,7 +1799,8 @@ Semana Passada
                 const year = parseInt(modal.querySelector('input[placeholder="Ex: 2021"]').value) || 2024;
                 const mileage = parseInt(modal.querySelector('input[placeholder="Ex: 50000"]').value) || 0;
                 const status = modal.querySelector('select[class*="form-select"]').value;
-                const color = modal.querySelector('input[placeholder="Ex: Branco"]').value || 'Branco';
+                const color = document.getElementById('input-cor').value || 'BRANCA';
+                const fuel = document.getElementById('input-combustivel').value || 'ALCOOL/GASOLINA';
 
                 // Novos campos
                 const base = document.getElementById('input-base').value;
@@ -1827,7 +1817,7 @@ Semana Passada
                         mileage,
                         status,
                         color,
-                        fuel: 'Flex',
+                        fuel,
                         type: 'Passeio',
                         base: base || 'Serra',
                         depreciation,
@@ -1938,11 +1928,490 @@ Semana Passada
         document.addEventListener('DOMContentLoaded', () => {
             carregarOrdensServico();
         });
+
+        // Variáveis globais para o modal de cadastro
+        let currentEditingPlate = null;
+        let currentEditingId = null;
+        let currentVehicleData = null;
+        let isEditMode = false;
+
+        // Função para abrir modal de cadastro do veículo (VISUALIZAÇÃO)
+        async function openVehicleCadastro(plate) {
+            const modal = document.getElementById('cadastro-modal');
+            const content = document.getElementById('cadastro-content');
+            const footer = document.getElementById('cadastro-footer');
+
+            if (!modal || !content) {
+                console.error('Modal de cadastro não encontrado');
+                return;
+            }
+
+            // Reset para modo visualização
+            isEditMode = false;
+
+            // Mostrar loading
+            content.innerHTML = `
+                <div class="flex items-center justify-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span class="ml-3 text-gray-600 dark:text-gray-400">Carregando dados...</span>
+                </div>
+            `;
+            modal.classList.remove('hidden');
+
+            // Botões do footer para modo visualização
+            footer.innerHTML = `
+                <button onclick="closeCadastroModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Fechar
+                </button>
+                <button onclick="entrarModoEdicao()" class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">edit</span>
+                    Editar
+                </button>
+            `;
+
+            try {
+                // Buscar dados do veículo da API PHP
+                const response = await fetch(`https://floripa.in9automacao.com.br/veiculos-api.php?action=get&plate=${plate}`);
+                const result = await response.json();
+
+                if (result.success && result.vehicle) {
+                    const v = result.vehicle;
+                    currentEditingPlate = v.LicensePlate;
+                    currentEditingId = v.Id;
+                    currentVehicleData = v; // Guardar para modo edição
+
+                    // Funções de formatação
+                    const formatCurrency = (value) => {
+                        if (!value || value === '0.00' || value === '0') return 'N/A';
+                        return 'R$ ' + parseFloat(value).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                    };
+                    const formatDate = (dateStr) => {
+                        if (!dateStr) return 'N/A';
+                        const date = new Date(dateStr);
+                        return date.toLocaleDateString('pt-BR');
+                    };
+                    const formatKm = (value) => {
+                        if (!value || value === '0') return 'N/A';
+                        return parseInt(value).toLocaleString('pt-BR') + ' km';
+                    };
+                    const getDocStatusColor = (status) => {
+                        if (!status) return 'text-gray-500';
+                        if (status === 'Em dia') return 'text-success';
+                        if (status === 'Vencida') return 'text-error';
+                        return 'text-warning';
+                    };
+
+                    // MODO VISUALIZAÇÃO - Layout bonito
+                    content.innerHTML = `
+                        <div class="space-y-4">
+                            <!-- Cabeçalho -->
+                            <div class="bg-primary/10 rounded-lg p-4 mb-4">
+                                <h3 class="text-lg font-bold text-primary dark:text-white">${v.VehicleName || 'N/A'}</h3>
+                                <p class="text-2xl font-bold text-gray-800 dark:text-gray-200">${v.LicensePlate}</p>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    ${v.Brand ? `<span class="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded text-xs">${v.Brand}</span>` : ''}
+                                    ${v.VehicleType ? `<span class="px-2 py-1 bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 rounded text-xs">${v.VehicleType}</span>` : ''}
+                                    ${v.VehicleYear ? `<span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded text-xs">${v.VehicleYear}</span>` : ''}
+                                    ${v.area_name ? `<span class="px-2 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded text-xs">${v.area_name}</span>` : ''}
+                                </div>
+                            </div>
+
+                            <!-- Características -->
+                            <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                    <span class="material-symbols-outlined text-lg mr-2">directions_car</span>
+                                    Características
+                                </h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Cor</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">${v.Color || 'N/A'}</p>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Combustível</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">${v.FuelType || 'N/A'}</p>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Quilometragem</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">${formatKm(v.Mileage)}</p>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Base</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">${v.area_name || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Motor -->
+                            <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                    <span class="material-symbols-outlined text-lg mr-2">settings</span>
+                                    Motor e Mecânica
+                                </h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Potência</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">${v.EnginePower || 'N/A'}</p>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Cilindradas</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white">${v.EngineDisplacement || 'N/A'}</p>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-3 col-span-2">
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase">Número do Motor</p>
+                                        <p class="text-sm font-semibold text-gray-800 dark:text-white font-mono">${v.EngineNumber || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Documentação -->
+                            <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                    <span class="material-symbols-outlined text-lg mr-2">description</span>
+                                    Documentação
+                                </h4>
+                                <div class="space-y-2">
+                                    <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">RENAVAM</span>
+                                        <span class="text-sm font-medium text-gray-800 dark:text-white font-mono">${v.Renavam || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">Chassi</span>
+                                        <span class="text-sm font-medium text-gray-800 dark:text-white font-mono">${v.ChassisNumber || 'N/A'}</span>
+                                    </div>
+                                    <div class="flex justify-between py-2 border-b border-gray-100 dark:border-gray-700">
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">Vencimento Doc.</span>
+                                        <span class="text-sm font-medium text-gray-800 dark:text-white">${formatDate(v.DocExpiration)}</span>
+                                    </div>
+                                    <div class="flex justify-between py-2">
+                                        <span class="text-sm text-gray-500 dark:text-gray-400">Status Doc.</span>
+                                        <span class="text-sm font-semibold ${getDocStatusColor(v.DocStatus)}">${v.DocStatus || 'N/A'}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Valores -->
+                            <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center">
+                                    <span class="material-symbols-outlined text-lg mr-2">payments</span>
+                                    Valores e Custos
+                                </h4>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3">
+                                        <p class="text-xs text-blue-600 dark:text-blue-400 uppercase">Valor FIPE</p>
+                                        <p class="text-sm font-bold text-blue-800 dark:text-blue-200">${formatCurrency(v.FipeValue)}</p>
+                                    </div>
+                                    <div class="bg-red-50 dark:bg-red-900/30 rounded-lg p-3">
+                                        <p class="text-xs text-red-600 dark:text-red-400 uppercase">IPVA Anual</p>
+                                        <p class="text-sm font-bold text-red-800 dark:text-red-200">${formatCurrency(v.IpvaCost)}</p>
+                                    </div>
+                                    <div class="bg-green-50 dark:bg-green-900/30 rounded-lg p-3">
+                                        <p class="text-xs text-green-600 dark:text-green-400 uppercase">Seguro Anual</p>
+                                        <p class="text-sm font-bold text-green-800 dark:text-green-200">${formatCurrency(v.InsuranceCost)}</p>
+                                    </div>
+                                    <div class="bg-yellow-50 dark:bg-yellow-900/30 rounded-lg p-3">
+                                        <p class="text-xs text-yellow-600 dark:text-yellow-400 uppercase">Licenciamento</p>
+                                        <p class="text-sm font-bold text-yellow-800 dark:text-yellow-200">${formatCurrency(v.LicensingCost)}</p>
+                                    </div>
+                                    <div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3">
+                                        <p class="text-xs text-purple-600 dark:text-purple-400 uppercase">Depreciação</p>
+                                        <p class="text-sm font-bold text-purple-800 dark:text-purple-200">${formatCurrency(v.DepreciationValue)}</p>
+                                    </div>
+                                    <div class="bg-orange-50 dark:bg-orange-900/30 rounded-lg p-3">
+                                        <p class="text-xs text-orange-600 dark:text-orange-400 uppercase">Rastreador Mensal</p>
+                                        <p class="text-sm font-bold text-orange-800 dark:text-orange-200">${formatCurrency(v.TrackerCost || 65.25)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="text-center py-8">
+                            <span class="material-symbols-outlined text-4xl text-error mb-2">error</span>
+                            <p class="text-gray-600 dark:text-gray-400">Veículo não encontrado no banco de dados</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Erro ao buscar dados do veículo:', error);
+                content.innerHTML = `
+                    <div class="text-center py-8">
+                        <span class="material-symbols-outlined text-4xl text-error mb-2">error</span>
+                        <p class="text-gray-600 dark:text-gray-400">Erro ao carregar dados: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Função para entrar no modo de edição
+        function entrarModoEdicao() {
+            if (!currentVehicleData) {
+                alert('Dados do veículo não carregados');
+                return;
+            }
+
+            isEditMode = true;
+            const v = currentVehicleData;
+            const content = document.getElementById('cadastro-content');
+            const footer = document.getElementById('cadastro-footer');
+
+            // Estilos para inputs
+            const inputClass = 'w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-2 focus:ring-primary/50 focus:outline-none';
+            const labelClass = 'text-xs text-gray-500 dark:text-gray-400 uppercase mb-1 block';
+
+            // Botões para modo edição
+            footer.innerHTML = `
+                <button onclick="voltarModoVisualizacao()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Cancelar
+                </button>
+                <button onclick="salvarCadastroVeiculo()" class="px-4 py-2 bg-success text-white rounded-lg hover:bg-success/90 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">save</span>
+                    Salvar
+                </button>
+            `;
+
+            // MODO EDIÇÃO - Formulário
+            content.innerHTML = `
+                <form id="cadastro-form" class="space-y-4">
+                    <div class="bg-warning/10 rounded-lg p-3 mb-4 flex items-center gap-2">
+                        <span class="material-symbols-outlined text-warning">edit</span>
+                        <span class="text-sm text-warning font-medium">Modo Edição - ${v.LicensePlate}</span>
+                    </div>
+
+                    <!-- Características -->
+                    <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Características</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="${labelClass}">Modelo</label>
+                                <input type="text" id="edit-model" value="${v.VehicleName || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Marca</label>
+                                <input type="text" id="edit-brand" value="${v.Brand || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Tipo</label>
+                                <input type="text" id="edit-type" value="${v.VehicleType || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Ano</label>
+                                <input type="text" id="edit-year" value="${v.VehicleYear || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Cor</label>
+                                <input type="text" id="edit-color" value="${v.Color || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Combustível</label>
+                                <input type="text" id="edit-fuel" value="${v.FuelType || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Base/Área</label>
+                                <select id="edit-area" class="${inputClass}">
+                                    <option value="">Selecione</option>
+                                    <option value="12" ${v.area_id == 12 ? 'selected' : ''}>Aracruz</option>
+                                    <option value="8" ${v.area_id == 8 ? 'selected' : ''}>Barra de São Francisco</option>
+                                    <option value="11" ${v.area_id == 11 ? 'selected' : ''}>Castelo</option>
+                                    <option value="9" ${v.area_id == 9 ? 'selected' : ''}>Guarapari</option>
+                                    <option value="13" ${v.area_id == 13 ? 'selected' : ''}>Nova Venécia</option>
+                                    <option value="10" ${v.area_id == 10 ? 'selected' : ''}>Santa Tereza</option>
+                                    <option value="14" ${v.area_id == 14 ? 'selected' : ''}>Serra</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Quilometragem</label>
+                                <input type="number" id="edit-mileage" value="${v.Mileage || ''}" class="${inputClass}">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Motor -->
+                    <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Motor e Mecânica</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="${labelClass}">Potência</label>
+                                <input type="text" id="edit-power" value="${v.EnginePower || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Cilindradas</label>
+                                <input type="text" id="edit-displacement" value="${v.EngineDisplacement || ''}" class="${inputClass}">
+                            </div>
+                            <div class="col-span-2">
+                                <label class="${labelClass}">Número do Motor</label>
+                                <input type="text" id="edit-engine-number" value="${v.EngineNumber || ''}" class="${inputClass} font-mono">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentação -->
+                    <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Documentação</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="${labelClass}">RENAVAM</label>
+                                <input type="text" id="edit-renavam" value="${v.Renavam || ''}" class="${inputClass} font-mono">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Chassi</label>
+                                <input type="text" id="edit-chassi" value="${v.ChassisNumber || ''}" class="${inputClass} font-mono">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Venc. Documentação</label>
+                                <input type="date" id="edit-doc-expiration" value="${v.DocExpiration ? v.DocExpiration.split(' ')[0] : ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Status Documentação</label>
+                                <select id="edit-doc-status" class="${inputClass}">
+                                    <option value="">Selecione</option>
+                                    <option value="Em dia" ${v.DocStatus === 'Em dia' ? 'selected' : ''}>Em dia</option>
+                                    <option value="A vencer" ${v.DocStatus === 'A vencer' ? 'selected' : ''}>A vencer</option>
+                                    <option value="Vencida" ${v.DocStatus === 'Vencida' ? 'selected' : ''}>Vencida</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Valores -->
+                    <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                        <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Valores e Custos (R$)</h4>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="${labelClass}">Valor FIPE</label>
+                                <input type="number" step="0.01" id="edit-fipe" value="${v.FipeValue || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">IPVA Anual</label>
+                                <input type="number" step="0.01" id="edit-ipva" value="${v.IpvaCost || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Seguro Anual</label>
+                                <input type="number" step="0.01" id="edit-insurance" value="${v.InsuranceCost || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Licenciamento</label>
+                                <input type="number" step="0.01" id="edit-licensing" value="${v.LicensingCost || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Depreciação</label>
+                                <input type="number" step="0.01" id="edit-depreciation" value="${v.DepreciationValue || ''}" class="${inputClass}">
+                            </div>
+                            <div>
+                                <label class="${labelClass}">Rastreador Mensal</label>
+                                <input type="number" step="0.01" id="edit-tracker" value="${v.TrackerCost || '65.25'}" class="${inputClass}">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            `;
+        }
+
+        // Voltar para modo visualização
+        function voltarModoVisualizacao() {
+            if (currentEditingPlate) {
+                openVehicleCadastro(currentEditingPlate);
+            }
+        }
+
+        // Função para salvar alterações do cadastro
+        async function salvarCadastroVeiculo() {
+            if (!currentEditingPlate) {
+                alert('Nenhum veículo selecionado para edição');
+                return;
+            }
+
+            const dados = {
+                plate: currentEditingPlate,
+                id: currentEditingId,
+                VehicleName: document.getElementById('edit-model')?.value || '',
+                Brand: document.getElementById('edit-brand')?.value || '',
+                VehicleType: document.getElementById('edit-type')?.value || '',
+                VehicleYear: document.getElementById('edit-year')?.value || '',
+                Color: document.getElementById('edit-color')?.value || '',
+                FuelType: document.getElementById('edit-fuel')?.value || '',
+                area_id: document.getElementById('edit-area')?.value || null,
+                Mileage: document.getElementById('edit-mileage')?.value || 0,
+                EnginePower: document.getElementById('edit-power')?.value || '',
+                EngineDisplacement: document.getElementById('edit-displacement')?.value || '',
+                EngineNumber: document.getElementById('edit-engine-number')?.value || '',
+                Renavam: document.getElementById('edit-renavam')?.value || '',
+                ChassisNumber: document.getElementById('edit-chassi')?.value || '',
+                DocExpiration: document.getElementById('edit-doc-expiration')?.value || null,
+                DocStatus: document.getElementById('edit-doc-status')?.value || '',
+                FipeValue: document.getElementById('edit-fipe')?.value || 0,
+                IpvaCost: document.getElementById('edit-ipva')?.value || 0,
+                InsuranceCost: document.getElementById('edit-insurance')?.value || 0,
+                LicensingCost: document.getElementById('edit-licensing')?.value || 0,
+                DepreciationValue: document.getElementById('edit-depreciation')?.value || 0,
+                TrackerCost: document.getElementById('edit-tracker')?.value || 65.25
+            };
+
+            console.log('📤 Salvando dados do veículo:', dados);
+
+            try {
+                const response = await fetch('https://floripa.in9automacao.com.br/atualizar-veiculo-cadastro.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Dados salvos com sucesso!');
+                    closeCadastroModal();
+                    location.reload();
+                } else {
+                    alert('Erro ao salvar: ' + (result.error || 'Erro desconhecido'));
+                }
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                alert('Erro ao salvar dados: ' + error.message);
+            }
+        }
+
+        // Fechar modal de cadastro
+        function closeCadastroModal() {
+            const modal = document.getElementById('cadastro-modal');
+            if (modal) {
+                modal.classList.add('hidden');
+            }
+        }
     </script>
 
+<!-- Modal de Cadastro do Veículo -->
+<div id="cadastro-modal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
+        <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onclick="closeCadastroModal()"></div>
+        <div class="relative bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full mx-auto z-10">
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Dados Cadastrais do Veículo</h2>
+                <button onclick="closeCadastroModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div id="cadastro-content" class="p-4 max-h-[70vh] overflow-y-auto">
+                <!-- Conteúdo carregado dinamicamente -->
+            </div>
+            <div id="cadastro-footer" class="flex justify-end gap-3 p-4 border-t border-gray-200 dark:border-gray-700">
+                <button onclick="closeCadastroModal()" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600">
+                    Fechar
+                </button>
+                <button id="btn-editar-cadastro" onclick="entrarModoEdicao()" class="px-4 py-2 bg-warning text-white rounded-lg hover:bg-warning/90 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-sm">edit</span>
+                    Editar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Sidebar Unificado -->
 <script src="auth.js" defer></script>
-<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 
 </body></html>

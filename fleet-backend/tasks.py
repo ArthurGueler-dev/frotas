@@ -17,6 +17,8 @@ from models import db, Vehicle, DailyMileage, SyncLog, RouteCompliance, RouteDev
 from services.ituran_service import ituran_service
 from services.route_compliance_service import RouteComplianceService
 from services.mileage_service import MileageService
+from services.monitoring_service import monitoring_service
+from services.alerts_service import alerts_service
 
 logger = logging.getLogger(__name__)
 route_compliance_service = RouteComplianceService()
@@ -40,8 +42,8 @@ def make_celery(app: Flask) -> Celery:
     return celery
 
 
-# Will be initialized in app.py
-celery = None
+# Create Celery instance (will be reconfigured in app.py with Flask context)
+celery = Celery('fleet-backend')
 
 
 @celery.task(
@@ -457,6 +459,25 @@ def sync_all_vehicles_mileage(self, target_date: str = None):
             }
         )
 
+        # ========== TRIGGER PÓS-SYNC: Gerar Alertas de Manutenção ==========
+        # Após cada sync de KM bem-sucedido, recalcular alertas de manutenção
+        if stats['success'] > 0:
+            try:
+                logger.info("🔄 Disparando geração de alertas de manutenção pós-sync...")
+                # Chamar diretamente a função de geração de alertas (não como task assíncrona)
+                alert_result = alerts_service.generate_all_alerts()
+                if alert_result.get('success'):
+                    logger.info(
+                        f"✅ Alertas gerados pós-sync: "
+                        f"{alert_result.get('data', {}).get('alertas_gerados', 0)} novos, "
+                        f"{alert_result.get('data', {}).get('alertas_atualizados', 0)} atualizados"
+                    )
+                else:
+                    logger.warning(f"⚠️ Falha ao gerar alertas pós-sync: {alert_result.get('error')}")
+            except Exception as alert_error:
+                logger.warning(f"⚠️ Erro ao gerar alertas pós-sync (não-fatal): {alert_error}")
+        # ========== FIM TRIGGER PÓS-SYNC ==========
+
         return {
             'success': True,
             'statistics': stats,
@@ -466,6 +487,363 @@ def sync_all_vehicles_mileage(self, target_date: str = None):
     except Exception as e:
         logger.error(f"❌ Erro fatal na sincronização de quilometragem: {e}")
 
+        return {
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+
+@celery.task(
+    bind=True,
+    name='tasks.monitor_sync_health'
+)
+def monitor_sync_health(self):
+    """
+    Monitora saúde dos syncs de quilometragem
+
+    Roda a cada 10 minutos. Verifica:
+    - Se última sync rodou há menos de 7 horas
+    - Se há dias com problemas nos últimos 7 dias
+    - Se há anomalias nos dados (>50% veículos com 0km em dia de semana)
+
+    Se detectar problemas, envia alertas e pode disparar reprocessamento.
+    """
+    task_id = self.request.id
+    logger.info(f"🔍 Monitoramento de saúde dos syncs (task: {task_id})")
+
+    try:
+        # Verificar últimos 7 dias
+        report = monitoring_service.detect_and_report_issues()
+
+        logger.info(
+            f"📊 Relatório: {report['healthy_days']}/{report['total_days_checked']} dias saudáveis, "
+            f"{report['critical_issues']} problemas críticos"
+        )
+
+        # Se há problemas críticos, verificar se precisamos agir
+        if report['critical_issues'] > 0:
+            logger.warning(f"⚠️ {report['critical_issues']} dia(s) com problemas críticos detectados")
+
+            # Enviar alerta detalhado
+            for issue in report['issues']:
+                if issue.get('action_required') == 'REPROCESS':
+                    date_str = issue['date']
+                    issues_list = issue.get('issues', [])
+
+                    logger.warning(f"⚠️ {date_str}: {', '.join(issues_list)}")
+
+                    # Criar alerta
+                    monitoring_service.send_alert(
+                        'ERROR',
+                        f"Sync do dia {date_str} precisa ser reprocessado",
+                        issue
+                    )
+
+        # Verificar se última sync foi há muito tempo (mais de 7 horas)
+        last_sync_log = SyncLog.query.filter_by(
+            task_name='sync_all_vehicles_mileage'
+        ).order_by(SyncLog.started_at.desc()).first()
+
+        if last_sync_log:
+            time_since_last = datetime.utcnow() - last_sync_log.started_at
+            hours_since_last = time_since_last.total_seconds() / 3600
+
+            if hours_since_last > 7:
+                logger.error(
+                    f"🚨 ALERTA CRÍTICO: Última sync foi há {hours_since_last:.1f} horas! "
+                    f"Esperado: máximo 6 horas entre syncs"
+                )
+
+                monitoring_service.send_alert(
+                    'CRITICAL',
+                    f"Sync de quilometragem atrasado ({hours_since_last:.1f}h desde última execução)",
+                    {
+                        'last_sync_at': last_sync_log.started_at.isoformat(),
+                        'hours_since_last': round(hours_since_last, 2),
+                        'status': last_sync_log.status
+                    }
+                )
+
+                # Tentar disparar sync emergencial se última falhou ou está muito atrasada
+                if hours_since_last > 12 or last_sync_log.status == 'failed':
+                    logger.warning("🚨 Disparando sync emergencial...")
+                    sync_all_vehicles_mileage.delay()
+
+        return {
+            'success': True,
+            'report': report,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Erro no monitoramento: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@celery.task(
+    bind=True,
+    name='tasks.auto_recovery_check'
+)
+def auto_recovery_check(self):
+    """
+    Verifica e recupera automaticamente syncs com problemas
+
+    Roda a cada hora. Para cada dia com problemas:
+    - Verifica se >50% veículos com 0km em dia de semana
+    - Verifica se sync rodou atrasado
+    - Se detectar problema, dispara reprocessamento automático
+
+    Evita reprocessar o mesmo dia mais de 1x por dia.
+    """
+    task_id = self.request.id
+    logger.info(f"🔧 Auto-recovery check (task: {task_id})")
+
+    try:
+        # Verificar últimos 3 dias (excluindo hoje)
+        recovery_count = 0
+
+        for days_ago in range(1, 4):
+            check_date = datetime.now() - timedelta(days=days_ago)
+            date_str = check_date.strftime('%Y-%m-%d')
+
+            health = monitoring_service.check_sync_health(check_date)
+
+            if not health['healthy'] and health.get('action_required') == 'REPROCESS':
+                logger.warning(f"⚠️ {date_str} precisa de reprocessamento")
+
+                # Verificar se já reprocessamos hoje
+                already_reprocessed = SyncLog.query.filter(
+                    SyncLog.task_name == 'sync_all_vehicles_mileage',
+                    SyncLog.started_at >= datetime.utcnow().replace(hour=0, minute=0, second=0),
+                    SyncLog.metadata.like(f'%{date_str}%')  # Verifica se foi para esta data
+                ).first()
+
+                if already_reprocessed:
+                    logger.info(f"  ℹ️ {date_str} já foi reprocessado hoje, pulando...")
+                    continue
+
+                logger.info(f"  🔄 Iniciando reprocessamento automático de {date_str}")
+
+                # Disparar sync para data específica
+                result = sync_all_vehicles_mileage.delay(target_date=date_str)
+
+                # Criar log de recovery
+                recovery_log = SyncLog(
+                    task_id=result.id,
+                    task_name='sync_all_vehicles_mileage',
+                    started_at=datetime.utcnow(),
+                    status='running',
+                    metadata=f'auto_recovery for {date_str}'
+                )
+                db.session.add(recovery_log)
+                db.session.commit()
+
+                recovery_count += 1
+
+                # Enviar alerta
+                monitoring_service.send_alert(
+                    'INFO',
+                    f"Auto-recovery iniciado para {date_str}",
+                    {
+                        'task_id': result.id,
+                        'health_report': health
+                    }
+                )
+
+        logger.info(f"✅ Auto-recovery concluído: {recovery_count} dia(s) reprocessados")
+
+        return {
+            'success': True,
+            'recovery_count': recovery_count,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Erro no auto-recovery: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
+
+@celery.task(
+    bind=True,
+    name='tasks.generate_maintenance_alerts'
+)
+def generate_maintenance_alerts(self, placa: str = None):
+    """
+    Gera alertas de manutenção preventiva para todos os veículos
+
+    Esta task é executada automaticamente 2x por dia:
+    - 06:00 (antes do início do expediente)
+    - 18:00 (ao final do expediente)
+
+    Pode também ser executada manualmente passando uma placa específica.
+
+    Para cada veículo:
+    1. Busca plano de manutenção do modelo
+    2. Busca última OS preventiva finalizada
+    3. Busca KM atual do veículo
+    4. Calcula KM restantes até próxima manutenção
+    5. Cria/atualiza alertas em avisos_manutencao
+
+    Args:
+        placa: Placa do veículo (opcional). Se None, processa todos.
+
+    Returns:
+        Dict com estatísticas de geração
+    """
+    task_id = self.request.id
+    logger.info(f"🔔 Iniciando geração de alertas de manutenção (task: {task_id})")
+
+    try:
+        # Executar geração via serviço
+        result = alerts_service.generate_all_alerts(placa)
+
+        logger.info(
+            f"✅ Geração de alertas concluída: "
+            f"{result.get('alertas_gerados', 0)} gerados, "
+            f"{result.get('alertas_atualizados', 0)} atualizados"
+        )
+
+        # Atualizar estado
+        self.update_state(
+            state='SUCCESS',
+            meta={
+                'alertas_gerados': result.get('alertas_gerados', 0),
+                'alertas_atualizados': result.get('alertas_atualizados', 0),
+                'total_veiculos': result.get('total_veiculos', 0)
+            }
+        )
+
+        return {
+            'success': result.get('success', False),
+            'statistics': result,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Erro fatal na geração de alertas: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+
+@celery.task(
+    bind=True,
+    name='tasks.send_alert_notifications'
+)
+def send_alert_notifications(self):
+    """
+    Envia notificações de alertas críticos via WhatsApp
+
+    Esta task é executada automaticamente 1x por dia às 07:00
+    (após a geração de alertas das 06:00)
+
+    Funcionalidade:
+    1. Busca alertas críticos e de alta prioridade não notificados
+    2. Busca destinatários configurados por severidade
+    3. Formata mensagem resumida
+    4. Envia via API WhatsApp (Evolution API)
+    5. Marca alertas como notificados
+
+    Returns:
+        Dict com estatísticas de envio
+    """
+    task_id = self.request.id
+    logger.info(f"📤 Iniciando envio de notificações de alertas (task: {task_id})")
+
+    try:
+        # Buscar alertas críticos e altos não notificados
+        alertas = alerts_service.get_critical_alerts()
+
+        if not alertas:
+            logger.info("✅ Nenhum alerta crítico para notificar")
+            return {
+                'success': True,
+                'message': 'Nenhum alerta para notificar',
+                'notificados': 0,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+
+        logger.info(f"📋 Encontrados {len(alertas)} alertas para notificar")
+
+        # Buscar destinatários
+        destinatarios = AlertRecipient.query.filter_by(
+            is_active=True,
+            alert_type='maintenance'
+        ).all()
+
+        if not destinatarios:
+            # Fallback: buscar destinatários de qualquer tipo
+            destinatarios = AlertRecipient.query.filter_by(is_active=True).limit(5).all()
+
+        if not destinatarios:
+            logger.warning("⚠️ Nenhum destinatário configurado para notificações")
+            return {
+                'success': True,
+                'message': 'Nenhum destinatário configurado',
+                'notificados': 0,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+
+        # Formatar mensagem resumida
+        mensagem = alerts_service.format_summary_message(alertas)
+
+        # Enviar para cada destinatário
+        enviados = 0
+        erros = []
+
+        for dest in destinatarios:
+            try:
+                # Chamar API PHP de WhatsApp
+                response = requests.post(
+                    "https://floripa.in9automacao.com.br/enviar-alertas-whatsapp.php",
+                    json={
+                        "telefone": dest.phone_number,
+                        "mensagem": mensagem,
+                        "tipo": "maintenance_alert"
+                    },
+                    timeout=30
+                )
+
+                if response.status_code == 200:
+                    result = response.json()
+                    if result.get('success'):
+                        enviados += 1
+                        logger.info(f"✅ Notificação enviada para {dest.name}")
+                    else:
+                        erros.append(f"{dest.name}: {result.get('error')}")
+                else:
+                    erros.append(f"{dest.name}: HTTP {response.status_code}")
+
+            except Exception as e:
+                erros.append(f"{dest.name}: {str(e)}")
+                logger.error(f"Erro ao enviar para {dest.name}: {e}")
+
+        # Marcar alertas como notificados
+        alert_ids = [a.get('id') for a in alertas if a.get('id')]
+        alerts_service.mark_as_notified(alert_ids)
+
+        logger.info(f"✅ Notificações enviadas: {enviados}/{len(destinatarios)}")
+
+        return {
+            'success': True,
+            'total_alertas': len(alertas),
+            'destinatarios': len(destinatarios),
+            'enviados': enviados,
+            'erros': erros,
+            'timestamp': datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"❌ Erro fatal no envio de notificações: {e}")
         return {
             'success': False,
             'error': str(e),
@@ -649,9 +1027,48 @@ def get_beat_schedule():
         'args': ()
     }
 
-    schedule['sync-mileage-23h59'] = {
+    # REMOVIDO sync das 23:59 - causava bug de odometer_start errado
+    # Porque às 23:59 a API Ituran ainda não tem dados de meia-noite do dia seguinte
+    # Substituído por sync às 00:05 que calcula KM do dia anterior (completo)
+    schedule['sync-mileage-00h05'] = {
         'task': 'tasks.sync_all_vehicles_mileage',
-        'schedule': crontab(hour=23, minute=59),  # 23:59
+        'schedule': crontab(hour=0, minute=5),  # 00:05 - calcula dia anterior
+        'args': ()
+    }
+
+    # ⭐ NEW: Monitoring and health check - every 10 minutes
+    schedule['monitor-sync-health'] = {
+        'task': 'tasks.monitor_sync_health',
+        'schedule': crontab(minute='*/10'),  # Every 10 minutes
+        'args': ()
+    }
+
+    # ⭐ NEW: Auto recovery - every hour
+    schedule['auto-recovery-check'] = {
+        'task': 'tasks.auto_recovery_check',
+        'schedule': crontab(minute=15),  # At :15 of every hour
+        'args': ()
+    }
+
+    # ========== ALERTAS DE MANUTENÇÃO PREVENTIVA ==========
+
+    # Gerar alertas de manutenção - 2x por dia
+    schedule['generate-alerts-06h'] = {
+        'task': 'tasks.generate_maintenance_alerts',
+        'schedule': crontab(hour=6, minute=0),  # 06:00 - antes do expediente
+        'args': ()
+    }
+
+    schedule['generate-alerts-18h'] = {
+        'task': 'tasks.generate_maintenance_alerts',
+        'schedule': crontab(hour=18, minute=0),  # 18:00 - após expediente
+        'args': ()
+    }
+
+    # Enviar notificações de alertas - 1x por dia
+    schedule['send-alert-notifications'] = {
+        'task': 'tasks.send_alert_notifications',
+        'schedule': crontab(hour=7, minute=0),  # 07:00 - após geração das 06:00
         'args': ()
     }
 

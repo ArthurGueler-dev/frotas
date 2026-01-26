@@ -31,6 +31,19 @@
         body {
             font-family: 'Inter', sans-serif;
         }
+        .tab-button {
+            transition: all 0.2s ease;
+        }
+        .tab-button.active {
+            border-color: #1E3A8A;
+        }
+        .peca-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .peca-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
     </style>
 </head>
 <body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
@@ -64,10 +77,26 @@
                 </div>
             </section>
 
-            <!-- Plan Area -->
-            <section id="planSection" class="mt-8 hidden">
-                <!-- Section Header -->
-                <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
+            <!-- Tabs System -->
+            <div id="modeloTabs" class="mt-8 hidden">
+                <!-- Tabs Navigation -->
+                <div class="border-b border-gray-200 dark:border-gray-700 mb-6">
+                    <nav class="flex gap-4">
+                        <button id="tabPlanos" onclick="switchTab('planos')"
+                            class="tab-button active px-4 py-2 border-b-2 border-primary text-primary font-medium">
+                            Plano de Manutenção
+                        </button>
+                        <button id="tabPecas" onclick="switchTab('pecas')"
+                            class="tab-button px-4 py-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-400 font-medium">
+                            Peças Compatíveis
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab: Plano de Manutenção -->
+                <section id="contentPlanos" class="tab-content">
+                    <!-- Section Header -->
+                    <div class="flex flex-wrap justify-between items-center gap-4 mb-4">
                     <div>
                         <h2 id="planTitle" class="text-gray-900 dark:text-white text-2xl font-bold tracking-tight">Plano para...</h2>
                         <p id="planCount" class="text-gray-500 dark:text-gray-400">0 itens cadastrados</p>
@@ -93,7 +122,43 @@
                         <span class="truncate">Começar Agora</span>
                     </button>
                 </div>
-            </section>
+                </section>
+                <!-- End Tab: Plano de Manutenção -->
+
+                <!-- Tab: Peças Compatíveis -->
+                <section id="contentPecas" class="tab-content hidden">
+                    <!-- Filtro de Ano -->
+                    <div class="bg-white dark:bg-gray-800/50 rounded-lg shadow-sm p-4 mb-6">
+                        <div class="flex items-center gap-4">
+                            <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Filtrar por ano:</label>
+                            <select id="filtroAno" onchange="filtrarPecasPorAno()"
+                                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                <option value="">Todos os anos</option>
+                                <!-- Populado dinamicamente -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Container de Peças -->
+                    <div id="pecasContainer">
+                        <!-- Categorias serão renderizadas aqui -->
+                    </div>
+
+                    <!-- Empty State -->
+                    <div id="emptyPecas" class="hidden text-center py-12 text-gray-500 dark:text-gray-400">
+                        <span class="material-symbols-outlined text-6xl mb-4">inbox</span>
+                        <p>Nenhuma peça compatível cadastrada para este modelo/ano.</p>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loadingPecas" class="hidden text-center py-12">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                        <p class="text-gray-500 dark:text-gray-400 mt-4">Carregando peças...</p>
+                    </div>
+                </section>
+                <!-- End Tab: Peças Compatíveis -->
+            </div>
+            <!-- End Tabs System -->
         </div>
     </main>
 </div>
@@ -291,7 +356,8 @@ async function carregarPlano(modeloId, modeloNome, modeloCompleto) {
         console.log('📋 Planos encontrados:', planItems.length);
         expandedItems.clear();
 
-        document.getElementById('planSection').classList.remove('hidden');
+        // Mostrar sistema de abas ao invés de apenas planSection
+        document.getElementById('modeloTabs').classList.remove('hidden');
         document.getElementById('planTitle').textContent = `Plano para ${currentModeloNome}`;
         document.getElementById('planCount').textContent = `${planItems.length} ${planItems.length === 1 ? 'item cadastrado' : 'itens cadastrados'}`;
 
@@ -307,10 +373,58 @@ async function carregarPlano(modeloId, modeloNome, modeloCompleto) {
         }
 
         renderizarItens();
+
+        // Pré-carregar peças compatíveis
+        carregarPecasCompativeis(modeloNome);
+
+        // Popular automaticamente as peças nos itens (em background)
+        if (planItems.length > 0) {
+            popularPecasAutomaticamente(modeloNome);
+        }
     } catch (error) {
         console.error('Erro ao carregar plano:', error);
         alert('Erro ao carregar plano de manutenção');
     }
+}
+
+// Popular automaticamente as peças em todos os itens do plano
+async function popularPecasAutomaticamente(modeloNome) {
+    console.log('🤖 Iniciando população automática de peças...');
+
+    // Carregar peças compatíveis do modelo
+    await carregarPecasDisponiveis(modeloNome);
+
+    if (pecasDisponiveis.length === 0) {
+        console.log('⚠️ Nenhuma peça compatível encontrada para o modelo');
+        return;
+    }
+
+    console.log(`✅ ${pecasDisponiveis.length} peças disponíveis para sugestão`);
+
+    // Para cada item do plano, verificar se precisa sugerir peças
+    for (const item of planItems) {
+        try {
+            // Verificar se o item já tem peças cadastradas
+            const response = await fetch(`${API_URL}/plano-pecas-api.php?plano_item_id=${item.id}`);
+            const result = await response.json();
+            const pecasExistentes = result.data || [];
+
+            // Se já tem peças, pular este item
+            if (pecasExistentes.length > 0) {
+                console.log(`⏭️ Item "${item.descricao_titulo}" já tem ${pecasExistentes.length} peça(s)`);
+                continue;
+            }
+
+            // Sugerir peças automaticamente
+            console.log(`🤖 Sugerindo peças para: ${item.descricao_titulo}`);
+            await sugerirPecasAutomaticas(item.id, item.descricao_titulo);
+
+        } catch (error) {
+            console.error(`Erro ao processar item ${item.id}:`, error);
+        }
+    }
+
+    console.log('✅ População automática concluída!');
 }
 
 // Toggle expand item
@@ -386,6 +500,228 @@ async function carregarPecasExpandido(itemId) {
 }
 
 // Renderizar itens
+// Extrair informações estruturadas do campo descricao_observacao
+function parseDescricaoObservacao(descricao) {
+    if (!descricao) return { categoria: '-', tempo: '-', descricao: '-', pecas: [] };
+
+    // Extrair [CATEGORIA: X]
+    const categoriaMatch = descricao.match(/\[CATEGORIA:\s*([^\]]+)\]/);
+    const categoria = categoriaMatch ? categoriaMatch[1].trim() : '-';
+
+    // Extrair [TEMPO: X]
+    const tempoMatch = descricao.match(/\[TEMPO:\s*([^\]]+)\]/);
+    const tempo = tempoMatch ? tempoMatch[1].trim() : '-';
+
+    // Extrair peças ANTES de limpar (precisa do bloco original)
+    const pecas = extrairPecasDescricao(descricao);
+
+    // Remover tags e bloco de peças da descrição limpa
+    let descricaoLimpa = descricao
+        .replace(/\[CATEGORIA:[^\]]+\]/g, '')
+        .replace(/\[TEMPO:[^\]]+\]/g, '')
+        .replace(/\[PECAS\][\s\S]*?\[\/PECAS\]/gi, '') // Remove bloco de peças
+        .replace(/\n{3,}/g, '\n\n') // Remove linhas em branco extras
+        .trim();
+
+    return { categoria, tempo, descricao: descricaoLimpa, pecas };
+}
+
+// Extrair informações de peças da descrição do Perplexity
+function extrairPecasDescricao(descricao) {
+    if (!descricao) return [];
+
+    const pecas = [];
+
+    // ============================================
+    // PADRÃO PRINCIPAL: Bloco estruturado [PECAS]...[/PECAS]
+    // ============================================
+    const blocoPecas = descricao.match(/\[PECAS\]([\s\S]*?)\[\/PECAS\]/i);
+    if (blocoPecas) {
+        const conteudo = blocoPecas[1].trim();
+
+        // Usar regex para extrair peças ORIGINAIS
+        // Formato: ORIGINAL|CODIGO|NOME|QTD|PRECO
+        const regexOriginal = /ORIGINAL\|([^|]+)\|([^|]+)\|([^|]+)\|([0-9.,]+)/gi;
+        let matchOrig;
+        while ((matchOrig = regexOriginal.exec(conteudo)) !== null) {
+            const codigo = matchOrig[1].trim();
+            const nome = matchOrig[2].trim();
+            const qtdStr = matchOrig[3].trim();
+            const precoStr = matchOrig[4].trim();
+
+            pecas.push({
+                codigo: codigo,
+                nome: nome,
+                quantidade: qtdStr,
+                preco: precoStr,
+                custo_unitario: parseFloat(precoStr.replace(',', '.')) || 0,
+                tipo: 'Original'
+            });
+        }
+
+        // Usar regex para extrair peças SIMILARES
+        // Formato: SIMILAR|CODIGO|MARCA|NOME|QTD|PRECO
+        const regexSimilar = /SIMILAR\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([0-9.,]+)/gi;
+        let matchSim;
+        while ((matchSim = regexSimilar.exec(conteudo)) !== null) {
+            const codigo = matchSim[1].trim();
+            const marca = matchSim[2].trim();
+            const nome = matchSim[3].trim();
+            const qtdStr = matchSim[4].trim();
+            const precoStr = matchSim[5].trim();
+
+            pecas.push({
+                codigo: codigo,
+                nome: `${nome} (${marca})`,
+                quantidade: qtdStr,
+                preco: precoStr,
+                custo_unitario: parseFloat(precoStr.replace(',', '.')) || 0,
+                tipo: 'Similar'
+            });
+        }
+
+        console.log('🔧 Peças extraídas do bloco [PECAS]:', pecas.length, pecas);
+
+        // Se encontrou peças no formato estruturado, retornar
+        if (pecas.length > 0) return pecas;
+    }
+
+    // ============================================
+    // PADRÕES LEGADO (mantidos para compatibilidade)
+    // ============================================
+
+    // PADRÃO 1: "Código filtro: 90915-YZZJ2" ou "Código peça: XXX"
+    const padraoCodigo1 = /código\s+(filtro|peça|original)?:?\s*([A-Z0-9][\w-]{2,})/gi;
+    let match;
+    while ((match = padraoCodigo1.exec(descricao)) !== null) {
+        const tipoPeca = match[1] || '';
+        const codigo = match[2];
+
+        // Extrair contexto ao redor (30 chars antes e depois)
+        const inicio = Math.max(0, match.index - 30);
+        const fim = Math.min(descricao.length, match.index + match[0].length + 30);
+        const contexto = descricao.substring(inicio, fim);
+
+        pecas.push({
+            codigo: codigo,
+            nome: identificarNomePeca(tipoPeca, contexto, descricao),
+            quantidade: extrairQuantidade(contexto, descricao),
+            tipo: 'Original'
+        });
+    }
+
+    // PADRÃO 2: "equivalente Wega JFO0211" ou "similar Tecfil PSL127"
+    const padraoEquivalente = /(equivalente|similar)\s+([A-Za-z]+)\s+([A-Z0-9][\w-]{2,})/gi;
+    while ((match = padraoEquivalente.exec(descricao)) !== null) {
+        const marca = match[2];
+        const codigo = match[3];
+
+        const inicio = Math.max(0, match.index - 30);
+        const fim = Math.min(descricao.length, match.index + match[0].length + 30);
+        const contexto = descricao.substring(inicio, fim);
+
+        pecas.push({
+            codigo: codigo,
+            nome: identificarNomePeca('', contexto, descricao) + ` ${marca}`,
+            quantidade: extrairQuantidade(contexto, descricao),
+            tipo: 'Similar'
+        });
+    }
+
+    // PADRÃO 3: Quantidades de fluidos sem código específico (8L óleo, 1,5L fluido freio)
+    const padraoFluido = /(\d+(?:[.,]\d+)?)\s*L\s+(óleo|oleo|fluido)\s+([^\.,]{5,40})/gi;
+    while ((match = padraoFluido.exec(descricao)) !== null) {
+        const quantidade = match[1] + 'L';
+        const tipoFluido = match[2];
+        const especificacao = match[3].trim();
+
+        // Só adicionar se não encontrou código para este fluido
+        const jaTemCodigo = pecas.some(p => p.nome.toLowerCase().includes(tipoFluido));
+        if (!jaTemCodigo) {
+            let nome = 'Fluido';
+            if (/5W-?30/i.test(especificacao)) nome = 'Óleo Motor 5W-30';
+            else if (/10W-?40/i.test(especificacao)) nome = 'Óleo Motor 10W-40';
+            else if (/sintético/i.test(especificacao)) nome = 'Óleo Sintético';
+            else if (/freio|DOT/i.test(especificacao)) nome = 'Fluido de Freio';
+            else if (/arrefecimento/i.test(especificacao)) nome = 'Fluido de Arrefecimento';
+            else nome = `${tipoFluido} ${especificacao.substring(0, 20)}`;
+
+            pecas.push({
+                codigo: '-',
+                nome: nome,
+                quantidade: quantidade,
+                tipo: 'Necessário'
+            });
+        }
+    }
+
+    return pecas;
+}
+
+// Identificar nome da peça baseado no contexto
+function identificarNomePeca(tipoPecaExplicito, contexto, descricaoCompleta) {
+    if (tipoPecaExplicito) {
+        // Se já veio "filtro" ou "peça", usar isso
+        if (/filtro/i.test(tipoPecaExplicito)) {
+            // Tentar identificar tipo de filtro
+            if (/óleo|oleo/i.test(contexto) || /óleo|oleo/i.test(descricaoCompleta)) return 'Filtro de Óleo';
+            if (/ar\s+motor/i.test(contexto)) return 'Filtro de Ar Motor';
+            if (/combustível|combustivel|diesel/i.test(contexto)) return 'Filtro de Combustível';
+            if (/cabine|ar condicionado/i.test(contexto)) return 'Filtro de Cabine';
+            return 'Filtro';
+        }
+    }
+
+    // Análise de contexto
+    const ctx = contexto.toLowerCase();
+
+    if (/filtro.*óleo|óleo.*filtro/i.test(contexto)) return 'Filtro de Óleo';
+    if (/filtro.*ar|ar.*filtro/i.test(contexto)) return 'Filtro de Ar';
+    if (/filtro.*combustível|combustível.*filtro|filtro.*diesel/i.test(contexto)) return 'Filtro de Combustível';
+    if (/filtro.*cabine|cabine.*filtro/i.test(contexto)) return 'Filtro de Cabine';
+
+    if (/pastilha.*freio|freio.*pastilha/i.test(contexto)) {
+        if (/dianteira/i.test(contexto)) return 'Pastilha Freio Dianteira';
+        if (/traseira/i.test(contexto)) return 'Pastilha Freio Traseira';
+        return 'Pastilha de Freio';
+    }
+
+    if (/vela.*aquecimento/i.test(contexto)) return 'Vela de Aquecimento';
+    if (/corrente.*distribuição|distribuição.*corrente/i.test(contexto)) return 'Corrente de Distribuição';
+    if (/correia/i.test(contexto)) return 'Correia';
+    if (/amortecedor/i.test(contexto)) return 'Amortecedor';
+    if (/disco.*freio/i.test(contexto)) return 'Disco de Freio';
+
+    // Fallback: procurar substantivo antes do código
+    const palavrasAntes = contexto.substring(0, 30).trim().split(/\s+/);
+    const ultimaPalavra = palavrasAntes[palavrasAntes.length - 1];
+    if (ultimaPalavra && ultimaPalavra.length > 3) {
+        return ultimaPalavra.charAt(0).toUpperCase() + ultimaPalavra.slice(1);
+    }
+
+    return 'Componente';
+}
+
+// Extrair quantidade do contexto
+function extrairQuantidade(contexto, descricaoCompleta) {
+    // Procurar padrões de quantidade
+    const padroes = [
+        /(\d+(?:[.,]\d+)?)\s*L(?:itros?)?/i,
+        /(\d+)\s*unidades?/i,
+        /(\d+)\s*peças?/i,
+        /(\d+)\s*und/i
+    ];
+
+    for (const padrao of padroes) {
+        const match = contexto.match(padrao) || descricaoCompleta.match(padrao);
+        if (match) {
+            return match[0];
+        }
+    }
+
+    return '1 unidade';
+}
+
 function renderizarItens() {
     const container = document.getElementById('itemsList');
     const emptyState = document.getElementById('emptyState');
@@ -444,23 +780,143 @@ function renderizarItens() {
                 </div>
                 ${isExpanded ? `
                 <div class="p-6 bg-background-light dark:bg-gray-800">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
-                        ${(item.km_recomendado || item.intervalo_km) ? `<div><p class="font-medium text-gray-500 dark:text-gray-400">Intervalo KM</p><p class="font-semibold text-gray-800 dark:text-gray-200">${Number(item.km_recomendado || item.intervalo_km).toLocaleString('pt-BR')} KM</p></div>` : ''}
-                        ${(item.intervalo_tempo || item.intervalo_meses) ? `<div><p class="font-medium text-gray-500 dark:text-gray-400">Intervalo Tempo</p><p class="font-semibold text-gray-800 dark:text-gray-200">${Number(item.intervalo_tempo || item.intervalo_meses)} ${(Number(item.intervalo_tempo || item.intervalo_meses)) === 1 ? 'Mês' : 'Meses'}</p></div>` : ''}
-                        <div><p class="font-medium text-gray-500 dark:text-gray-400">Custo Estimado</p><p class="font-semibold text-gray-800 dark:text-gray-200">R$ ${Number(item.custo_estimado).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p></div>
-                        <div><p class="font-medium text-gray-500 dark:text-gray-400">Criticidade</p><p class="font-semibold text-gray-800 dark:text-gray-200">${criticidadeLabel}</p></div>
-                        ${item.descricao ? `<div class="col-span-1 md:col-span-2 lg:col-span-4"><p class="font-medium text-gray-500 dark:text-gray-400">Descrição</p><p class="text-gray-800 dark:text-gray-200">${item.descricao}</p></div>` : ''}
-                    </div>
+                    ${(() => {
+                        const detalhes = parseDescricaoObservacao(item.descricao_observacao || item.descricao || '');
+                        // Calcular custo das peças originais
+                        const custoPecasOriginais = detalhes.pecas
+                            .filter(p => p.tipo === 'Original')
+                            .reduce((sum, p) => sum + (p.custo_unitario || parseFloat(p.preco) || 0), 0);
+                        const custoMaoObra = Number(item.custo_estimado) || 0;
+                        const custoTotal = custoMaoObra + custoPecasOriginais;
+
+                        return `
+                        <!-- Informações Principais -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Categoria</p>
+                                <p class="font-bold text-gray-900 dark:text-white">${detalhes.categoria}</p>
+                            </div>
+                            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Tempo Estimado</p>
+                                <p class="font-bold text-gray-900 dark:text-white">${detalhes.tempo}</p>
+                            </div>
+                            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Criticidade</p>
+                                <p class="font-bold text-gray-900 dark:text-white">${criticidadeLabel}</p>
+                            </div>
+                        </div>
+
+                        <!-- Custos Detalhados -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white dark:bg-slate-700 p-4 rounded-lg border border-gray-200 dark:border-slate-600">
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mb-1">Mão de Obra</p>
+                                <p class="font-bold text-gray-900 dark:text-white text-lg">R$ ${custoMaoObra.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            </div>
+                            <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <p class="text-xs text-blue-600 dark:text-blue-400 mb-1">Peças Originais</p>
+                                <p class="font-bold text-blue-900 dark:text-blue-300 text-lg">R$ ${custoPecasOriginais.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            </div>
+                            <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                                <p class="text-xs text-green-600 dark:text-green-400 mb-1">Custo Total Estimado</p>
+                                <p class="font-bold text-green-900 dark:text-green-300 text-xl">R$ ${custoTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
+                            </div>
+                        </div>
+
+                        <!-- Intervalos -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                                <p class="text-xs text-blue-600 dark:text-blue-400 mb-1">Intervalo por KM</p>
+                                <p class="font-bold text-blue-900 dark:text-blue-300 text-lg">${(item.km_recomendado || item.intervalo_km) ? Number(item.km_recomendado || item.intervalo_km).toLocaleString('pt-BR') + ' km' : 'N/A'}</p>
+                            </div>
+                            <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                                <p class="text-xs text-purple-600 dark:text-purple-400 mb-1">Intervalo por Tempo</p>
+                                <p class="font-bold text-purple-900 dark:text-purple-300 text-lg">${(item.intervalo_tempo || item.intervalo_meses) ? Number(item.intervalo_tempo || item.intervalo_meses) + ' meses' : 'N/A'}</p>
+                            </div>
+                            <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                                <p class="text-xs text-green-600 dark:text-green-400 mb-1">Critério de Ativação</p>
+                                <p class="font-bold text-green-900 dark:text-green-300">Qual vier primeiro</p>
+                            </div>
+                        </div>
+
+                        <!-- Descrição Completa -->
+                        <div class="bg-white dark:bg-slate-700 p-6 rounded-lg border border-gray-200 dark:border-slate-600 mb-6">
+                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-lg">description</span>
+                                Descrição Técnica Detalhada
+                            </h4>
+                            <div class="text-sm text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">${detalhes.descricao}</div>
+                        </div>
+                        `;
+                    })()}
 
                     <!-- Seção de Peças do Item -->
                     <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
                         <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
                             <span class="material-symbols-outlined text-base">build</span>
-                            Peças Necessárias
+                            Peças Necessárias (Perplexity AI)
                         </h4>
-                        <div id="pecas-item-${item.id}" class="text-sm">
-                            <p class="text-gray-500 italic">Carregando peças...</p>
-                        </div>
+                        ${(() => {
+                            const detalhesInterno = parseDescricaoObservacao(item.descricao_observacao || item.descricao || '');
+                            const pecas = detalhesInterno.pecas;
+
+                            if (!pecas || pecas.length === 0) {
+                                return '<p class="text-gray-500 italic text-sm">Nenhuma peça específica mencionada na descrição</p>';
+                            }
+
+                            // Calcular totais
+                            const totalOriginal = pecas.filter(p => p.tipo === 'Original').reduce((sum, p) => sum + (p.custo_unitario || parseFloat(p.preco) || 0), 0);
+                            const totalSimilar = pecas.filter(p => p.tipo === 'Similar').reduce((sum, p) => sum + (p.custo_unitario || parseFloat(p.preco) || 0), 0);
+                            const economia = totalOriginal > 0 && totalSimilar > 0 ? ((1 - totalSimilar/totalOriginal) * 100).toFixed(0) : 0;
+
+                            return `
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-800">
+                                            <tr>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Código</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Nome da Peça</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Qtd</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Preço Est.</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Tipo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            ${pecas.map(peca => `
+                                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                                    <td class="px-4 py-3 text-sm font-mono text-gray-900 dark:text-white">${peca.codigo}</td>
+                                                    <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">${peca.nome}</td>
+                                                    <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-300">${peca.quantidade}</td>
+                                                    <td class="px-4 py-3 text-sm font-semibold ${peca.tipo === 'Similar' ? 'text-green-600 dark:text-green-400' : 'text-gray-700 dark:text-gray-300'}">
+                                                        ${(peca.custo_unitario || peca.preco) ? 'R$ ' + Number(peca.custo_unitario || peca.preco).toLocaleString('pt-BR', {minimumFractionDigits: 2}) : '-'}
+                                                    </td>
+                                                    <td class="px-4 py-3">
+                                                        <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold
+                                                            ${peca.tipo === 'Original' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300' :
+                                                              peca.tipo === 'Similar' ? 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300' :
+                                                              'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300'}">
+                                                            ${peca.tipo}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            `).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                ${totalOriginal > 0 || totalSimilar > 0 ? `
+                                <div class="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                                    <div class="flex flex-wrap gap-4 text-sm">
+                                        ${totalOriginal > 0 ? `<div><span class="text-gray-500">Peças Originais:</span> <span class="font-bold text-blue-600">R$ ${totalOriginal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div>` : ''}
+                                        ${totalSimilar > 0 ? `<div><span class="text-gray-500">Peças Similares:</span> <span class="font-bold text-green-600">R$ ${totalSimilar.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span></div>` : ''}
+                                        ${economia > 0 ? `<div class="bg-green-100 dark:bg-green-900/30 px-3 py-1 rounded-full"><span class="text-green-700 dark:text-green-300 font-semibold">💰 Economia com similares: ${economia}%</span></div>` : ''}
+                                    </div>
+                                </div>
+                                ` : ''}
+                                <p class="text-xs text-gray-500 dark:text-gray-400 mt-3 italic">
+                                    <span class="material-symbols-outlined text-xs">info</span>
+                                    Informações extraídas automaticamente da descrição técnica do Perplexity AI
+                                </p>
+                            `;
+                        })()}
                     </div>
                 </div>
                 ` : ''}
@@ -470,7 +926,7 @@ function renderizarItens() {
 }
 
 // Adicionar item
-function adicionarItem() {
+async function adicionarItem() {
     if (!currentModelId) {
         alert('Por favor, selecione um modelo primeiro');
         return;
@@ -490,6 +946,9 @@ function adicionarItem() {
         totalElement.textContent = 'R$ 0,00';
     }
 
+    // Carregar peças compatíveis com o modelo selecionado
+    await carregarPecasDisponiveis(currentModeloNome);
+
     document.getElementById('itemModal').classList.remove('hidden');
 }
 
@@ -507,6 +966,9 @@ async function editarItem(itemId) {
     document.getElementById('itemCriticidade').value = item.criticidade;
     document.getElementById('itemDescricao').value = item.descricao || '';
 
+    // Carregar peças compatíveis com o modelo selecionado
+    await carregarPecasDisponiveis(currentModeloNome);
+
     // Carregar peças do item
     await carregarPecasItem(itemId);
 
@@ -518,13 +980,100 @@ function fecharModal() {
     document.getElementById('itemModal').classList.add('hidden');
 }
 
+// Sugerir peças automaticamente baseado no nome do item
+async function sugerirPecasAutomaticas(itemId, nomeItem) {
+    if (!itemId || !nomeItem) return;
+
+    const nomeLower = nomeItem.toLowerCase();
+
+    // Mapeamento de palavras-chave para categorias
+    const mapeamento = {
+        'óleo': ['Óleos', 'Óleos e Fluidos', 'Filtros'],
+        'oleo': ['Óleos', 'Óleos e Fluidos', 'Filtros'],
+        'filtro': ['Filtros'],
+        'freio': ['Freios'],
+        'pastilha': ['Freios'],
+        'disco': ['Freios'],
+        'suspensão': ['Suspensão', 'Suspensão e Direção'],
+        'suspensao': ['Suspensão', 'Suspensão e Direção'],
+        'amortecedor': ['Suspensão', 'Suspensão e Direção'],
+        'correia': ['Transmissão', 'Correias e Transmissão'],
+        'motor': ['Motor'],
+        'vela': ['Motor', 'Sistema Elétrico'],
+        'bateria': ['Elétrica', 'Sistema Elétrico'],
+        'ar condicionado': ['Outros'],
+        'alinhamento': [], // Sem peças (apenas serviço)
+        'balanceamento': [] // Sem peças (apenas serviço)
+    };
+
+    // Detectar categorias relevantes
+    const categoriasRelevantes = new Set();
+    for (const [palavra, categorias] of Object.entries(mapeamento)) {
+        if (nomeLower.includes(palavra)) {
+            categorias.forEach(cat => categoriasRelevantes.add(cat));
+        }
+    }
+
+    if (categoriasRelevantes.size === 0) {
+        console.log('ℹ️ Nenhuma categoria detectada para sugestão automática');
+        return;
+    }
+
+    console.log('🤖 Categorias detectadas:', Array.from(categoriasRelevantes));
+
+    // Filtrar peças disponíveis por categoria
+    const pecasSugeridas = pecasDisponiveis.filter(peca => {
+        const categoriaPeca = (peca.categoria || '').toLowerCase();
+        return Array.from(categoriasRelevantes).some(cat =>
+            categoriaPeca.includes(cat.toLowerCase())
+        );
+    });
+
+    console.log('💡 Peças sugeridas:', pecasSugeridas.length);
+
+    if (pecasSugeridas.length === 0) {
+        console.log('⚠️ Nenhuma peça encontrada para as categorias detectadas');
+        return;
+    }
+
+    // Adicionar peças automaticamente
+    let pecasAdicionadas = 0;
+    for (const peca of pecasSugeridas) {
+        try {
+            const response = await fetch(`${API_URL}/plano-pecas-api.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    plano_item_id: itemId,
+                    peca_id: peca.id,
+                    quantidade: 1
+                })
+            });
+
+            const result = await response.json();
+            if (result.success) {
+                pecasAdicionadas++;
+            }
+        } catch (error) {
+            console.error('Erro ao adicionar peça:', error);
+        }
+    }
+
+    if (pecasAdicionadas > 0) {
+        console.log(`✅ ${pecasAdicionadas} peça(s) adicionada(s) automaticamente`);
+        // Recarregar lista de peças
+        await carregarPecasItem(itemId);
+    }
+}
+
 // Salvar item (form submit)
 document.getElementById('itemForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
     const itemId = document.getElementById('itemId').value;
+    const nomeItem = document.getElementById('itemNome').value;
     const data = {
-        descricao_titulo: document.getElementById('itemNome').value,
+        descricao_titulo: nomeItem,
         km_recomendado: document.getElementById('itemKm').value || null,
         intervalo_tempo: document.getElementById('itemMeses').value || null,
         custo_estimado: parseFloat(document.getElementById('itemCusto').value),
@@ -548,6 +1097,15 @@ document.getElementById('itemForm').addEventListener('submit', async (e) => {
         });
 
         if (response.ok) {
+            const result = await response.json();
+            const novoItemId = result.id || itemId;
+
+            // Se for novo item, sugerir peças automaticamente
+            if (!itemId && novoItemId) {
+                console.log('🤖 Sugerindo peças automaticamente para:', nomeItem);
+                await sugerirPecasAutomaticas(novoItemId, nomeItem);
+            }
+
             alert(`Item ${itemId ? 'atualizado' : 'adicionado'} com sucesso!`);
             fecharModal();
             const modelSelect = document.getElementById('modelSelect');
@@ -605,14 +1163,101 @@ function formatarMoeda(valor) {
 }
 
 // Carregar peças disponíveis
-async function carregarPecasDisponiveis() {
+async function carregarPecasDisponiveis(modeloNome = null) {
     try {
-        const response = await fetch(`${API_URL}/pecas-api.php`);
+        // Se não passar modelo, usar o modelo global atual
+        let modelo = modeloNome || currentModeloNome;
+
+        console.log('🔍 Carregando peças para modelo:', modelo);
+        console.log('📌 currentModeloNome:', currentModeloNome);
+        console.log('📌 modeloNome passado:', modeloNome);
+
+        if (!modelo) {
+            console.warn('⚠️ Nenhum modelo selecionado');
+            pecasDisponiveis = [];
+            popularSelectPecas();
+            return;
+        }
+
+        // Extrair apenas o nome do modelo (remover marca e ano)
+        // Exemplo: "Chevrolet CELTA (11/12)" -> "CELTA"
+        // Exemplo: "Toyota HILUX CD" -> "HILUX CD"
+        let modeloLimpo = modelo;
+
+        // Remover ano entre parênteses: (11/12), (2020), etc
+        modeloLimpo = modeloLimpo.replace(/\s*\([^)]*\)\s*$/g, '').trim();
+
+        // Remover marca (primeira palavra antes do espaço)
+        const partes = modeloLimpo.split(' ');
+        if (partes.length > 1) {
+            // Remove a primeira palavra (marca) e junta o resto (modelo)
+            modeloLimpo = partes.slice(1).join(' ');
+        }
+
+        console.log('🔧 Modelo limpo:', modeloLimpo);
+
+        // Buscar peças compatíveis com o modelo (da API de compatibilidade)
+        const url = `${API_URL}/pecas-compatibilidade-api.php?modelo=${encodeURIComponent(modeloLimpo)}`;
+        console.log('🌐 URL da API:', url);
+
+        const response = await fetch(url);
         const result = await response.json();
-        pecasDisponiveis = Array.isArray(result) ? result : (result.data || []);
+
+        console.log('📦 Resposta da API:', result);
+
+        if (result.success && result.data && result.data.length > 0) {
+            // Extrair todas as peças (originais + similares) das compatibilidades
+            const pecasMap = new Map();
+
+            result.data.forEach(comp => {
+                // Adicionar peça original
+                if (comp.peca_original && comp.peca_original.id) {
+                    const peca = comp.peca_original;
+                    if (!pecasMap.has(peca.id)) {
+                        pecasMap.set(peca.id, {
+                            id: peca.id,
+                            codigo: peca.codigo,
+                            nome: peca.nome,
+                            descricao: peca.descricao,
+                            categoria: comp.categoria_aplicacao || peca.categoria,
+                            custo_unitario: peca.custo_unitario,
+                            tipo: 'Original'
+                        });
+                    }
+                }
+
+                // Adicionar peças similares
+                if (comp.pecas_similares && Array.isArray(comp.pecas_similares)) {
+                    comp.pecas_similares.forEach(similar => {
+                        if (similar.id && !pecasMap.has(similar.id)) {
+                            pecasMap.set(similar.id, {
+                                id: similar.id,
+                                codigo: similar.codigo,
+                                nome: similar.nome,
+                                descricao: similar.descricao,
+                                categoria: comp.categoria_aplicacao || similar.categoria,
+                                custo_unitario: similar.custo_unitario,
+                                tipo: 'Similar'
+                            });
+                        }
+                    });
+                }
+            });
+
+            pecasDisponiveis = Array.from(pecasMap.values());
+            console.log('✅ Total de peças carregadas:', pecasDisponiveis.length);
+            console.log('📋 Peças:', pecasDisponiveis);
+        } else {
+            console.warn('⚠️ Nenhuma compatibilidade encontrada ou resposta vazia');
+            pecasDisponiveis = [];
+        }
+
         popularSelectPecas();
+        console.log('✅ Select populado com', pecasDisponiveis.length, 'peças');
     } catch (error) {
-        console.error('Erro ao carregar peças:', error);
+        console.error('❌ Erro ao carregar peças:', error);
+        pecasDisponiveis = [];
+        popularSelectPecas();
     }
 }
 
@@ -764,21 +1409,266 @@ async function removerPecaItem(associacaoId) {
     }
 }
 
-// Inicializar peças ao carregar página
+// Inicializar eventos ao carregar página
 document.addEventListener('DOMContentLoaded', async () => {
-    await carregarPecasDisponiveis();
-
     // Evento do botão de adicionar peça
     const btnAdicionarPeca = document.getElementById('btnAdicionarPecaItem');
     if (btnAdicionarPeca) {
         btnAdicionarPeca.addEventListener('click', adicionarPecaItem);
     }
+
+    // As peças serão carregadas dinamicamente ao abrir o modal (filtradas por modelo)
 });
+
+// ========== FUNÇÕES DO SISTEMA DE ABAS E PEÇAS COMPATÍVEIS ==========
+
+// Variáveis globais para peças compatíveis
+let modeloAtual = '';
+let anoSelecionado = '';
+
+// Alternar entre abas
+function switchTab(tabName) {
+    // Atualizar botões
+    const buttons = document.querySelectorAll('.tab-button');
+    buttons.forEach(btn => {
+        btn.classList.remove('active', 'border-primary', 'text-primary');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+
+    const activeBtn = document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+    if (activeBtn) {
+        activeBtn.classList.add('active', 'border-primary', 'text-primary');
+        activeBtn.classList.remove('border-transparent', 'text-gray-500');
+    }
+
+    // Mostrar/esconder conteúdo
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    const contentEl = document.getElementById('content' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+    if (contentEl) {
+        contentEl.classList.remove('hidden');
+    }
+
+    // Carregar dados da aba se necessário
+    if (tabName === 'pecas' && modeloAtual) {
+        const selectModelo = document.getElementById('modelSelect');
+        const selectedOption = selectModelo.options[selectModelo.selectedIndex];
+        if (selectedOption) {
+            const modelo = selectedOption.dataset.modelo;
+            carregarPecasCompativeis(modelo, anoSelecionado);
+        }
+    }
+}
+
+// Carregar peças compatíveis do modelo
+async function carregarPecasCompativeis(modelo, ano = '') {
+    if (!modelo) return;
+
+    modeloAtual = modelo;
+
+    document.getElementById('loadingPecas').classList.remove('hidden');
+    document.getElementById('pecasContainer').classList.add('hidden');
+    document.getElementById('emptyPecas').classList.add('hidden');
+
+    try {
+        let url = `https://floripa.in9automacao.com.br/pecas-compatibilidade-api.php?modelo=${encodeURIComponent(modelo)}`;
+        if (ano) {
+            url += `&ano=${ano}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        document.getElementById('loadingPecas').classList.add('hidden');
+
+        if (data.success && data.data && data.data.length > 0) {
+            renderizarPecasCompativeis(data.data);
+            popularFiltroAnos(data.data);
+        } else {
+            mostrarMensagemVazia();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar peças:', error);
+        document.getElementById('loadingPecas').classList.add('hidden');
+        mostrarMensagemVazia();
+    }
+}
+
+// Renderizar peças agrupadas por categoria
+function renderizarPecasCompativeis(pecas) {
+    // Agrupar por categoria
+    const porCategoria = {};
+    pecas.forEach(item => {
+        const cat = item.categoria_aplicacao || 'Outros';
+        if (!porCategoria[cat]) {
+            porCategoria[cat] = [];
+        }
+        porCategoria[cat].push(item);
+    });
+
+    const container = document.getElementById('pecasContainer');
+    container.innerHTML = '';
+
+    // Renderizar cada categoria
+    Object.keys(porCategoria).sort().forEach(categoria => {
+        const categoriaHTML = renderizarCategoria(categoria, porCategoria[categoria]);
+        container.innerHTML += categoriaHTML;
+    });
+
+    document.getElementById('emptyPecas').classList.add('hidden');
+    container.classList.remove('hidden');
+}
+
+// Renderizar uma categoria de peças
+function renderizarCategoria(categoria, items) {
+    const icones = {
+        'Filtros': 'filter_alt',
+        'Óleos': 'oil_barrel',
+        'Freios': 'local_parking',
+        'Motor': 'settings',
+        'Suspensão': 'tune',
+        'Transmissão': 'settings_applications',
+        'Elétrica': 'electrical_services',
+        'Outros': 'build'
+    };
+
+    let html = `
+        <div class="categoria-section mb-6">
+            <h3 class="text-lg font-bold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
+                <span class="material-symbols-outlined text-primary">${icones[categoria] || 'build'}</span>
+                ${categoria}
+            </h3>
+    `;
+
+    items.forEach(item => {
+        html += renderizarPecaCard(item);
+    });
+
+    html += `</div>`;
+    return html;
+}
+
+// Renderizar card de peça individual
+function renderizarPecaCard(item) {
+    const original = item.peca_original;
+    const similares = item.pecas_similares || [];
+
+    let html = `
+        <div class="peca-card bg-white dark:bg-gray-800/50 rounded-lg shadow-sm p-4 mb-4 border border-gray-200 dark:border-gray-700">
+            <div class="grid grid-cols-12 gap-4">
+                <!-- Peça Original -->
+                <div class="col-span-12 md:col-span-5 border-r border-gray-200 dark:border-gray-700 pr-4">
+                    <div class="flex items-start gap-3">
+                        <span class="material-symbols-outlined text-blue-600 text-2xl">verified</span>
+                        <div class="flex-1">
+                            <p class="font-semibold text-sm text-gray-600 dark:text-gray-400">ORIGINAL</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">Código: ${original.codigo}</p>
+                            <p class="font-medium text-gray-900 dark:text-white">${original.nome}</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">Anos: ${item.ano_inicial}${item.ano_final ? '-' + item.ano_final : '+'}</p>
+                            <p class="text-lg font-bold text-primary mt-2">
+                                R$ ${parseFloat(original.custo_unitario).toFixed(2).replace('.', ',')}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peças Similares -->
+                <div class="col-span-12 md:col-span-7">
+                    <p class="font-semibold mb-3 flex items-center gap-2 text-gray-900 dark:text-white">
+                        <span class="material-symbols-outlined text-green-600">check_circle</span>
+                        SIMILARES / COMPATÍVEIS
+                    </p>
+    `;
+
+    if (similares.length > 0) {
+        html += `<div class="space-y-2">`;
+        similares.forEach(similar => {
+            const economia = parseFloat(original.custo_unitario) - parseFloat(similar.custo_unitario);
+            html += `
+                <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 rounded p-3">
+                    <div class="flex-1">
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Código: ${similar.codigo}</p>
+                        <p class="font-medium text-sm text-gray-900 dark:text-white">${similar.nome}</p>
+                    </div>
+                    <div class="text-right ml-4">
+                        <p class="font-bold text-green-600">R$ ${parseFloat(similar.custo_unitario).toFixed(2).replace('.', ',')}</p>
+                        ${economia > 0 ? `
+                            <span class="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 px-2 py-1 rounded">
+                                Economia: R$ ${economia.toFixed(2).replace('.', ',')}
+                            </span>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    } else {
+        html += `
+            <p class="text-sm text-gray-500 dark:text-gray-400 italic">
+                Nenhuma peça similar cadastrada
+            </p>
+        `;
+    }
+
+    html += `</div></div>`;
+
+    // Observações
+    if (item.observacoes) {
+        html += `
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                <p class="text-sm text-gray-600 dark:text-gray-400">
+                    <span class="font-medium">Observações:</span>
+                    ${item.observacoes}
+                </p>
+            </div>
+        `;
+    }
+
+    html += `</div>`;
+    return html;
+}
+
+// Popular filtro de anos
+function popularFiltroAnos(pecas) {
+    const anos = new Set();
+    pecas.forEach(item => {
+        const anoFinal = item.ano_final || new Date().getFullYear();
+        for (let ano = item.ano_inicial; ano <= anoFinal; ano++) {
+            anos.add(ano);
+        }
+    });
+
+    const select = document.getElementById('filtroAno');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">Todos os anos</option>';
+
+    Array.from(anos).sort().reverse().forEach(ano => {
+        const option = document.createElement('option');
+        option.value = ano;
+        option.textContent = ano;
+        select.appendChild(option);
+    });
+}
+
+// Filtrar por ano
+function filtrarPecasPorAno() {
+    const ano = document.getElementById('filtroAno').value;
+    anoSelecionado = ano;
+    carregarPecasCompativeis(modeloAtual, ano);
+}
+
+// Mensagem vazia
+function mostrarMensagemVazia() {
+    document.getElementById('pecasContainer').classList.add('hidden');
+    document.getElementById('emptyPecas').classList.remove('hidden');
+}
 </script>
 
 <!-- Carregar Sidebar Unificado -->
 <script src="auth.js" defer></script>
-<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 
 </body>
 </html>

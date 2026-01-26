@@ -1,11 +1,7 @@
-"""
-Celery Worker Entrypoint
-Run: celery -A celery_app worker --loglevel=info
-"""
 from app import create_app
 
 # Create Flask app
 flask_app = create_app()
 
-# Get Celery instance
+# Get celery instance from app
 celery = flask_app.celery

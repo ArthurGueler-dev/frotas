@@ -346,6 +346,98 @@ def register_routes(app):
 
         return jsonify(area.to_dict()), 201
 
+    # ==================== MAINTENANCE ALERTS ====================
+
+    @app.route('/api/maintenance-alerts/generate', methods=['POST'])
+    def trigger_generate_alerts():
+        """
+        Manualmente dispara a geração de alertas de manutenção
+        Útil para testar ou forçar recálculo após importação de dados
+        """
+        from tasks import generate_maintenance_alerts
+        task = generate_maintenance_alerts.delay()
+
+        return jsonify({
+            'success': True,
+            'message': 'Geração de alertas iniciada',
+            'task_id': task.id,
+            'status_url': f'/api/jobs/status/{task.id}'
+        }), 202
+
+    @app.route('/api/maintenance-alerts/notify', methods=['POST'])
+    def trigger_send_notifications():
+        """
+        Manualmente dispara o envio de notificações de alertas críticos
+        """
+        from tasks import send_alert_notifications
+        task = send_alert_notifications.delay()
+
+        return jsonify({
+            'success': True,
+            'message': 'Envio de notificações iniciado',
+            'task_id': task.id,
+            'status_url': f'/api/jobs/status/{task.id}'
+        }), 202
+
+    @app.route('/api/maintenance-alerts/sync-km', methods=['POST'])
+    def trigger_sync_km():
+        """
+        Manualmente dispara sincronização de KM + geração de alertas
+        """
+        from tasks import sync_all_vehicles_mileage
+        task = sync_all_vehicles_mileage.delay()
+
+        return jsonify({
+            'success': True,
+            'message': 'Sincronização de KM iniciada (alertas serão gerados automaticamente após)',
+            'task_id': task.id,
+            'status_url': f'/api/jobs/status/{task.id}'
+        }), 202
+
+    @app.route('/api/maintenance-alerts/health', methods=['GET'])
+    def get_alerts_health():
+        """
+        Verifica saúde do sistema de alertas
+        """
+        from services.alerts_service import alerts_service
+        from services.notification_service import notification_service
+
+        # Testar conexões
+        notification_health = notification_service.test_connection()
+
+        # Buscar estatísticas de alertas via API PHP
+        try:
+            import requests
+            response = requests.get(
+                'https://floripa.in9automacao.com.br/avisos-manutencao-api.php',
+                params={'limit': 1},
+                timeout=10
+            )
+            if response.status_code == 200:
+                result = response.json()
+                stats = result.get('data', {}).get('stats', {})
+                alerts_health = {
+                    'status': 'OK',
+                    'stats': stats
+                }
+            else:
+                alerts_health = {
+                    'status': 'ERROR',
+                    'http_code': response.status_code
+                }
+        except Exception as e:
+            alerts_health = {
+                'status': 'ERROR',
+                'error': str(e)
+            }
+
+        return jsonify({
+            'status': 'healthy' if alerts_health.get('status') == 'OK' else 'degraded',
+            'alerts': alerts_health,
+            'notification_apis': notification_health,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+
     # Error handlers
     @app.errorhandler(404)
     def not_found(error):

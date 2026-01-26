@@ -43,6 +43,16 @@ try {
 
         $id = intval($_GET['id']);
 
+        // BUSCAR DADOS ANTIGOS ANTES DE ATUALIZAR (para histórico)
+        $sqlOld = "SELECT * FROM ordemservico WHERE id = :id";
+        $stmtOld = $pdo->prepare($sqlOld);
+        $stmtOld->execute([':id' => $id]);
+        $oldData = $stmtOld->fetch(PDO::FETCH_ASSOC);
+
+        if (!$oldData) {
+            throw new Exception('OS não encontrada');
+        }
+
         // Validar status (valores aceitos no ENUM)
         $statusValidos = array('Aberta', 'Diagnóstico', 'Orçamento', 'Execução', 'Finalizada', 'Cancelada');
         $status = isset($data['status']) ? $data['status'] : 'Aberta';
@@ -57,24 +67,105 @@ try {
             $ocorrencia = 'Corretiva';
         }
 
+        // Preparar novos valores
+        $newValues = array(
+            'km_veiculo' => isset($data['km_veiculo']) ? $data['km_veiculo'] : 0,
+            'responsavel' => isset($data['responsavel']) ? $data['responsavel'] : null,
+            'status' => $status,
+            'ocorrencia' => $ocorrencia,
+            'observacoes' => isset($data['observacoes']) ? $data['observacoes'] : null,
+            'data_diagnostico' => isset($data['data_diagnostico']) ? $data['data_diagnostico'] : null,
+            'data_orcamento' => isset($data['data_orcamento']) ? $data['data_orcamento'] : null,
+            'data_execucao' => isset($data['data_execucao']) ? $data['data_execucao'] : null,
+            'data_finalizacao' => isset($data['data_finalizacao']) ? $data['data_finalizacao'] : null
+        );
+
         // Atualizar apenas campos que existem na tabela
         $sql = "UPDATE ordemservico SET
                     km_veiculo = :km_veiculo,
                     responsavel = :responsavel,
                     status = :status,
                     ocorrencia = :ocorrencia,
-                    observacoes = :observacoes
+                    observacoes = :observacoes,
+                    data_diagnostico = :data_diagnostico,
+                    data_orcamento = :data_orcamento,
+                    data_execucao = :data_execucao,
+                    data_finalizacao = :data_finalizacao
                 WHERE id = :id";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute([
             ':id' => $id,
-            ':km_veiculo' => isset($data['km_veiculo']) ? $data['km_veiculo'] : 0,
-            ':responsavel' => isset($data['responsavel']) ? $data['responsavel'] : null,
-            ':status' => $status,
-            ':ocorrencia' => $ocorrencia,
-            ':observacoes' => isset($data['observacoes']) ? $data['observacoes'] : null
+            ':km_veiculo' => $newValues['km_veiculo'],
+            ':responsavel' => $newValues['responsavel'],
+            ':status' => $newValues['status'],
+            ':ocorrencia' => $newValues['ocorrencia'],
+            ':observacoes' => $newValues['observacoes'],
+            ':data_diagnostico' => $newValues['data_diagnostico'],
+            ':data_orcamento' => $newValues['data_orcamento'],
+            ':data_execucao' => $newValues['data_execucao'],
+            ':data_finalizacao' => $newValues['data_finalizacao']
         ]);
+
+        // REGISTRAR MUDANÇAS NO HISTÓRICO
+        $usuario = isset($data['usuario_nome']) ? $data['usuario_nome'] : 'Sistema Web';
+        $usuarioEmail = isset($data['usuario_email']) ? $data['usuario_email'] : null;
+
+        // Comparar e registrar cada mudança
+        $camposMonitorados = array(
+            'status' => 'status_change',
+            'data_diagnostico' => 'data_change',
+            'data_orcamento' => 'data_change',
+            'data_execucao' => 'data_change',
+            'data_finalizacao' => 'data_change'
+        );
+
+        foreach ($camposMonitorados as $campo => $tipoMudanca) {
+            $valorAntigo = $oldData[$campo];
+            $valorNovo = $newValues[$campo];
+
+            // Verificar se mudou
+            if ($valorAntigo != $valorNovo) {
+                // Formatar valores para exibição
+                $valorAntigoFormatado = $valorAntigo;
+                $valorNovoFormatado = $valorNovo;
+
+                // Formatar datas para exibição
+                if (strpos($campo, 'data_') === 0 && $valorNovo) {
+                    try {
+                        $dt = new DateTime($valorNovo);
+                        $valorNovoFormatado = $dt->format('d/m/Y H:i');
+                    } catch (Exception $e) {}
+                }
+
+                if (strpos($campo, 'data_') === 0 && $valorAntigo && $valorAntigo !== '0000-00-00 00:00:00') {
+                    try {
+                        $dt = new DateTime($valorAntigo);
+                        $valorAntigoFormatado = $dt->format('d/m/Y H:i');
+                    } catch (Exception $e) {}
+                } else if ($valorAntigo === '0000-00-00 00:00:00' || !$valorAntigo) {
+                    $valorAntigoFormatado = null;
+                }
+
+                // Inserir no histórico
+                $sqlHist = "INSERT INTO ordemservico_historico
+                            (os_id, os_numero, tipo_mudanca, campo_alterado,
+                             valor_anterior, valor_novo, usuario_nome, usuario_email)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+                $stmtHist = $pdo->prepare($sqlHist);
+                $stmtHist->execute(array(
+                    $id,
+                    $oldData['ordem_numero'],
+                    $tipoMudanca,
+                    $campo,
+                    $valorAntigoFormatado,
+                    $valorNovoFormatado,
+                    $usuario,
+                    $usuarioEmail
+                ));
+            }
+        }
 
         echo json_encode(['success' => true, 'message' => 'OS atualizada com sucesso']);
         exit;
@@ -147,6 +238,25 @@ try {
                 $total += floatval($item['valor_total']);
             }
             $os['valor_total'] = $total;
+
+            // Buscar dados completos do fornecedor de serviço (primeiro encontrado nos itens)
+            $fornecedorServicoNome = null;
+            foreach ($os['itens'] as $item) {
+                if (!empty($item['fornecedor_servico']) && $item['fornecedor_servico'] !== '-') {
+                    $fornecedorServicoNome = $item['fornecedor_servico'];
+                    break;
+                }
+            }
+
+            if ($fornecedorServicoNome) {
+                $sqlForn = "SELECT * FROM FF_Fornecedores WHERE nome = :nome LIMIT 1";
+                $stmtForn = $pdo->prepare($sqlForn);
+                $stmtForn->execute([':nome' => $fornecedorServicoNome]);
+                $fornecedor = $stmtForn->fetch();
+                if ($fornecedor) {
+                    $os['fornecedor_servico_dados'] = $fornecedor;
+                }
+            }
         }
 
         echo json_encode(['success' => true, 'data' => $os]);
@@ -190,6 +300,25 @@ try {
                 $total += floatval($item['valor_total']);
             }
             $os['valor_total'] = $total;
+
+            // Buscar dados completos do fornecedor de serviço (primeiro encontrado nos itens)
+            $fornecedorServicoNome = null;
+            foreach ($os['itens'] as $item) {
+                if (!empty($item['fornecedor_servico']) && $item['fornecedor_servico'] !== '-') {
+                    $fornecedorServicoNome = $item['fornecedor_servico'];
+                    break;
+                }
+            }
+
+            if ($fornecedorServicoNome) {
+                $sqlForn = "SELECT * FROM FF_Fornecedores WHERE nome = :nome LIMIT 1";
+                $stmtForn = $pdo->prepare($sqlForn);
+                $stmtForn->execute([':nome' => $fornecedorServicoNome]);
+                $fornecedor = $stmtForn->fetch();
+                if ($fornecedor) {
+                    $os['fornecedor_servico_dados'] = $fornecedor;
+                }
+            }
         }
 
         echo json_encode(['success' => true, 'data' => $os]);
@@ -201,6 +330,7 @@ try {
                 os.id,
                 os.ordem_numero,
                 os.placa_veiculo,
+                os.modelo_veiculo,
                 os.km_veiculo,
                 os.status,
                 os.ocorrencia,

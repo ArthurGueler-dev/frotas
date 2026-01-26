@@ -105,9 +105,11 @@ function handleLogin($pdo) {
 
     // Buscar usuário
     $stmt = $pdo->prepare("
-        SELECT id, username, password_hash, full_name, email, user_type, status, last_login_at
-        FROM FF_Users
-        WHERE username = :username
+        SELECT u.id, u.username, u.password_hash, u.full_name, u.email, u.user_type, u.status, u.last_login_at, u.perfil_id,
+               p.nome as perfil_nome
+        FROM FF_Users u
+        LEFT JOIN FF_Perfis p ON u.perfil_id = p.id
+        WHERE u.username = :username
     ");
     $stmt->execute(array('username' => $username));
     $user = $stmt->fetch();
@@ -148,6 +150,20 @@ function handleLogin($pdo) {
     $stmt = $pdo->prepare("UPDATE FF_Users SET last_login_at = NOW() WHERE id = :id");
     $stmt->execute(array('id' => $user['id']));
 
+    // Buscar permissões do usuário
+    $permissoes = array();
+    if ($user['perfil_id']) {
+        $stmtPerm = $pdo->prepare("SELECT pagina, pode_acessar, pode_editar FROM FF_Perfil_Permissoes WHERE perfil_id = ?");
+        $stmtPerm->execute(array($user['perfil_id']));
+        $perms = $stmtPerm->fetchAll();
+        foreach ($perms as $p) {
+            $permissoes[$p['pagina']] = array(
+                'pode_acessar' => (bool)$p['pode_acessar'],
+                'pode_editar' => (bool)$p['pode_editar']
+            );
+        }
+    }
+
     // Retornar sucesso
     echo json_encode(array(
         'success' => true,
@@ -159,8 +175,11 @@ function handleLogin($pdo) {
             'full_name' => $user['full_name'],
             'email' => $user['email'],
             'user_type' => $user['user_type'],
-            'status' => $user['status']
-        )
+            'status' => $user['status'],
+            'perfil_id' => $user['perfil_id'],
+            'perfil_nome' => $user['perfil_nome']
+        ),
+        'permissoes' => $permissoes
     ));
 }
 
@@ -283,9 +302,12 @@ function handleRegister($pdo) {
  */
 function handleList($pdo) {
     $stmt = $pdo->query("
-        SELECT id, username, full_name, email, user_type, status, last_login_at, created_at
-        FROM FF_Users
-        ORDER BY created_at DESC
+        SELECT u.id, u.username, u.full_name, u.email, u.user_type, u.status,
+               u.last_login_at, u.created_at, u.perfil_id,
+               p.nome as perfil_nome
+        FROM FF_Users u
+        LEFT JOIN FF_Perfis p ON u.perfil_id = p.id
+        ORDER BY u.created_at DESC
     ");
     $users = $stmt->fetchAll();
 
@@ -343,7 +365,7 @@ function handleUpdate($pdo) {
     }
 
     // Campos permitidos para atualização
-    $allowedFields = array('full_name', 'email', 'user_type', 'status');
+    $allowedFields = array('full_name', 'email', 'user_type', 'status', 'perfil_id');
     $updates = array();
     $params = array('id' => $userId);
 

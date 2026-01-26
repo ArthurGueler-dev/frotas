@@ -3,7 +3,7 @@
 
 function createSidebar(activePage = '') {
     return `
-    <aside class="w-64 bg-white dark:bg-gray-800 flex flex-col border-r border-gray-200 dark:border-gray-700 h-screen fixed top-0 left-0 z-50" style="position: fixed !important; top: 0 !important; left: 0 !important; height: 100vh !important; z-index: 1000 !important;">
+    <aside class="w-64 bg-white dark:bg-gray-800 flex flex-col border-r border-gray-200 dark:border-gray-700 h-screen fixed top-0 left-0 z-40" style="position: fixed !important; top: 0 !important; left: 0 !important; height: 100vh !important; z-index: 40 !important;">
         <!-- Logo/Header -->
         <div class="p-6 flex items-center gap-3 flex-shrink-0">
             <span class="material-symbols-outlined text-primary text-4xl">directions_car</span>
@@ -75,6 +75,16 @@ function createSidebar(activePage = '') {
                     <span class="material-symbols-outlined">construction</span>
                     <p class="text-sm">Serviços</p>
                 </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'pecas-compatibilidade' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="pecas-compatibilidade.html">
+                    <span class="material-symbols-outlined">settings</span>
+                    <p class="text-sm">Peças Compatíveis</p>
+                </a>
+
+                <a class="flex items-center gap-3 px-4 py-2 mt-2 rounded-lg ${activePage === 'fornecedores' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="fornecedores.html">
+                    <span class="material-symbols-outlined">store</span>
+                    <p class="text-sm">Fornecedores</p>
+                </a>
             </div>
 
             <!-- Seção CheckList -->
@@ -84,6 +94,16 @@ function createSidebar(activePage = '') {
                 <a class="flex items-center gap-3 px-4 py-2 rounded-lg ${activePage === 'checklist' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="admin-checklist.html">
                     <span class="material-symbols-outlined">checklist</span>
                     <p class="text-sm">CheckList</p>
+                </a>
+            </div>
+
+            <!-- Seção Administração -->
+            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 admin-section">
+                <p class="px-4 mb-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">Administração</p>
+
+                <a class="flex items-center gap-3 px-4 py-2 rounded-lg ${activePage === 'usuarios' ? 'bg-primary/10 dark:bg-primary/20 text-primary font-bold' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'}" href="usuarios.html">
+                    <span class="material-symbols-outlined">manage_accounts</span>
+                    <p class="text-sm">Usuários</p>
                 </a>
             </div>
 
@@ -127,12 +147,22 @@ function createSidebar(activePage = '') {
 // Função para carregar o badge de alertas
 async function carregarBadgeAlertas() {
     try {
-        const response = await fetch('https://floripa.in9automacao.com.br/avisos-manutencao-api.php?status=Ativo&limit=100');
+        const response = await fetch('https://floripa.in9automacao.com.br/avisos-manutencao-api.php?limit=1');
         const result = await response.json();
         const badge = document.getElementById('badge-alertas-sidebar');
-        if (badge && result.success && result.data.alertas.length > 0) {
-            badge.textContent = result.data.alertas.length;
-            badge.classList.remove('hidden');
+
+        if (badge && result.success && result.data.stats) {
+            // Mostrar apenas alertas críticos e vencidos no badge
+            const vencidas = result.data.stats.vencidas || 0;
+            const urgentes = result.data.stats.urgentes || 0;
+            const totalCriticos = vencidas + urgentes;
+
+            if (totalCriticos > 0) {
+                badge.textContent = totalCriticos > 99 ? '99+' : totalCriticos;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
         }
     } catch (error) {
         console.error('Erro ao carregar alertas:', error);

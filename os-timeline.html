@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Timeline da Ordem de Serviço</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 400,
+            'GRAD' 0,
+            'opsz' 24
+        }
+
+        /* Timeline vertical */
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 20px;
+            top: 30px;
+            bottom: -20px;
+            width: 2px;
+            background: #e5e7eb;
+        }
+
+        .dark .timeline-item::before {
+            background: #374151;
+        }
+
+        .timeline-item:last-child::before {
+            display: none;
+        }
+
+        .timeline-icon {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Animação de entrada */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .timeline-item {
+            animation: fadeInUp 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-gray-900 font-display text-[#333333] dark:text-white">
+    <div class="relative flex h-auto min-h-screen w-full flex-col">
+        <div class="flex h-full grow flex-row">
+            <!-- Sidebar -->
+            <div id="sidebar-container" data-page="manutencao"></div>
+
+            <main class="flex-1 p-6 lg:p-8 bg-background-light dark:bg-gray-900">
+                <!-- Header -->
+                <div class="flex flex-wrap justify-between gap-4 items-center mb-6">
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Timeline da OS</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-base font-normal">Histórico completo de mudanças</p>
+                    </div>
+                    <button onclick="window.history.back()" class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <span class="material-symbols-outlined">arrow_back</span>
+                        <span>Voltar</span>
+                    </button>
+                </div>
+
+                <!-- Informações da OS -->
+                <div id="os-info" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Será preenchido via JS -->
+                </div>
+
+                <!-- Estatísticas de Tempo -->
+                <div id="time-stats" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <!-- Será preenchido via JS -->
+                </div>
+
+                <!-- Timeline -->
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+                    <div class="flex items-center gap-2 mb-6">
+                        <span class="material-symbols-outlined text-2xl text-primary">history</span>
+                        <h2 class="text-xl font-bold text-[#111418] dark:text-white">Histórico de Mudanças</h2>
+                    </div>
+
+                    <div id="timeline-container" class="space-y-6">
+                        <!-- Loading -->
+                        <div class="text-center py-8">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                            <p class="mt-4 text-gray-500 dark:text-gray-400">Carregando histórico...</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        const API_BASE = 'https://floripa.in9automacao.com.br';
+
+        // Pegar OS ID/número da URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const osId = urlParams.get('os_id');
+        const osNumero = urlParams.get('os_numero');
+
+        if (!osId && !osNumero) {
+            alert('OS ID ou número não fornecido');
+            window.history.back();
+        }
+
+        // Ícones Material Symbols para cada tipo de mudança
+        const icons = {
+            'created': 'add_circle',
+            'status_change': 'sync',
+            'data_change': 'edit',
+            'item_added': 'playlist_add',
+            'item_removed': 'playlist_remove',
+            'item_updated': 'edit_note'
+        };
+
+        // Cores para cada tipo (com suporte a dark mode)
+        const colors = {
+            'created': 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400',
+            'status_change': 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400',
+            'data_change': 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400',
+            'item_added': 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400',
+            'item_removed': 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400',
+            'item_updated': 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+        };
+
+        // Labels amigáveis
+        const labels = {
+            'created': 'Criação',
+            'status_change': 'Mudança de Status',
+            'data_change': 'Alteração de Dados',
+            'item_added': 'Item Adicionado',
+            'item_removed': 'Item Removido',
+            'item_updated': 'Item Atualizado'
+        };
+
+        // Carregar dados
+        async function loadTimeline() {
+            try {
+                const params = osId ? `os_id=${osId}` : `os_numero=${osNumero}`;
+                const response = await fetch(`${API_BASE}/os-historico-api.php?action=timeline&${params}`);
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Erro ao carregar histórico');
+                }
+
+                renderOSInfo(data);
+                renderTimeStats(data.tempo_info);
+                renderTimeline(data.historico);
+
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('timeline-container').innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-600 font-semibold">❌ Erro ao carregar histórico</p>
+                        <p class="text-gray-600 mt-2">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function renderOSInfo(data) {
+            const firstItem = data.historico[0] || {};
+            const osInfo = document.getElementById('os-info');
+
+            osInfo.innerHTML = `
+                <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p class="text-base font-medium text-gray-500 dark:text-gray-400">Número da OS</p>
+                    <p class="text-2xl font-bold text-[#111418] dark:text-white">${firstItem.os_numero || 'N/A'}</p>
+                </div>
+                <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p class="text-base font-medium text-gray-500 dark:text-gray-400">Veículo</p>
+                    <p class="text-2xl font-bold text-[#111418] dark:text-white">${firstItem.placa_veiculo || 'N/A'}</p>
+                </div>
+                <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <p class="text-base font-medium text-gray-500 dark:text-gray-400">Status Atual</p>
+                    <p class="text-2xl font-bold text-primary">${firstItem.status_atual || 'N/A'}</p>
+                </div>
+            `;
+        }
+
+        function renderTimeStats(tempo) {
+            const timeStats = document.getElementById('time-stats');
+
+            const tempoTotal = tempo.tempo_total_horas > 0
+                ? `${tempo.tempo_total_horas.toFixed(1)}h`
+                : 'Em andamento';
+
+            const tempoParado = tempo.tempo_parado_horas > 0
+                ? `${tempo.tempo_parado_horas.toFixed(1)}h`
+                : 'N/A';
+
+            timeStats.innerHTML = `
+                <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-primary">timer</span>
+                        <p class="text-base font-medium text-gray-500 dark:text-gray-400">Tempo Total</p>
+                    </div>
+                    <p class="text-2xl font-bold text-[#111418] dark:text-white">${tempoTotal}</p>
+                    ${tempo.data_inicio ? `<p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Início: ${formatDateTime(tempo.data_inicio)}</p>` : ''}
+                </div>
+                <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-orange-600 dark:text-orange-400">pause_circle</span>
+                        <p class="text-base font-medium text-gray-500 dark:text-gray-400">Tempo Parado</p>
+                    </div>
+                    <p class="text-2xl font-bold text-orange-600 dark:text-orange-400">${tempoParado}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Entre diagnóstico e execução</p>
+                </div>
+                <div class="flex flex-col gap-2 rounded-xl p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-outlined text-green-600 dark:text-green-400">check_circle</span>
+                        <p class="text-base font-medium text-gray-500 dark:text-gray-400">Conclusão</p>
+                    </div>
+                    <p class="text-2xl font-bold text-green-600 dark:text-green-400">${tempo.data_conclusao ? formatDateTime(tempo.data_conclusao) : 'Pendente'}</p>
+                </div>
+            `;
+        }
+
+        function renderTimeline(historico) {
+            const container = document.getElementById('timeline-container');
+
+            if (historico.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-gray-500 dark:text-gray-400">Nenhum histórico encontrado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = historico.map(item => {
+                const icon = icons[item.tipo_mudanca] || 'description';
+                const color = colors[item.tipo_mudanca] || 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
+                const label = labels[item.tipo_mudanca] || item.tipo_mudanca;
+
+                return `
+                    <div class="timeline-item relative pl-16">
+                        <div class="timeline-icon absolute left-0 top-0 w-10 h-10 rounded-full ${color} flex items-center justify-center">
+                            <span class="material-symbols-outlined text-xl">${icon}</span>
+                        </div>
+
+                        <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:shadow-md transition">
+                            <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
+                                <span class="inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold rounded-full ${color}">
+                                    <span class="material-symbols-outlined text-sm">${icon}</span>
+                                    ${label}
+                                </span>
+                                <span class="text-sm text-gray-500 dark:text-gray-400">
+                                    ${formatDateTime(item.data_mudanca)}
+                                </span>
+                            </div>
+
+                            ${item.campo_alterado ? `
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                                    <strong>Campo:</strong> ${formatCampo(item.campo_alterado)}
+                                </p>
+                            ` : ''}
+
+                            ${item.valor_anterior || item.valor_novo ? `
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                                    ${item.valor_anterior ? `
+                                        <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                                            <p class="text-gray-500 dark:text-gray-400 text-xs mb-1">Valor Anterior</p>
+                                            <p class="font-medium text-red-600 dark:text-red-400">${formatValor(item.valor_anterior)}</p>
+                                        </div>
+                                    ` : ''}
+                                    ${item.valor_novo ? `
+                                        <div class="bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700">
+                                            <p class="text-gray-500 dark:text-gray-400 text-xs mb-1">Valor Novo</p>
+                                            <p class="font-medium text-green-600 dark:text-green-400">${formatValor(item.valor_novo)}</p>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : ''}
+
+                            ${item.usuario_nome ? `
+                                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                    <span class="material-symbols-outlined text-sm">person</span>
+                                    <span>${item.usuario_nome}</span>
+                                    ${item.usuario_email ? `<span class="text-gray-400">(${item.usuario_email})</span>` : ''}
+                                </div>
+                            ` : ''}
+
+                            ${item.observacao ? `
+                                <div class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400 mt-3 p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700">
+                                    <span class="material-symbols-outlined text-sm">chat</span>
+                                    <span class="italic">${item.observacao}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatDateTime(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function formatCampo(campo) {
+            const mapping = {
+                'status': 'Status',
+                'placa_veiculo': 'Placa do Veículo',
+                'km_veiculo': 'Quilometragem',
+                'responsavel': 'Responsável',
+                'observacoes': 'Observações',
+                'ocorrencia': 'Tipo de Ocorrência',
+                'data_diagnostico': 'Data de Diagnóstico',
+                'data_orcamento': 'Data de Orçamento',
+                'data_execucao': 'Data de Execução',
+                'data_finalizacao': 'Data de Finalização'
+            };
+            return mapping[campo] || campo;
+        }
+
+        function formatValor(valor) {
+            if (valor === null || valor === undefined || valor === '') return 'Vazio';
+
+            // Tentar parsear JSON
+            try {
+                const parsed = JSON.parse(valor);
+                return JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                return valor;
+            }
+        }
+
+        // Carregar ao iniciar
+        loadTimeline();
+    </script>
+</body>
+</html>

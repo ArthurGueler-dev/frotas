@@ -42,6 +42,12 @@ class Config:
         'task_soft_time_limit': 25 * 60,  # 25 minutes
         'worker_prefetch_multiplier': 1,
         'worker_max_tasks_per_child': 1000,
+        # Resiliência e retry
+        'task_acks_late': True,  # Acknowledge tasks after completion
+        'task_reject_on_worker_lost': True,  # Requeue if worker crashes
+        'broker_connection_retry': True,
+        'broker_connection_retry_on_startup': True,
+        'broker_connection_max_retries': 10,
     }
 
     # Ituran API
@@ -65,6 +71,16 @@ class Config:
 
     # Timezone
     TIMEZONE = os.getenv('TIMEZONE', 'America/Sao_Paulo')
+
+    # Monitoring & Alerts
+    ALERT_WEBHOOK_URL = os.getenv('ALERT_WEBHOOK_URL', None)  # Webhook para alertas (Slack, Discord, etc)
+    MONITORING_ENABLED = os.getenv('MONITORING_ENABLED', 'true').lower() == 'true'
+    AUTO_RECOVERY_ENABLED = os.getenv('AUTO_RECOVERY_ENABLED', 'true').lower() == 'true'
+
+    # Thresholds de alerta
+    MAX_SYNC_DELAY_HOURS = int(os.getenv('MAX_SYNC_DELAY_HOURS', 7))  # Alerta se sync atrasado >7h
+    MAX_ZERO_KM_PERCENT_WEEKDAY = int(os.getenv('MAX_ZERO_KM_PERCENT_WEEKDAY', 50))  # 50% em dia de semana
+    MAX_ZERO_KM_PERCENT_WEEKEND = int(os.getenv('MAX_ZERO_KM_PERCENT_WEEKEND', 70))  # 70% em fim de semana
 
 
 class DevelopmentConfig(Config):

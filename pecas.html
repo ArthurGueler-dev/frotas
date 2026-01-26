@@ -58,7 +58,7 @@
 </div>
 <div>
 <label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-category">Categoria *</label>
-<select class="form-select mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-category" required onchange="gerarCodigoAutomatico()">
+<select class="form-select mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-category" required>
 <option value="">Selecione uma categoria</option>
 <option value="Filtros">Filtros</option>
 <option value="Óleos e Fluidos">Óleos e Fluidos</option>
@@ -76,8 +76,15 @@
 </select>
 </div>
 <div>
-<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-code">Código (Auto-gerado)</label>
-<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-200 dark:bg-gray-600 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-code" placeholder="Será gerado automaticamente" type="text" readonly />
+<label class="text-sm font-medium text-gray-700 dark:text-gray-300" for="part-code">Código</label>
+<input class="form-input mt-1 flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 focus:border-primary dark:focus:border-primary h-11 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-sm font-normal" id="part-code" placeholder="Ex: FLT-001 (opcional)" type="text" />
+</div>
+<div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+<input type="checkbox" id="part-universal" class="w-5 h-5 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+<label for="part-universal" class="text-sm font-medium text-blue-800 dark:text-blue-200 cursor-pointer">
+Compatível com todos os veículos
+<span class="block text-xs text-blue-600 dark:text-blue-300 font-normal">Se marcado, esta peça aparecerá para qualquer veículo na criação de OS</span>
+</label>
 </div>
 <div class="grid grid-cols-2 gap-4">
 <div>
@@ -143,7 +150,7 @@
 <tr>
 <th class="px-6 py-3" scope="col">Nome da Peça</th>
 <th class="px-6 py-3" scope="col">Código</th>
-<th class="px-6 py-3" scope="col">Unidade</th>
+<th class="px-6 py-3" scope="col">Tipo</th>
 <th class="px-6 py-3" scope="col">Custo</th>
 <th class="px-6 py-3" scope="col">Fornecedor</th>
 <th class="px-6 py-3 text-right" scope="col">Ações</th>
@@ -272,10 +279,18 @@ function atualizarTabela() {
         const tr = document.createElement('tr');
         tr.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800';
 
+        const isUniversal = peca.universal == 1 || peca.universal === null;
+        const tipoBadge = isUniversal
+            ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300"><span class="material-symbols-outlined text-sm mr-1">public</span>Universal</span>'
+            : '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300"><span class="material-symbols-outlined text-sm mr-1">directions_car</span>Específica</span>';
+
         tr.innerHTML = `
-            <td class="px-6 py-4 font-medium text-gray-900 dark:text-white">${peca.nome}</td>
+            <td class="px-6 py-4">
+                <div class="font-medium text-gray-900 dark:text-white">${peca.nome}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">${peca.categoria || '-'}</div>
+            </td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${peca.codigo || '-'}</td>
-            <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${peca.unidade || 'UN'}</td>
+            <td class="px-6 py-4">${tipoBadge}</td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${formatarMoeda(peca.custo_unitario)}</td>
             <td class="px-6 py-4 text-gray-600 dark:text-gray-300">${peca.fornecedor || '-'}</td>
             <td class="px-6 py-4 text-right">
@@ -394,7 +409,8 @@ async function salvarPeca() {
         fornecedor: document.getElementById('part-supplier').value,
         descricao: document.getElementById('part-description').value,
         vida_util_km: parseInt(document.getElementById('part-vida-km').value) || null,
-        vida_util_meses: parseInt(document.getElementById('part-vida-meses').value) || null
+        vida_util_meses: parseInt(document.getElementById('part-vida-meses').value) || null,
+        universal: document.getElementById('part-universal').checked ? 1 : 0
     };
 
     if (!dados.nome || !dados.custo_unitario || !dados.categoria) {
@@ -450,6 +466,7 @@ function editarPeca(id) {
     document.getElementById('part-description').value = peca.descricao || '';
     document.getElementById('part-vida-km').value = peca.vida_util_km || '';
     document.getElementById('part-vida-meses').value = peca.vida_util_meses || '';
+    document.getElementById('part-universal').checked = peca.universal == 1 || peca.universal === null;
 
     // Atualizar botões
     document.getElementById('btn-salvar').innerHTML = '<span class="material-symbols-outlined text-lg">save</span><span class="truncate">Atualizar Peça</span>';
@@ -473,6 +490,7 @@ function limparFormulario() {
     document.getElementById('part-code').value = '';
     document.getElementById('part-vida-km').value = '';
     document.getElementById('part-vida-meses').value = '';
+    document.getElementById('part-universal').checked = false; // Default: específica (precisa cadastrar compatibilidade)
     document.getElementById('btn-salvar').innerHTML = '<span class="material-symbols-outlined text-lg">add_circle</span><span class="truncate">Salvar Peça</span>';
     document.getElementById('btn-cancelar').classList.add('hidden');
     document.getElementById('btn-cancelar').classList.remove('flex');
@@ -509,6 +527,6 @@ async function excluirPeca(id) {
 
 <!-- Carregar Sidebar Unificado -->
 <script src="auth.js" defer></script>
-<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 
 </body></html>

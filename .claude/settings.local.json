@@ -117,7 +117,17 @@
       "Bash(git pull:*)",
       "Bash(git fetch:*)",
       "Bash(if not exist \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\" mkdir \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\")",
-      "Bash(copy \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\db-config.php\" \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\\\\db-config.php\")"
+      "Bash(copy \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\db-config.php\" \"C:\\\\Users\\\\SAMSUNG\\\\Desktop\\\\frotas\\\\upload-cpanel\\\\db-config.php\")",
+      "WebFetch(domain:www.mercadolivre.com.br)",
+      "WebFetch(domain:lista.mercadolivre.com.br)",
+      "WebFetch(domain:www.tecfil.com.br)",
+      "WebFetch(domain:www.toyotawebparts.com.br)",
+      "WebFetch(domain:www.zeno.com.br)",
+      "Bash(touch:*)",
+      "Bash(echo.:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh api:*)",
+      "Bash(sort:*)"
     ],
     "deny": [],
     "ask": []

@@ -126,17 +126,21 @@ try {
         $valuesData = [];
 
         foreach ($data['itens'] as $item) {
-            $valuesPlaceholders[] = "(?, ?, ?, ?, ?)";
+            $valuesPlaceholders[] = "(?, ?, ?, ?, ?, ?, ?, ?, ?)";
             $valuesData[] = $data['ordem_numero'];
             $valuesData[] = isset($item['tipo']) ? $item['tipo'] : 'Serviço';
+            $valuesData[] = isset($item['categoria']) ? $item['categoria'] : null;
+            $valuesData[] = isset($item['codigo']) ? $item['codigo'] : null;
             $valuesData[] = isset($item['descricao']) ? $item['descricao'] : '';
             $valuesData[] = isset($item['quantidade']) ? $item['quantidade'] : 1;
             $valuesData[] = isset($item['valor_unitario']) ? $item['valor_unitario'] : 0.00;
+            $valuesData[] = isset($item['fornecedor_produto']) ? $item['fornecedor_produto'] : null;
+            $valuesData[] = isset($item['fornecedor_servico']) ? $item['fornecedor_servico'] : null;
         }
 
         // Executar batch insert (1 query para todos os itens)
         $sqlItem = "INSERT INTO ordemservico_itens
-                    (ordem_numero, tipo, descricao, quantidade, valor_unitario)
+                    (ordem_numero, tipo, categoria, codigo, descricao, quantidade, valor_unitario, fornecedor_produto, fornecedor_servico)
                     VALUES " . implode(", ", $valuesPlaceholders);
 
         $stmtItem = $pdo->prepare($sqlItem);
@@ -145,11 +149,109 @@ try {
         error_log('save-workorder: ' . $numItens . ' itens inseridos em batch em ' . (microtime(true) - $startTime) . 's');
     }
 
+    // REGISTRAR CRIAÇÃO NO HISTÓRICO
+    $usuario = isset($data['responsavel']) ? $data['responsavel'] : 'Sistema Web';
+    $usuarioEmail = isset($data['usuario_email']) ? $data['usuario_email'] : null;
+
+    $sqlHist = "INSERT INTO ordemservico_historico
+                (os_id, os_numero, tipo_mudanca, campo_alterado,
+                 valor_novo, usuario_nome, usuario_email, observacao)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+    $stmtHist = $pdo->prepare($sqlHist);
+    $stmtHist->execute(array(
+        $os_id,
+        $data['ordem_numero'],
+        'created',
+        'status',
+        isset($data['status']) ? $data['status'] : 'Aberta',
+        $usuario,
+        $usuarioEmail,
+        'OS criada no sistema'
+    ));
+
     // Commit da transação
     $pdo->commit();
 
     $totalTime = microtime(true) - $startTime;
     error_log('save-workorder: OS criada com sucesso em ' . $totalTime . 's');
+
+    // ========== INTEGRAÇÃO COM ALERTAS DE MANUTENÇÃO ==========
+    // Se a OS for Preventiva e estiver Finalizada, atualizar alertas correspondentes
+    $ocorrencia = isset($data['ocorrencia']) ? $data['ocorrencia'] : 'Corretiva';
+    $statusOS = isset($data['status']) ? $data['status'] : 'Aberta';
+    $placaVeiculo = $data['placa_veiculo'];
+    $kmVeiculo = intval($data['km_veiculo']);
+
+    $statusFinalizados = array('Finalizada', 'Concluida', 'Fechada');
+
+    if ($ocorrencia === 'Preventiva' && in_array($statusOS, $statusFinalizados)) {
+        try {
+            error_log("save-workorder: OS Preventiva finalizada - atualizando alertas para placa {$placaVeiculo}");
+
+            // Buscar alertas pendentes para este veículo
+            $sqlAlertas = "SELECT av.id, av.plano_id, pm.descricao_titulo
+                           FROM avisos_manutencao av
+                           LEFT JOIN `Planos_Manutenção` pm ON av.plano_id = pm.id
+                           WHERE av.placa_veiculo = ?
+                             AND av.status NOT IN ('Concluido', 'Cancelado')";
+            $stmtAlertas = $pdo->prepare($sqlAlertas);
+            $stmtAlertas->execute(array($placaVeiculo));
+            $alertasPendentes = $stmtAlertas->fetchAll(PDO::FETCH_ASSOC);
+
+            $alertasAtualizados = 0;
+
+            // Verificar quais itens da OS correspondem aos alertas
+            if (!empty($data['itens']) && is_array($data['itens'])) {
+                foreach ($alertasPendentes as $alerta) {
+                    $planoDescricao = isset($alerta['descricao_titulo']) ? mb_strtolower($alerta['descricao_titulo'], 'UTF-8') : '';
+
+                    // Verificar se algum item da OS corresponde ao alerta
+                    foreach ($data['itens'] as $item) {
+                        $itemDescricao = isset($item['descricao']) ? mb_strtolower($item['descricao'], 'UTF-8') : '';
+
+                        // Match por palavras-chave
+                        $keywords = array('óleo', 'oleo', 'filtro', 'freio', 'pastilha', 'correia', 'vela',
+                                          'embreagem', 'suspensão', 'suspensao', 'amortecedor', 'pneu',
+                                          'alinhamento', 'balanceamento', 'bateria', 'fluido', 'revisão', 'revisao');
+
+                        $matched = false;
+                        foreach ($keywords as $keyword) {
+                            if (mb_strpos($planoDescricao, $keyword) !== false &&
+                                mb_strpos($itemDescricao, $keyword) !== false) {
+                                $matched = true;
+                                break;
+                            }
+                        }
+
+                        if ($matched) {
+                            // Marcar alerta como concluído
+                            $sqlUpdateAlerta = "UPDATE avisos_manutencao SET
+                                                status = 'Concluido',
+                                                concluido_em = NOW(),
+                                                km_finalizacao = ?,
+                                                os_numero = ?,
+                                                atualizado_em = NOW()
+                                                WHERE id = ?";
+                            $stmtUpdateAlerta = $pdo->prepare($sqlUpdateAlerta);
+                            $stmtUpdateAlerta->execute(array($kmVeiculo, $data['ordem_numero'], $alerta['id']));
+                            $alertasAtualizados++;
+
+                            error_log("save-workorder: Alerta ID {$alerta['id']} marcado como concluído");
+                            break; // Não precisa verificar mais itens para este alerta
+                        }
+                    }
+                }
+            }
+
+            error_log("save-workorder: {$alertasAtualizados} alertas atualizados para concluído");
+
+        } catch (Exception $alertaException) {
+            // Não interromper o fluxo principal se falhar a atualização de alertas
+            error_log('save-workorder: Erro ao atualizar alertas: ' . $alertaException->getMessage());
+        }
+    }
+    // ========== FIM INTEGRAÇÃO ALERTAS ==========
 
     // Retornar sucesso
     http_response_code(201);

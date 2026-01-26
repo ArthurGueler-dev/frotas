@@ -10,7 +10,8 @@
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
-<script src="os-items-manager.js?v=20260108-pecas-compativeis"></script>
+<script src="os-items-manager.js?v=20260116-DROPDOWN-WIDER"></script>
+<script src="os-print.js?v=20260120-preview-btn"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
@@ -280,10 +281,7 @@
 </label>
 <label class="flex flex-col">
 <p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Responsável</p>
-<select id="responsavel-select" class="form-select flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base">
-<option>João Silva</option>
-<option>Maria Oliveira</option>
-</select>
+<input id="responsavel-select" readonly class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-gray-100 dark:bg-gray-700 h-12 placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 text-base cursor-not-allowed" value="Carregando..."/>
 </label>
 <label class="flex flex-col">
 <p class="text-gray-800 dark:text-gray-300 text-sm font-medium pb-2">Status</p>
@@ -300,6 +298,7 @@
 <div class="relative flex gap-2">
 <div class="relative flex-1">
 <input id="vehicle-plate-input" type="text" class="form-input w-full rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 h-12 px-4 text-base" placeholder="Digite para buscar..." autocomplete="off" style="text-transform: uppercase;"/>
+<input id="vehicle-model-hidden" type="hidden" value=""/>
 <div id="vehicle-dropdown" class="absolute w-full mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-xl max-h-60 overflow-y-auto" style="z-index: 9999; display: none;">
 <div class="p-4 text-sm text-gray-500 dark:text-gray-400 text-center">Carregando veículos...</div>
 </div>
@@ -333,6 +332,8 @@
 <th class="px-2 py-3" scope="col">Tipo</th>
 <th class="px-2 py-3" scope="col">Categoria</th>
 <th class="px-2 py-3" scope="col">Descrição</th>
+<th class="px-2 py-3" scope="col">Fornec. Produto</th>
+<th class="px-2 py-3" scope="col">Fornec. Serviço</th>
 <th class="px-2 py-3 text-center" scope="col">Qtd.</th>
 <th class="px-2 py-3 text-right" scope="col">Valor</th>
 <th class="px-2 py-3 text-right" scope="col">Total</th>
@@ -345,7 +346,7 @@
 </tbody>
 <tfoot>
 <tr class="font-semibold text-gray-900 dark:text-white">
-<th class="text-right px-4 py-3 text-base" colspan="5" scope="row">Total Geral</th>
+<th class="text-right px-4 py-3 text-base" colspan="7" scope="row">Total Geral</th>
 <td class="px-4 py-3 text-right text-base" id="total-geral">R$ 0,00</td>
 <td colspan="2"></td>
 </tr>
@@ -356,6 +357,14 @@
 <div class="flex justify-end gap-4 mt-8 border-t border-gray-200 dark:border-gray-700 pt-6">
 <button id="cancel-btn" class="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600">
                                 Cancelar
+                            </button>
+                            <button id="preview-os-btn" class="px-6 py-2.5 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-base">visibility</span>
+                                Visualizar
+                            </button>
+                            <button id="print-os-btn" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 flex items-center gap-2">
+                                <span class="material-symbols-outlined text-base">print</span>
+                                Imprimir
                             </button>
 <button id="save-os-btn" class="px-6 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 flex items-center gap-2">
 <span class="material-symbols-outlined text-base">save</span>
@@ -420,11 +429,42 @@ function showToast(type, title, message, duration = 5000) {
     return toast;
 }
 
+// Preencher campo responsável com usuário logado
+function setLoggedUserAsResponsavel() {
+    const responsavelInput = document.getElementById('responsavel-select');
+
+    if (!responsavelInput) {
+        console.error('❌ Campo responsável não encontrado');
+        return;
+    }
+
+    // Verificar se Auth está disponível
+    if (typeof window.Auth === 'undefined' || typeof window.Auth.getUser !== 'function') {
+        console.warn('⚠️ Sistema de autenticação não disponível');
+        responsavelInput.value = 'Sistema Web';
+        return;
+    }
+
+    // Obter usuário logado
+    const user = window.Auth.getUser();
+
+    if (user && user.nome) {
+        responsavelInput.value = user.nome;
+        console.log('✅ Responsável definido:', user.nome);
+    } else {
+        console.warn('⚠️ Nome do usuário não disponível');
+        responsavelInput.value = 'Sistema Web';
+    }
+}
+
 // Inicialização
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Inicializando página de lançamento de OS...');
 
     try {
+        // Preencher responsável com usuário logado
+        setLoggedUserAsResponsavel();
+
         // Carregar veículos
         console.log('⏳ Iniciando carregamento de veículos...');
         await loadVehicles();
@@ -455,6 +495,8 @@ async function loadVehicles() {
         }
 
         vehicles = await response.json();
+        // Expor globalmente para impressão e outros módulos
+        window.vehicles = vehicles;
         console.log(`✅ ${vehicles.length} veículos carregados`);
         console.log('🚗 Primeiros 5 veículos:', vehicles.slice(0, 5));
 
@@ -463,6 +505,46 @@ async function loadVehicles() {
     } catch (error) {
         console.error('❌ Erro ao carregar veículos:', error);
         showToast('error', 'Erro ao Carregar', 'Não foi possível carregar a lista de veículos. Recarregue a página.');
+    }
+}
+
+// Buscar quilometragem automática do Ituran
+async function buscarQuilometragemAutomatica(plate) {
+    const kmInput = document.getElementById('km-input');
+
+    if (!kmInput || !plate) {
+        return;
+    }
+
+    // Mostrar loading no campo
+    const originalPlaceholder = kmInput.placeholder;
+    kmInput.placeholder = '⏳ Buscando quilometragem...';
+    kmInput.disabled = true;
+
+    try {
+        console.log('🔍 Buscando quilometragem para:', plate);
+
+        const response = await fetch(`https://floripa.in9automacao.com.br/get-current-mileage.php?plate=${encodeURIComponent(plate)}`);
+        const data = await response.json();
+
+        if (data.success && data.mileage > 0) {
+            kmInput.value = data.mileage;
+            console.log('✅ Quilometragem obtida:', data.mileage, 'km');
+
+            // Mostrar toast de sucesso
+            showToast('success', 'Quilometragem Obtida', `${data.mileage.toLocaleString('pt-BR')} km (fonte: ${data.source})`);
+        } else {
+            console.log('⚠️ Quilometragem não disponível');
+            showToast('info', 'Quilometragem Manual', 'Não foi possível obter a quilometragem automaticamente. Informe manualmente.');
+        }
+    } catch (error) {
+        console.error('❌ Erro ao buscar quilometragem:', error);
+        showToast('warning', 'Erro ao Buscar', 'Não foi possível buscar a quilometragem. Informe manualmente.');
+    } finally {
+        // Restaurar campo (permitir edição manual)
+        kmInput.placeholder = originalPlaceholder;
+        kmInput.disabled = false;
+        kmInput.focus();
     }
 }
 
@@ -515,6 +597,18 @@ function setupVehicleCombobox() {
                 plateInput.value = plate;
                 dropdown.style.display = 'none';
                 console.log('✅ Dropdown fechado após seleção');
+
+                // Armazenar modelo do veículo para impressão
+                const vehicle = vehicles.find(v => v.plate === plate);
+                if (vehicle) {
+                    const modeloCompleto = `${vehicle.brand} ${vehicle.model} (${vehicle.year})`;
+                    document.getElementById('vehicle-model-hidden').value = modeloCompleto;
+                    window.selectedVehicleModel = modeloCompleto;
+                    console.log('✅ Modelo armazenado:', modeloCompleto);
+                }
+
+                // Buscar quilometragem automaticamente
+                buscarQuilometragemAutomatica(plate);
             });
         });
     }
@@ -662,6 +756,38 @@ function setupEventListeners() {
         console.log('✅ Event listener do botão Cancelar configurado');
     } else {
         console.error('❌ Botão Cancelar não encontrado');
+    }
+
+    // Botão "Visualizar" (apenas preview, sem diálogo de impressão)
+    const previewBtn = document.getElementById('preview-os-btn');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', () => {
+            if (window.osPrinter) {
+                window.osPrinter.previewCurrentForm();
+            } else {
+                console.error('❌ OSPrinter não está carregado');
+                alert('Erro ao carregar sistema de impressão. Recarregue a página.');
+            }
+        });
+        console.log('✅ Event listener do botão Visualizar configurado');
+    } else {
+        console.error('❌ Botão Visualizar não encontrado');
+    }
+
+    // Botão "Imprimir" (abre diálogo de impressão do navegador)
+    const printBtn = document.getElementById('print-os-btn');
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            if (window.osPrinter) {
+                window.osPrinter.printCurrentForm();
+            } else {
+                console.error('❌ OSPrinter não está carregado');
+                alert('Erro ao carregar sistema de impressão. Recarregue a página.');
+            }
+        });
+        console.log('✅ Event listener do botão Imprimir configurado');
+    } else {
+        console.error('❌ Botão Imprimir não encontrado');
     }
 
     // Formulário de cadastro de novo item
@@ -828,10 +954,14 @@ async function saveServiceOrder() {
             }
         };
 
+        // Buscar modelo do veículo
+        const vehicleModel = document.getElementById('vehicle-model-hidden')?.value || window.selectedVehicleModel || '';
+
         // Dados para enviar (formato das novas APIs PHP)
         const requestData = {
             ordem_numero: osNumber,
             placa_veiculo: plate,
+            modelo_veiculo: vehicleModel,
             km_veiculo: parseInt(km),
             motorista_id: driverId,
             responsavel: responsavel || 'Sistema Web',
@@ -846,14 +976,16 @@ async function saveServiceOrder() {
             criado_por: 'Sistema Web',
             itens: items.map(item => ({
                 tipo: item.type || 'Serviço',
-                codigo: item.code || null,
+                codigo: item.codigo || null,
+                categoria: item.category || null,
                 descricao: item.description,
                 quantidade: item.qty,
                 unidade: 'UN',
                 valor_unitario: item.value,
                 desconto_percentual: 0,
                 desconto_valor: 0,
-                fornecedor: null,
+                fornecedor_produto: item.fornecedor_produto || null,
+                fornecedor_servico: item.fornecedor_servico || null,
                 observacoes: null
             }))
         };
@@ -951,7 +1083,7 @@ Element.prototype.matches = (function(proto) {
                        placeholder="Ex: 150,00"/>
             </div>
 
-            <div>
+            <div id="occurrence-field">
                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Tipo de Ocorrência <span class="text-red-500">*</span>
                 </label>
@@ -962,6 +1094,36 @@ Element.prototype.matches = (function(proto) {
                     <option value="Preventiva">Preventiva</option>
                     <option value="Garantia">Garantia</option>
                 </select>
+            </div>
+
+            <!-- Campos extras para Peças/Produtos -->
+            <div id="product-extra-fields" class="hidden space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Código (opcional)
+                    </label>
+                    <input type="text" id="modal-item-code"
+                           class="form-input w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-sm"
+                           placeholder="Ex: FLT-001"/>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Fornecedor (opcional)
+                    </label>
+                    <input type="text" id="modal-item-supplier"
+                           class="form-input w-full bg-gray-50 dark:bg-gray-800 border-gray-300 dark:border-gray-600 rounded h-10 text-sm"
+                           placeholder="Ex: Fornecedor XYZ"/>
+                </div>
+
+                <div class="flex items-center gap-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <input type="checkbox" id="modal-item-universal"
+                           class="w-5 h-5 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" />
+                    <label for="modal-item-universal" class="text-sm font-medium text-blue-800 dark:text-blue-200 cursor-pointer">
+                        Compatível com todos os veículos
+                        <span class="block text-xs text-blue-600 dark:text-blue-300 font-normal">Se marcado, aparecerá para qualquer veículo</span>
+                    </label>
+                </div>
             </div>
 
             <div class="flex justify-end gap-3 pt-4">
@@ -980,6 +1142,6 @@ Element.prototype.matches = (function(proto) {
 
 <!-- Carregar Sidebar Unificado -->
 <script src="auth.js" defer></script>
-<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 
 </body></html>

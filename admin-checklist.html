@@ -372,6 +372,10 @@
                             <span class="material-symbols-outlined">analytics</span>
                             <span>Métricas</span>
                         </button>
+                        <button onclick="mudarAba('relatorios')" id="tab-relatorios" class="tab-button flex-1 flex items-center justify-center gap-2 px-4 py-3 text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <span class="material-symbols-outlined">description</span>
+                            <span>Relatórios</span>
+                        </button>
                     </div>
                 </div>
 
@@ -600,6 +604,54 @@
                     </div>
                 </div>
                 <!-- FIM ABA: MÉTRICAS -->
+
+                <!-- ABA: RELATÓRIOS -->
+                <div id="content-relatorios" class="tab-content">
+                    <!-- Header -->
+                    <div class="mb-6 rounded-xl border border-purple-200 dark:border-purple-700 p-6 bg-purple-50 dark:bg-purple-900/20">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-purple-600 text-3xl">description</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-purple-800 dark:text-purple-200">Exportar Relatórios</h3>
+                                <p class="text-purple-600 dark:text-purple-300">Gere relatórios personalizados do sistema de inspeção veicular</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Relatório: Veículos sem Checklist -->
+                    <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+                        <div class="flex items-start gap-4 mb-4">
+                            <span class="material-symbols-outlined text-yellow-500 text-3xl">directions_car</span>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-gray-800 dark:text-white">Veículos sem Checklist</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Lista de veículos cadastrados que não realizaram checklist</p>
+                            </div>
+                        </div>
+                        <p class="text-gray-600 dark:text-gray-300 mb-4">
+                            Este relatório identifica todos os veículos cadastrados no sistema que ainda não possuem nenhum checklist realizado.
+                        </p>
+                        <button id="btn-exportar-sem-checklist" onclick="exportarVeiculosSemChecklist()" class="w-full px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center gap-2">
+                            <span class="material-symbols-outlined">download</span>
+                            <span>Exportar para CSV</span>
+                        </button>
+                        <div id="relatorio-loading" class="hidden mt-4 text-center">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                            <p class="mt-2 text-gray-500 dark:text-gray-400">Processando relatório...</p>
+                        </div>
+                    </div>
+
+                    <!-- Placeholder para futuros relatórios -->
+                    <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+                        <div class="flex items-start gap-4">
+                            <span class="material-symbols-outlined text-gray-400 text-3xl">add_circle</span>
+                            <div>
+                                <h3 class="text-lg font-bold text-gray-400 dark:text-gray-500">Mais Relatórios</h3>
+                                <p class="text-sm text-gray-400 dark:text-gray-500">Novos relatórios serão adicionados aqui.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- FIM ABA: RELATÓRIOS -->
 
             </div>
         </main>
@@ -1948,6 +2000,84 @@ async function carregarMetricas() {
     }
 }
 
+// ============================================
+// ABA RELATÓRIOS
+// ============================================
+
+async function exportarVeiculosSemChecklist() {
+    const btn = document.getElementById('btn-exportar-sem-checklist');
+    const loading = document.getElementById('relatorio-loading');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Gerando...';
+    loading.classList.remove('hidden');
+
+    try {
+        console.log('🔍 Buscando veículos sem checklist...');
+
+        const response = await fetch('https://floripa.in9automacao.com.br/b_veicular_relatorios.php?acao=veiculos_sem_checklist');
+        const resultado = await response.json();
+
+        if (!resultado.sucesso) {
+            throw new Error(resultado.erro || 'Erro ao buscar dados');
+        }
+
+        if (!resultado.veiculos || resultado.veiculos.length === 0) {
+            alert('✅ Nenhum veículo sem checklist encontrado! Todos os veículos cadastrados já possuem checklist.');
+            return;
+        }
+
+        console.log(`📊 ${resultado.veiculos.length} veículos sem checklist encontrados`);
+
+        // Gerar CSV
+        const csv = gerarCSVRelatorio(resultado.veiculos);
+
+        // Download do arquivo
+        downloadCSV(csv, `veiculos-sem-checklist-${new Date().toISOString().split('T')[0]}.csv`);
+
+        alert(`✅ Relatório gerado com sucesso! ${resultado.veiculos.length} veículos exportados.`);
+
+    } catch (error) {
+        console.error('❌ Erro ao gerar relatório:', error);
+        alert('❌ Erro ao gerar relatório: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined">download</span> <span>Exportar para CSV</span>';
+        loading.classList.add('hidden');
+    }
+}
+
+function gerarCSVRelatorio(veiculos) {
+    // Cabeçalho
+    let csv = 'Placa;Status;Observação\n';
+
+    // Dados
+    veiculos.forEach(function(v) {
+        csv += `${v.placa};${v.status};Nenhum checklist realizado\n`;
+    });
+
+    return csv;
+}
+
+function downloadCSV(csv, filename) {
+    // Adiciona BOM para UTF-8
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csv], { type: 'text/csv;charset=utf-8;' });
+
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+}
+
 function mudarGrafico() {
     tipoGraficoAtual = document.getElementById('tipo-grafico').value;
     processarDadosGrafico();
@@ -2135,7 +2265,7 @@ window.onclick = function(event) {
 </script>
 
 <!-- Carregar Sidebar Unificado -->
-<script src="sidebar.js?v=20251211-fix-rotas"></script>
+<script src="sidebar.js?v=20260121-RELATORIOS"></script>
 
 </body>
 </html>

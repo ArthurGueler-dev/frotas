@@ -58,7 +58,7 @@ try {
     if ($method === 'GET' && empty($segments)) {
 
         // Parâmetros de filtro
-        $status = getParam('status', 'Ativo');
+        $status = getParam('status', '');  // Padrão vazio = todos os não concluídos
         $nivel_alerta = getParam('nivel_alerta');
         $busca = getParam('busca');
         $page = max(1, intval(getParam('page', 1)));
@@ -69,9 +69,13 @@ try {
         $whereConditions = [];
         $params = [];
 
-        if ($status && $status !== 'Todos') {
+        // Filtro de status
+        if ($status && $status !== 'Todos' && $status !== '') {
             $whereConditions[] = "av.status = ?";
             $params[] = $status;
+        } elseif ($status === '' || !$status) {
+            // Padrão: mostrar todos exceto concluídos e cancelados
+            $whereConditions[] = "av.status NOT IN ('Concluido', 'Cancelado')";
         }
 
         if ($nivel_alerta) {
@@ -242,6 +246,77 @@ try {
             sendResponse(true, ['message' => 'Alerta marcado como concluído']);
         } else {
             sendResponse(false, null, 'Erro ao atualizar alerta', 500);
+        }
+    }
+
+    // PUT /avisos-manutencao-api.php?action=mark-notified&id=123 - Marcar como notificado
+    elseif ($method === 'PUT' && $action === 'mark-notified') {
+
+        $id = intval(getParam('id', '0'));
+
+        if ($id <= 0) {
+            sendResponse(false, null, 'ID inválido', 400);
+        }
+
+        $sql = "
+            UPDATE avisos_manutencao
+            SET notificado = 1,
+                data_notificacao = NOW(),
+                atualizado_em = NOW()
+            WHERE id = ?
+        ";
+
+        $stmt = $conn->prepare($sql);
+        $stmt->bindValue(1, $id, PDO::PARAM_INT);
+
+        if ($stmt->execute()) {
+            sendResponse(true, ['message' => 'Alerta marcado como notificado', 'id' => $id]);
+        } else {
+            sendResponse(false, null, 'Erro ao atualizar alerta', 500);
+        }
+    }
+
+    // PUT /avisos-manutencao-api.php?action=mark-notified-batch - Marcar múltiplos como notificados
+    elseif ($method === 'PUT' && $action === 'mark-notified-batch') {
+
+        $input = file_get_contents('php://input');
+        $data = json_decode($input, true);
+
+        if (!isset($data['ids']) || !is_array($data['ids']) || empty($data['ids'])) {
+            sendResponse(false, null, 'Lista de IDs inválida', 400);
+        }
+
+        $ids = array_map('intval', $data['ids']);
+        $ids = array_filter($ids, function($id) { return $id > 0; });
+
+        if (empty($ids)) {
+            sendResponse(false, null, 'Nenhum ID válido fornecido', 400);
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $sql = "
+            UPDATE avisos_manutencao
+            SET notificado = 1,
+                data_notificacao = NOW(),
+                atualizado_em = NOW()
+            WHERE id IN ($placeholders)
+        ";
+
+        $stmt = $conn->prepare($sql);
+
+        foreach ($ids as $index => $id) {
+            $stmt->bindValue($index + 1, $id, PDO::PARAM_INT);
+        }
+
+        if ($stmt->execute()) {
+            $affected = $stmt->rowCount();
+            sendResponse(true, [
+                'message' => 'Alertas marcados como notificados',
+                'total' => count($ids),
+                'atualizados' => $affected
+            ]);
+        } else {
+            sendResponse(false, null, 'Erro ao atualizar alertas', 500);
         }
     }
 

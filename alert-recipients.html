@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Destinatários de Alertas | Sistema de Frotas</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1E3A8A",
+                        "background-light": "#F3F4F6",
+                        "background-dark": "#1F2937"
+                    }
+                }
+            }
+        }
+    </script>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <style>
         body {
@@ -176,7 +190,7 @@
         </div>
     </div>
 
-    <script src="sidebar.js"></script>
+    <script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
     <script src="alert-recipients.js"></script>
 </body>
 </html>

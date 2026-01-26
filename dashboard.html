@@ -11,7 +11,7 @@
 <script src="auth.js" defer></script>
 <script src="ituran-service.js?v=20251208-1420"></script>
 <script src="dashboard-stats.js?v=20260102-1110"></script>
-<script src="sidebar.js?v=20260102-1120"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 <script>
         tailwind.config = {
             darkMode: "class",
@@ -150,39 +150,50 @@
 </div>
 <div class="flex flex-wrap justify-end gap-2">
 <div class="relative">
-<select class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40">
-<option selected="">Mês Atual</option>
-<option>Hoje</option>
-<option>Últimos 7 Dias</option>
-<option>Customizado</option>
+<select id="cost-period-filter" onchange="loadCostAnalysis()" class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36">
+<option value="current_month" selected>Mês Atual</option>
+<option value="last_month">Mês Anterior</option>
+<option value="year">Ano Atual</option>
+<option value="all">Todos</option>
 </select>
 <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">calendar_today</span>
 </div>
 <div class="relative">
-<select class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40">
-<option selected="">Todos Veículos</option>
-<option>ABC-1234</option>
-<option>DEF-5678</option>
+<select id="cost-vehicle-filter" onchange="loadCostAnalysis()" class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36">
+<option value="" selected>Todos Veículos</option>
 </select>
 <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">local_shipping</span>
 </div>
 <div class="relative">
-<select id="filter-area" onchange="filterByArea()" class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-40">
-<option value="" selected>Todas as Regiões</option>
+<select id="cost-area-filter" onchange="loadCostAnalysis()" class="pl-8 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary w-36">
+<option value="" selected>Todas Regiões</option>
 </select>
 <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">corporate_fare</span>
 </div>
+<button onclick="exportCostData()" class="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium">
+<span class="material-symbols-outlined text-base">download</span>
+Excel
+</button>
 </div>
 </div>
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-primary/10 text-primary dark:bg-primary/20">Manutenção</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Abastecimento</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Pedágio</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Rastreamento</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Depreciação</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Locação</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Higienização</button>
-<button class="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">Seguro</button>
+<!-- Cards de Métricas de Manutenção -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+<div class="bg-blue-50 dark:bg-blue-900/30 rounded-lg p-3 text-center">
+<p class="text-xs text-blue-600 dark:text-blue-400 uppercase font-medium">Custo Total Manutenção</p>
+<p id="cost-total-maintenance" class="text-xl font-bold text-blue-800 dark:text-blue-200">Carregando...</p>
+</div>
+<div class="bg-green-50 dark:bg-green-900/30 rounded-lg p-3 text-center">
+<p class="text-xs text-green-600 dark:text-green-400 uppercase font-medium">Preventivas</p>
+<p id="cost-preventive-count" class="text-xl font-bold text-green-800 dark:text-green-200">-</p>
+</div>
+<div class="bg-red-50 dark:bg-red-900/30 rounded-lg p-3 text-center">
+<p class="text-xs text-red-600 dark:text-red-400 uppercase font-medium">Corretivas</p>
+<p id="cost-corrective-count" class="text-xl font-bold text-red-800 dark:text-red-200">-</p>
+</div>
+<div class="bg-purple-50 dark:bg-purple-900/30 rounded-lg p-3 text-center">
+<p class="text-xs text-purple-600 dark:text-purple-400 uppercase font-medium">Peças Trocadas</p>
+<p id="cost-parts-count" class="text-xl font-bold text-purple-800 dark:text-purple-200">-</p>
+</div>
 </div>
 <div class="h-80"><canvas id="costChart"></canvas></div>
 </div>
@@ -287,89 +298,180 @@ Carregando dados...
     const isDarkMode = document.documentElement.classList.contains('dark');
     const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
     const textColor = isDarkMode ? '#f9fafb' : '#374151';
-    // Cost Chart
-    const costCtx = document.getElementById('costChart');
-    if (costCtx) {
-        new Chart(costCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
-                datasets: [{
-                    label: 'Manutenção',
-                    data: [1200, 1900, 3000, 2500, 2200, 3000],
-                    backgroundColor: '#1173d4',
-                    borderRadius: 4,
-                }, {
-                    label: 'Abastecimento',
-                    data: [8000, 8200, 7800, 9000, 8500, 9200],
-                    backgroundColor: '#28A745',
-                    borderRadius: 4,
-                }, {
-                    label: 'Pedágio',
-                    data: [300, 320, 280, 400, 350, 420],
-                    backgroundColor: '#FFC107',
-                    borderRadius: 4,
-                }, {
-                    label: 'Rastreamento',
-                    data: [150, 150, 150, 150, 150, 150],
-                    backgroundColor: '#fd7e14',
-                    borderRadius: 4,
-                }, {
-                    label: 'Depreciação',
-                    data: [500, 500, 500, 500, 500, 500],
-                    backgroundColor: '#6f42c1',
-                    borderRadius: 4,
-                }, {
-                    label: 'Locação',
-                    data: [0, 0, 0, 1200, 1200, 1200],
-                    backgroundColor: '#dc3545',
-                    borderRadius: 4,
-                }, {
-                    label: 'Higienização',
-                    data: [50, 0, 50, 0, 100, 50],
-                    backgroundColor: '#20c997',
-                    borderRadius: 4,
-                }, {
-                    label: 'Seguro',
-                    data: [400, 400, 400, 400, 400, 400],
-                    backgroundColor: '#0dcaf0',
-                    borderRadius: 4,
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top',
-                        labels: {
-                           color: textColor
+    // === SISTEMA DE ANÁLISE DE CUSTOS ===
+    const COST_API = 'https://floripa.in9automacao.com.br/cost-analysis-api.php';
+    let costChartInstance = null;
+
+    // Inicializar filtros e carregar dados
+    async function initCostAnalysis() {
+        await loadCostFilters();
+        await loadCostAnalysis();
+    }
+
+    // Carregar opções dos filtros
+    async function loadCostFilters() {
+        try {
+            // Carregar áreas
+            const areasRes = await fetch(`${COST_API}?action=areas_list`);
+            const areasData = await areasRes.json();
+            if (areasData.success && areasData.areas) {
+                const areaSelect = document.getElementById('cost-area-filter');
+                areasData.areas.forEach(a => {
+                    const opt = document.createElement('option');
+                    opt.value = a.id;
+                    opt.textContent = a.name;
+                    areaSelect.appendChild(opt);
+                });
+            }
+
+            // Carregar veículos
+            const veicRes = await fetch(`${COST_API}?action=vehicles_list`);
+            const veicData = await veicRes.json();
+            if (veicData.success && veicData.veiculos) {
+                const veicSelect = document.getElementById('cost-vehicle-filter');
+                veicData.veiculos.forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.placa;
+                    opt.textContent = `${v.placa} - ${v.modelo || ''}`;
+                    veicSelect.appendChild(opt);
+                });
+            }
+        } catch (error) {
+            console.error('Erro ao carregar filtros:', error);
+        }
+    }
+
+    // Carregar dados de custos
+    async function loadCostAnalysis() {
+        const period = document.getElementById('cost-period-filter').value;
+        const plate = document.getElementById('cost-vehicle-filter').value;
+        const areaId = document.getElementById('cost-area-filter').value;
+
+        const now = new Date();
+        let month = now.getMonth() + 1;
+        let year = now.getFullYear();
+        let isAll = period === 'all';
+
+        if (period === 'last_month') {
+            month = month === 1 ? 12 : month - 1;
+            year = month === 12 ? year - 1 : year;
+        }
+
+        try {
+            // Carregar resumo
+            let summaryUrl = `${COST_API}?action=summary`;
+            if (isAll) {
+                summaryUrl += '&all=true';
+            } else {
+                summaryUrl += `&month=${month}&year=${year}`;
+            }
+            if (plate) summaryUrl += `&plate=${encodeURIComponent(plate)}`;
+            if (areaId) summaryUrl += `&area_id=${areaId}`;
+
+            const summaryRes = await fetch(summaryUrl);
+            const summaryData = await summaryRes.json();
+
+            if (summaryData.success && summaryData.resumo) {
+                document.getElementById('cost-total-maintenance').textContent = summaryData.resumo.custo_formatado || 'R$ 0,00';
+                document.getElementById('cost-preventive-count').textContent = summaryData.resumo.preventivas_count || 0;
+                document.getElementById('cost-corrective-count').textContent = summaryData.resumo.corretivas_count || 0;
+                document.getElementById('cost-parts-count').textContent = summaryData.resumo.pecas_trocadas || 0;
+            }
+
+            // Carregar dados do gráfico
+            let chartUrl = `${COST_API}?action=monthly`;
+            if (isAll) {
+                chartUrl += '&all=true';
+            } else {
+                chartUrl += `&year=${year}`;
+            }
+            if (plate) chartUrl += `&plate=${encodeURIComponent(plate)}`;
+            if (areaId) chartUrl += `&area_id=${areaId}`;
+
+            const chartRes = await fetch(chartUrl);
+            const chartData = await chartRes.json();
+
+            if (chartData.success && chartData.chart_data) {
+                updateCostChart(chartData.chart_data);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar custos:', error);
+            document.getElementById('cost-total-maintenance').textContent = 'Erro';
+        }
+    }
+
+    // Atualizar gráfico
+    function updateCostChart(data) {
+        const ctx = document.getElementById('costChart');
+        if (!ctx) return;
+
+        const datasets = data.datasets.map(ds => ({
+            ...ds,
+            borderRadius: 4
+        }));
+
+        if (costChartInstance) {
+            costChartInstance.data.labels = data.labels;
+            costChartInstance.data.datasets = datasets;
+            costChartInstance.update();
+        } else {
+            costChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: data.labels, datasets: datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: textColor } },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': R$ ' + (context.raw || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                                }
+                            }
                         }
                     },
-                    tooltip: {
-                        mode: 'index',
-                        intersect: false,
+                    scales: {
+                        x: { stacked: true, ticks: { color: textColor }, grid: { color: gridColor, drawOnChartArea: false } },
+                        y: {
+                            stacked: true,
+                            ticks: { color: textColor, callback: v => 'R$ ' + v.toLocaleString('pt-BR') },
+                            grid: { color: gridColor }
+                        }
                     }
-                },
-                scales: {
-                    x: {
-                        stacked: true,
-                        ticks: { color: textColor },
-                        grid: { color: gridColor, drawOnChartArea: false }
-                    },
-                    y: {
-                        stacked: true,
-                        ticks: { color: textColor },
-                        grid: { color: gridColor }
-                    }
-                },
-                interaction: {
-                    mode: 'index',
-                    intersect: false
                 }
-            }
-        });
+            });
+        }
     }
+
+    // Exportar para Excel
+    function exportCostData() {
+        const period = document.getElementById('cost-period-filter').value;
+        const plate = document.getElementById('cost-vehicle-filter').value;
+        const areaId = document.getElementById('cost-area-filter').value;
+
+        const now = new Date();
+        let month = now.getMonth() + 1;
+        let year = now.getFullYear();
+
+        if (period === 'last_month') {
+            month = month === 1 ? 12 : month - 1;
+            year = month === 12 ? year - 1 : year;
+        }
+
+        let url = `${COST_API}?action=export&year=${year}`;
+        if (period !== 'year') url += `&month=${month}`;
+        if (plate) url += `&plate=${encodeURIComponent(plate)}`;
+        if (areaId) url += `&area_id=${areaId}`;
+
+        window.location.href = url;
+    }
+
+    // Inicializar ao carregar
+    initCostAnalysis();
+
     // Mileage Chart - DADOS REAIS DOS ÚLTIMOS 7 DIAS
     const mileageCtx = document.getElementById('mileageChart');
     if (mileageCtx) {
@@ -495,7 +597,7 @@ Carregando dados...
 <script src="vehicles-data.js"></script>
 <!-- DESATIVADO: Conflita com dashboard-stats.js -->
 <!-- <script src="novo-dashboard.js?v=20251202-002"></script> -->
-<script src="sidebar.js?v=20260102-1120"></script>
+<script src="sidebar.js?v=20260113-FIX-ZINDEX"></script>
 <script>
 /**
  * Sincronização Manual de Quilometragem

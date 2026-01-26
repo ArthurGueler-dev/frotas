@@ -11,6 +11,24 @@
 
 ## 1. Andamento do Projeto (Changelog)
 
+### 2026-01-09
+- **FEATURE**: Sistema completo de planos de manutenção com Perplexity AI implementado
+- **WORKFLOW**: Criado fluxo completo: Prompt Perplexity → Resposta AI → Script PHP → Import → Visualização Web
+- **DOCS**: Criado GUIA-PLANOS-MANUTENCAO-PERPLEXITY.md (documentação completa de 400+ linhas)
+- **IMPORT**: Criado cpanel-api/importar-plano-hilux-CORRIGIDO.php - importação de 50+ itens
+- **VERIFICATION**: Criado cpanel-api/verificar-modelos.php - listar modelos exatos do banco
+- **UI**: Implementado parseDescricaoObservacao() para extrair tags [CATEGORIA:] [TEMPO:]
+- **UI**: Sistema de cards coloridos mostrando categoria, tempo, criticidade, custo
+- **UI**: Grid de intervalos (azul=KM, roxo=tempo, verde=critério)
+- **UI**: Descrição técnica detalhada sem tags, formatada profissionalmente
+- **FIX**: Corrigido arquivo errado (planos-manutencao.html vs planos-manutencao-novo.html)
+- **FIX**: Funções JavaScript movidas para antes de serem chamadas (ordem crítica)
+- **DATA**: Importados 50+ itens de manutenção para Toyota HILUX CD (1.000 km até 160.000 km)
+- **CATEGORIES**: 9 categorias criadas (Motor, Freios, Suspensão, Transmissão, Arrefecimento, Elétrico, Pneus, A/C, Geral)
+- **SCRIPT**: Criado cpanel-api/associar-pecas-plano-hilux-v2.php - associação automática de peças aos itens
+- **MAPPING**: Mapeamento palavras-chave → peças (óleo→filtro óleo, freio→pastilhas, etc)
+- **MODELO**: Toyota HILUX CD completo com plano preventivo ultra-detalhado via Perplexity
+
 ### 2026-01-08
 - **FEATURE**: Sistema de peças compatíveis integrado ao lançamento de OS (lancar-os.html)
 - **UX**: Implementado filtro em cascata inteligente: Tipo → Categoria → Descrição
@@ -19,11 +37,22 @@
 - **INFO**: Exibição de economia nas peças similares (ex: "Economia de R$ 46,00")
 - **API**: Integração com pecas-compatibilidade-api.php para buscar peças por modelo
 - **MAPPING**: Sistema de mapeamento de modelos (HILUX→HILUX CD, S10→S10 CD LS 2.8, etc)
+- **MAPPING**: Mapeamento de categorias compostas da API para categorias internas
+- **FIX**: Corrigido mapeamento de categorias compostas: "Óleos e Fluidos"→oleos, "Correias e Transmissão"→cambio, "Suspensão e Direção"→suspensao, "Outros"→geral
+- **FIX**: 60 de 100 peças caíam em "geral" por falta de mapeamento - agora todas mapeadas corretamente
+- **FIX**: pecas-compatibilidade.html agora usa modelos.php (já existente) ao invés de modelos-api.php
+- **CORRECTION**: modelos.php retorna array direto com campos: id, marca, modelo, ano, tipo
+- **FEATURE**: pecas-compatibilidade.html agora permite criar novas peças inline no modal
+- **UX**: Formulários inline para cadastrar peças originais e similares com todos os campos (código, nome, categoria, custo, estoque)
+- **INTEGRATION**: Peças criadas são automaticamente selecionadas/adicionadas após salvamento
+- **DETECTION**: Implementadas 4 estratégias de detecção de mudança de placa (polling, events, MutationObserver, click interception)
 - **CACHE**: Cache inteligente de peças após primeira busca por veículo
-- **FRONTEND**: Modificado os-items-manager.js (34KB) - sistema completo de peças
+- **FRONTEND**: Modificado os-items-manager.js (34KB) - sistema completo de peças com normalização de acentos
 - **FRONTEND**: Atualizado lancar-os.html (39KB) - ordem de colunas alterada
+- **FRONTEND**: Atualizado pecas-compatibilidade.html - carregamento de modelos + criação inline de peças
 - **SQL**: Gerado INSERT-PECAS-HYUNDAI-HR-2.5-DIESEL-COMPLETO.sql (132 peças)
 - **DEPLOY**: Arquivos enviados para VPS via SCP (31.97.169.36:/root/frotas/)
+- **VERSION**: Cache busting atualizado para v=20260108-fixed-composite-categories
 
 ### 2025-12-30
 - **FEATURE**: Sistema completo de cálculo automático de quilometragem implementado
