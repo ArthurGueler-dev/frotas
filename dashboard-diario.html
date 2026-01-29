@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html class="light" lang="pt-BR">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Dashboard Diário - Sistema de Frotas</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"/>
+    <!-- <script src="auth.js" defer></script> -->
+    <script src="sidebar.js?v=20260129"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1173d4",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-gray-900 font-display text-[#333333] dark:text-white">
+    <div class="relative flex h-auto min-h-screen w-full flex-col">
+        <div class="flex h-full grow flex-row">
+            <!-- Sidebar -->
+            <div id="sidebar-container" data-page="dashboard-diario"></div>
+
+            <main class="flex-1 p-6 lg:p-8 bg-background-light dark:bg-gray-900">
+                <!-- Header com Seletor de Data -->
+                <div class="flex flex-wrap justify-between gap-4 items-center mb-6">
+                    <div class="flex flex-col gap-1">
+                        <h1 class="text-3xl font-black text-[#111418] dark:text-white tracking-[-0.03em]">Dashboard Diário</h1>
+                        <p class="text-gray-500 dark:text-gray-400 text-base font-normal">
+                            Conformidade de checklist da frota
+                        </p>
+                    </div>
+
+                    <!-- Seletor de Data com Setas -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="diaAnterior()" class="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">chevron_left</span>
+                        </button>
+
+                        <div class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-300 dark:border-gray-600">
+                            <span class="material-symbols-outlined text-primary">calendar_today</span>
+                            <input type="date" id="filtro-data"
+                                class="bg-transparent border-none text-gray-700 dark:text-gray-200 text-sm font-semibold focus:outline-none focus:ring-0 cursor-pointer"
+                                onchange="carregarDashboard()"/>
+                        </div>
+
+                        <button onclick="proximoDia()" class="flex items-center justify-center w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            <span class="material-symbols-outlined text-gray-600 dark:text-gray-300">chevron_right</span>
+                        </button>
+
+                        <button onclick="irParaHoje()" class="ml-2 px-4 h-10 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+                            Hoje
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Data Selecionada -->
+                <div class="mb-6">
+                    <p id="data-extenso" class="text-lg font-medium text-gray-700 dark:text-gray-300"></p>
+                </div>
+
+                <!-- Grid de Placas -->
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <h2 class="text-lg font-semibold text-[#111418] dark:text-white">Veículos</h2>
+                            <span id="total-veiculos" class="px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-sm font-medium">0 veículos</span>
+                        </div>
+                        <div class="flex gap-4 text-xs">
+                            <span class="flex items-center gap-1">
+                                <span class="w-3 h-3 rounded-full bg-green-500"></span>
+                                <span class="text-gray-500">Conforme</span>
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="w-3 h-3 rounded-full bg-red-500"></span>
+                                <span class="text-gray-500">Sem Checklist</span>
+                            </span>
+                            <span class="flex items-center gap-1">
+                                <span class="w-3 h-3 rounded-full bg-gray-300"></span>
+                                <span class="text-gray-500">Parado</span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div id="grid-placas" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
+                        <!-- Loading -->
+                        <div class="col-span-full text-center py-12 text-gray-500 dark:text-gray-400">
+                            <span class="material-symbols-outlined text-5xl mb-3 block animate-pulse">directions_car</span>
+                            <p>Carregando veículos...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Não Conformidades -->
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-red-500">warning</span>
+                            <h3 class="text-lg font-semibold text-[#111418] dark:text-white">Veículos em Não Conformidade</h3>
+                            <span id="count-nao-conformes" class="px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium">0</span>
+                        </div>
+                        <button onclick="ordenarPorKm()" id="btn-ordenar-km" class="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors">
+                            <span class="material-symbols-outlined text-sm">sort</span>
+                            KM <span id="ordem-km-icon">↓</span>
+                        </button>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Placa</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Modelo</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Região</th>
+                                    <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-primary" onclick="ordenarPorKm()">
+                                        KM Rodado <span class="text-xs">↕</span>
+                                    </th>
+                                    <th class="text-center py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Checklist</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-nao-conformes">
+                                <tr>
+                                    <td colspan="5" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        <span class="material-symbols-outlined text-4xl mb-2 block text-green-500">check_circle</span>
+                                        Todos os veículos que andaram fizeram checklist
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // Data selecionada
+        let dataSelecionada = new Date();
+        let naoConformesData = [];
+        let ordemKmDesc = true; // true = maior para menor
+
+        // Inicialização
+        document.addEventListener('DOMContentLoaded', function() {
+            atualizarInputData();
+            carregarDashboard();
+        });
+
+        // Atualiza o input de data
+        function atualizarInputData() {
+            const input = document.getElementById('filtro-data');
+            input.value = dataSelecionada.toISOString().split('T')[0];
+        }
+
+        // Dia anterior
+        function diaAnterior() {
+            dataSelecionada.setDate(dataSelecionada.getDate() - 1);
+            atualizarInputData();
+            carregarDashboard();
+        }
+
+        // Próximo dia
+        function proximoDia() {
+            dataSelecionada.setDate(dataSelecionada.getDate() + 1);
+            atualizarInputData();
+            carregarDashboard();
+        }
+
+        // Ir para hoje
+        function irParaHoje() {
+            dataSelecionada = new Date();
+            atualizarInputData();
+            carregarDashboard();
+        }
+
+        // Carregar dashboard
+        async function carregarDashboard() {
+            const data = document.getElementById('filtro-data').value;
+            dataSelecionada = new Date(data + 'T12:00:00');
+
+            const grid = document.getElementById('grid-placas');
+            grid.innerHTML = `
+                <div class="col-span-full text-center py-12 text-gray-500">
+                    <span class="material-symbols-outlined text-5xl mb-3 block animate-spin">sync</span>
+                    <p>Carregando dados...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(
+                    `https://floripa.in9automacao.com.br/dashboard-diario-api.php?date=${data}`
+                );
+                const resultado = await response.json();
+
+                if (resultado.success) {
+                    // Atualizar data por extenso
+                    document.getElementById('data-extenso').textContent = resultado.date_formatted;
+
+                    // Atualizar estatísticas
+                    atualizarEstatisticas(resultado.statistics);
+
+                    // Renderizar grid
+                    renderizarGridPlacas(resultado.veiculos);
+
+                    // Renderizar tabela de não conformes
+                    renderizarTabelaNaoConformes(resultado.nao_conformes);
+                } else {
+                    mostrarErro(resultado.error || 'Erro ao carregar dados');
+                }
+            } catch (error) {
+                console.error('Erro ao carregar dashboard:', error);
+                mostrarErro('Erro de conexão com o servidor');
+            }
+        }
+
+        // Atualizar estatísticas
+        function atualizarEstatisticas(stats) {
+            document.getElementById('total-veiculos').textContent = stats.total_veiculos + ' veículos';
+            document.getElementById('count-nao-conformes').textContent = stats.veiculos_nao_conformes;
+        }
+
+        // Renderizar grid de placas
+        function renderizarGridPlacas(veiculos) {
+            const grid = document.getElementById('grid-placas');
+
+            if (!veiculos || veiculos.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-gray-500">
+                        <span class="material-symbols-outlined text-5xl mb-3 block">no_transfer</span>
+                        <p>Nenhum veículo encontrado</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = veiculos.map(v => {
+                let bgColor, borderColor, iconColor, icon, statusText;
+                const kmDriven = parseFloat(v.km_driven) || 0;
+
+                switch(v.status) {
+                    case 'CONFORME':
+                        bgColor = 'bg-green-50 hover:bg-green-100';
+                        borderColor = 'border-green-300';
+                        iconColor = 'text-green-600';
+                        icon = 'check_circle';
+                        statusText = 'OK';
+                        break;
+                    case 'NAO_CONFORME':
+                        bgColor = 'bg-red-50 hover:bg-red-100';
+                        borderColor = 'border-red-300';
+                        iconColor = 'text-red-600';
+                        icon = 'error';
+                        statusText = 'Sem CK';
+                        break;
+                    default: // PARADO
+                        bgColor = 'bg-gray-50 hover:bg-gray-100';
+                        borderColor = 'border-gray-200';
+                        iconColor = 'text-gray-400';
+                        icon = 'local_parking';
+                        statusText = 'Parado';
+                }
+
+                return `
+                    <div class="flex flex-col items-center p-3 rounded-lg border-2 ${bgColor} ${borderColor} cursor-pointer transition-all hover:shadow-md"
+                         title="${v.modelo || ''} - ${kmDriven > 0 ? kmDriven.toFixed(1) + ' km' : 'Não andou'}">
+                        <span class="material-symbols-outlined text-2xl ${iconColor} mb-1">${icon}</span>
+                        <span class="text-xs font-bold text-gray-800">${v.placa}</span>
+                        <span class="text-[10px] ${iconColor} font-medium">${statusText}</span>
+                        ${kmDriven > 0 ? `<span class="text-[10px] text-gray-400">${kmDriven.toFixed(0)} km</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Renderizar tabela de não conformes
+        function renderizarTabelaNaoConformes(naoConformes) {
+            naoConformesData = naoConformes || [];
+            const tbody = document.getElementById('tabela-nao-conformes');
+
+            if (!naoConformes || naoConformes.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-8 text-gray-500">
+                            <span class="material-symbols-outlined text-4xl mb-2 block text-green-500">check_circle</span>
+                            Todos os veículos que andaram fizeram checklist
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = naoConformes.map(v => {
+                const kmDriven = parseFloat(v.km_driven) || 0;
+                return `
+                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+                        <td class="py-3 px-4">
+                            <span class="font-bold text-gray-800 dark:text-gray-200">${v.placa}</span>
+                        </td>
+                        <td class="py-3 px-4 text-gray-600 dark:text-gray-400">${v.modelo || '-'}</td>
+                        <td class="py-3 px-4 text-gray-600 dark:text-gray-400">${v.regiao || '-'}</td>
+                        <td class="py-3 px-4 text-right font-medium text-gray-700 dark:text-gray-300">${kmDriven.toFixed(1)} km</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
+                                <span class="material-symbols-outlined text-sm">close</span>
+                                Não realizado
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Ordenar por KM
+        function ordenarPorKm() {
+            if (naoConformesData.length === 0) return;
+
+            ordemKmDesc = !ordemKmDesc;
+
+            const ordenados = [...naoConformesData].sort((a, b) => {
+                const kmA = parseFloat(a.km_driven) || 0;
+                const kmB = parseFloat(b.km_driven) || 0;
+                return ordemKmDesc ? kmB - kmA : kmA - kmB;
+            });
+
+            document.getElementById('ordem-km-icon').textContent = ordemKmDesc ? '↓' : '↑';
+            renderizarTabelaNaoConformes(ordenados);
+            naoConformesData = ordenados;
+        }
+
+        // Mostrar erro
+        function mostrarErro(mensagem) {
+            const grid = document.getElementById('grid-placas');
+            grid.innerHTML = `
+                <div class="col-span-full text-center py-12 text-red-500">
+                    <span class="material-symbols-outlined text-5xl mb-3 block">error</span>
+                    <p>${mensagem}</p>
+                    <button onclick="carregarDashboard()" class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90">
+                        Tentar novamente
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
