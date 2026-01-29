@@ -50,13 +50,13 @@ try {
             COALESCE(dm.km_driven, 0) as km_driven,
             dm.odometer_start,
             dm.odometer_end,
-            iv.id as checklist_id,
-            iv.status_geral as checklist_status,
-            DATE_FORMAT(iv.data_realizacao, '%H:%i') as checklist_hora,
-            u.nome as usuario_checklist,
+            MAX(iv.id) as checklist_id,
+            MAX(iv.status_geral) as checklist_status,
+            MAX(DATE_FORMAT(iv.data_realizacao, '%H:%i')) as checklist_hora,
+            MAX(u.nome) as usuario_checklist,
             CASE
                 WHEN COALESCE(dm.km_driven, 0) <= 0 THEN 'PARADO'
-                WHEN iv.id IS NOT NULL THEN 'CONFORME'
+                WHEN MAX(iv.id) IS NOT NULL THEN 'CONFORME'
                 ELSE 'NAO_CONFORME'
             END as status
         FROM Vehicles v
@@ -64,10 +64,11 @@ try {
         LEFT JOIN daily_mileage dm ON v.LicensePlate = dm.vehicle_plate AND dm.date = :data1
         LEFT JOIN bbb_inspecao_veiculo iv ON v.LicensePlate = iv.placa AND DATE(iv.data_realizacao) = :data2
         LEFT JOIN bbb_usuario u ON iv.usuario_id = u.id
+        GROUP BY v.LicensePlate, v.VehicleName, a.name, dm.km_driven, dm.odometer_start, dm.odometer_end
         ORDER BY
             CASE
-                WHEN COALESCE(dm.km_driven, 0) > 0 AND iv.id IS NULL THEN 0
-                WHEN COALESCE(dm.km_driven, 0) > 0 AND iv.id IS NOT NULL THEN 1
+                WHEN COALESCE(dm.km_driven, 0) > 0 AND MAX(iv.id) IS NULL THEN 0
+                WHEN COALESCE(dm.km_driven, 0) > 0 AND MAX(iv.id) IS NOT NULL THEN 1
                 ELSE 2
             END,
             v.LicensePlate ASC
@@ -107,6 +108,52 @@ try {
     $diasSemana = array('Domingo', 'Segunda-feira', 'Terca-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sabado');
     $meses = array('Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro');
     $dataFormatada = $diasSemana[date('w', $timestamp)] . ', ' . date('d', $timestamp) . ' de ' . $meses[date('n', $timestamp) - 1] . ' de ' . date('Y', $timestamp);
+
+    // Calcular dias consecutivos sem checklist para cada nao conforme
+    // Regra: dias parados nao quebram a sequencia, so dias que andou COM checklist quebram
+    foreach ($naoConformes as &$nc) {
+        $diasConsecutivos = 1; // hoje ja conta como 1
+        $dataCheck = date('Y-m-d', strtotime($date . ' -1 day'));
+
+        for ($i = 0; $i < 60; $i++) {
+            // Verificar se andou nesse dia - FONTE 1: daily_mileage
+            $stmtKm = $pdo->prepare("SELECT km_driven FROM daily_mileage WHERE vehicle_plate = :placa AND date = :data");
+            $stmtKm->execute(array('placa' => $nc['placa'], 'data' => $dataCheck));
+            $km = $stmtKm->fetch(PDO::FETCH_ASSOC);
+
+            // FONTE 2: Telemetria_Diaria (fallback se nao encontrou em daily_mileage)
+            if (!$km) {
+                $stmtTel = $pdo->prepare("SELECT km_rodado as km_driven FROM Telemetria_Diaria WHERE LicensePlate = :placa AND data = :data");
+                $stmtTel->execute(array('placa' => $nc['placa'], 'data' => $dataCheck));
+                $km = $stmtTel->fetch(PDO::FETCH_ASSOC);
+            }
+
+            $andou = $km && floatval($km['km_driven']) > 0;
+
+            if (!$andou) {
+                // Dia parado - nao conta mas nao quebra, continua verificando
+                $dataCheck = date('Y-m-d', strtotime($dataCheck . ' -1 day'));
+                continue;
+            }
+
+            // Andou - verificar se fez checklist
+            $stmtCk = $pdo->prepare("SELECT id FROM bbb_inspecao_veiculo WHERE placa = :placa AND DATE(data_realizacao) = :data");
+            $stmtCk->execute(array('placa' => $nc['placa'], 'data' => $dataCheck));
+            $ck = $stmtCk->fetch(PDO::FETCH_ASSOC);
+
+            if ($ck) {
+                // Andou e fez checklist - QUEBRA a sequencia
+                break;
+            }
+
+            // Andou sem checklist - incrementa
+            $diasConsecutivos++;
+            $dataCheck = date('Y-m-d', strtotime($dataCheck . ' -1 day'));
+        }
+
+        $nc['dias_consecutivos'] = $diasConsecutivos;
+    }
+    unset($nc);
 
     $response = array(
         'success' => true,

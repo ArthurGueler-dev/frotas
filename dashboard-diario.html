@@ -109,17 +109,23 @@
                 </div>
 
                 <!-- Tabela de Não Conformidades -->
-                <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
-                    <div class="flex items-center justify-between mb-4">
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800 mb-6">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined text-red-500">warning</span>
                             <h3 class="text-lg font-semibold text-[#111418] dark:text-white">Veículos em Não Conformidade</h3>
                             <span id="count-nao-conformes" class="px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium">0</span>
                         </div>
-                        <button onclick="ordenarPorKm()" id="btn-ordenar-km" class="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors">
-                            <span class="material-symbols-outlined text-sm">sort</span>
-                            KM <span id="ordem-km-icon">↓</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="ordenarPorKm()" id="btn-ordenar-km" class="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors">
+                                <span class="material-symbols-outlined text-sm">sort</span>
+                                KM <span id="ordem-km-icon">↓</span>
+                            </button>
+                            <button onclick="exportarExcel()" class="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors">
+                                <span class="material-symbols-outlined text-sm">download</span>
+                                Excel
+                            </button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
@@ -132,14 +138,61 @@
                                     <th class="text-right py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400 cursor-pointer hover:text-primary" onclick="ordenarPorKm()">
                                         KM Rodado <span class="text-xs">↕</span>
                                     </th>
-                                    <th class="text-center py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Checklist</th>
                                 </tr>
                             </thead>
                             <tbody id="tabela-nao-conformes">
                                 <tr>
-                                    <td colspan="5" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                    <td colspan="4" class="text-center py-8 text-gray-500 dark:text-gray-400">
                                         <span class="material-symbols-outlined text-4xl mb-2 block text-green-500">check_circle</span>
                                         Todos os veículos que andaram fizeram checklist
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Seção Dias Consecutivos sem Checklist -->
+                <div class="rounded-xl border border-gray-200 dark:border-gray-700 p-6 bg-white dark:bg-gray-800">
+                    <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+                        <div class="flex items-center gap-3">
+                            <span class="material-symbols-outlined text-orange-500">event_repeat</span>
+                            <h3 class="text-lg font-semibold text-[#111418] dark:text-white">Dias Consecutivos sem Checklist</h3>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <!-- Filtros por dias consecutivos -->
+                            <div class="flex items-center gap-1 text-xs">
+                                <span class="text-gray-500 mr-1">Filtrar:</span>
+                                <button onclick="filtrarPorDias('todos')" class="px-3 py-1.5 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold transition-colors">Todos</button>
+                                <button onclick="filtrarPorDias('1-2')" class="px-3 py-1.5 rounded-lg bg-gray-400 hover:bg-gray-500 text-white font-semibold transition-colors">1-2</button>
+                                <button onclick="filtrarPorDias('3-4')" class="px-3 py-1.5 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-white font-semibold transition-colors">3-4</button>
+                                <button onclick="filtrarPorDias('5-6')" class="px-3 py-1.5 rounded-lg bg-orange-400 hover:bg-orange-500 text-white font-semibold transition-colors">5-6</button>
+                                <button onclick="filtrarPorDias('7-8')" class="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold transition-colors">7-8</button>
+                                <button onclick="filtrarPorDias('9-10')" class="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold transition-colors">9-10</button>
+                                <button onclick="filtrarPorDias('10+')" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold transition-colors">10+</button>
+                            </div>
+                            <button onclick="ordenarPorDias()" class="flex items-center gap-1 px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm font-medium text-gray-700 transition-colors">
+                                <span class="material-symbols-outlined text-sm">sort</span>
+                                Dias <span id="ordem-dias-icon">↓</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-200 dark:border-gray-700">
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Placa</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Modelo</th>
+                                    <th class="text-left py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Região</th>
+                                    <th class="text-center py-3 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">Dias Consecutivos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabela-dias-consecutivos">
+                                <tr>
+                                    <td colspan="4" class="text-center py-8 text-gray-500 dark:text-gray-400">
+                                        <span class="material-symbols-outlined text-4xl mb-2 block text-green-500">check_circle</span>
+                                        Nenhum veículo com dias consecutivos
                                     </td>
                                 </tr>
                             </tbody>
@@ -154,7 +207,9 @@
         // Data selecionada
         let dataSelecionada = new Date();
         let naoConformesData = [];
-        let ordemKmDesc = true; // true = maior para menor
+        let naoConformesOriginal = [];
+        let ordemKmDesc = true;
+        let ordemDiasDesc = true;
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
@@ -220,6 +275,9 @@
 
                     // Renderizar tabela de não conformes
                     renderizarTabelaNaoConformes(resultado.nao_conformes);
+
+                    // Renderizar tabela de dias consecutivos
+                    renderizarTabelaDiasConsecutivos(resultado.nao_conformes);
                 } else {
                     mostrarErro(resultado.error || 'Erro ao carregar dados');
                 }
@@ -288,7 +346,17 @@
             }).join('');
         }
 
-        // Renderizar tabela de não conformes
+        // Obter cor baseado nos dias consecutivos
+        function getCorDias(dias) {
+            if (dias > 10) return { bg: 'bg-red-600', text: 'text-white', row: 'bg-red-50' };
+            if (dias >= 9) return { bg: 'bg-red-500', text: 'text-white', row: 'bg-red-50' };
+            if (dias >= 7) return { bg: 'bg-orange-500', text: 'text-white', row: 'bg-orange-50' };
+            if (dias >= 5) return { bg: 'bg-orange-400', text: 'text-white', row: 'bg-orange-50' };
+            if (dias >= 3) return { bg: 'bg-yellow-500', text: 'text-white', row: 'bg-yellow-50' };
+            return { bg: 'bg-gray-400', text: 'text-white', row: '' };
+        }
+
+        // Renderizar tabela de não conformes (sem coluna de dias)
         function renderizarTabelaNaoConformes(naoConformes) {
             naoConformesData = naoConformes || [];
             const tbody = document.getElementById('tabela-nao-conformes');
@@ -296,7 +364,7 @@
             if (!naoConformes || naoConformes.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center py-8 text-gray-500">
+                        <td colspan="4" class="text-center py-8 text-gray-500">
                             <span class="material-symbols-outlined text-4xl mb-2 block text-green-500">check_circle</span>
                             Todos os veículos que andaram fizeram checklist
                         </td>
@@ -308,17 +376,63 @@
             tbody.innerHTML = naoConformes.map(v => {
                 const kmDriven = parseFloat(v.km_driven) || 0;
                 return `
-                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-red-50 dark:hover:bg-red-900/20">
+                    <tr class="border-b border-gray-100 dark:border-gray-700 hover:bg-red-50">
                         <td class="py-3 px-4">
                             <span class="font-bold text-gray-800 dark:text-gray-200">${v.placa}</span>
                         </td>
                         <td class="py-3 px-4 text-gray-600 dark:text-gray-400">${v.modelo || '-'}</td>
                         <td class="py-3 px-4 text-gray-600 dark:text-gray-400">${v.regiao || '-'}</td>
                         <td class="py-3 px-4 text-right font-medium text-gray-700 dark:text-gray-300">${kmDriven.toFixed(1)} km</td>
-                        <td class="py-3 px-4 text-center">
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-100 text-red-700 text-xs font-medium">
-                                <span class="material-symbols-outlined text-sm">close</span>
-                                Não realizado
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Renderizar tabela de dias consecutivos
+        function renderizarTabelaDiasConsecutivos(naoConformes, isFiltered = false) {
+            if (!isFiltered) {
+                naoConformesOriginal = naoConformes || [];
+            }
+            const tbody = document.getElementById('tabela-dias-consecutivos');
+
+            // Filtrar apenas os que tem mais de 1 dia consecutivo
+            const comDias = (naoConformes || []).filter(v => (parseInt(v.dias_consecutivos) || 1) >= 1);
+
+            if (comDias.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-gray-500">
+                            <span class="material-symbols-outlined text-4xl mb-2 block text-green-500">check_circle</span>
+                            Nenhum veículo com dias consecutivos
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            // Ordenar por dias (maior primeiro)
+            const ordenados = [...comDias].sort((a, b) => {
+                return (parseInt(b.dias_consecutivos) || 1) - (parseInt(a.dias_consecutivos) || 1);
+            });
+
+            tbody.innerHTML = ordenados.map(v => {
+                const dias = parseInt(v.dias_consecutivos) || 1;
+                const cor = getCorDias(dias);
+
+                return `
+                    <tr class="border-b border-gray-100 dark:border-gray-700 ${cor.row} hover:brightness-95 transition-all">
+                        <td class="py-4 px-4">
+                            <span class="font-bold text-gray-800 dark:text-gray-200 text-base">${v.placa}</span>
+                        </td>
+                        <td class="py-4 px-4 text-gray-600 dark:text-gray-400">${v.modelo || '-'}</td>
+                        <td class="py-4 px-4">
+                            <span class="inline-flex items-center px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs font-medium">
+                                ${v.regiao || '-'}
+                            </span>
+                        </td>
+                        <td class="py-4 px-4 text-center">
+                            <span class="inline-flex items-center justify-center min-w-[70px] px-3 py-2 rounded-lg ${cor.bg} ${cor.text} text-sm font-bold shadow-sm">
+                                ${dias} ${dias === 1 ? 'dia' : 'dias'}
                             </span>
                         </td>
                     </tr>
@@ -341,6 +455,71 @@
             document.getElementById('ordem-km-icon').textContent = ordemKmDesc ? '↓' : '↑';
             renderizarTabelaNaoConformes(ordenados);
             naoConformesData = ordenados;
+        }
+
+        // Filtrar por dias consecutivos
+        function filtrarPorDias(faixa) {
+            if (naoConformesOriginal.length === 0) return;
+
+            let filtrados;
+            if (faixa === 'todos') {
+                filtrados = [...naoConformesOriginal];
+            } else if (faixa === '10+') {
+                filtrados = naoConformesOriginal.filter(v => (parseInt(v.dias_consecutivos) || 1) > 10);
+            } else {
+                const [min, max] = faixa.split('-').map(Number);
+                filtrados = naoConformesOriginal.filter(v => {
+                    const dias = parseInt(v.dias_consecutivos) || 1;
+                    return dias >= min && dias <= max;
+                });
+            }
+
+            renderizarTabelaDiasConsecutivos(filtrados, true);
+        }
+
+        // Ordenar por dias
+        function ordenarPorDias() {
+            if (naoConformesOriginal.length === 0) return;
+
+            ordemDiasDesc = !ordemDiasDesc;
+
+            const ordenados = [...naoConformesOriginal].sort((a, b) => {
+                const diasA = parseInt(a.dias_consecutivos) || 1;
+                const diasB = parseInt(b.dias_consecutivos) || 1;
+                return ordemDiasDesc ? diasB - diasA : diasA - diasB;
+            });
+
+            document.getElementById('ordem-dias-icon').textContent = ordemDiasDesc ? '↓' : '↑';
+            renderizarTabelaDiasConsecutivos(ordenados, true);
+        }
+
+        // Exportar para Excel
+        function exportarExcel() {
+            if (naoConformesData.length === 0) {
+                alert('Não há dados para exportar');
+                return;
+            }
+
+            const data = document.getElementById('filtro-data').value;
+
+            // Criar conteúdo CSV - só placas
+            let csv = '\uFEFF'; // BOM para UTF-8
+            csv += 'Placa\n';
+
+            naoConformesData.forEach(v => {
+                csv += `${v.placa}\n`;
+            });
+
+            // Criar blob e fazer download
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `nao-conformes-${data}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
 
         // Mostrar erro
