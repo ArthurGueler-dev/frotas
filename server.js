@@ -4605,17 +4605,27 @@ app.post('/api/mileage/sync', async (req, res) => {
 
         console.log(`🔄 Iniciando sincronização de ${vehiclesToSync.length} veículos`);
 
-        // Determinar data alvo (padrão: ontem)
-        const targetDate = date ? new Date(date) : new Date();
-        if (!date) {
-            targetDate.setDate(targetDate.getDate() - 1);
+        // Helper: data no fuso de Brasília (formato YYYY-MM-DD)
+        function getBrazilDateStr(d) {
+            return d.toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
         }
-        const targetDateStr = targetDate.toISOString().split('T')[0];
 
-        // Data anterior (para pegar odômetro inicial)
-        const previousDate = new Date(targetDate);
-        previousDate.setDate(previousDate.getDate() - 1);
-        const previousDateStr = previousDate.toISOString().split('T')[0];
+        // Data de referência: a data informada ou hoje (BRT)
+        const referenceDateStr = date || getBrazilDateStr(new Date());
+
+        // Datas para consulta do odômetro
+        // Ituran(LocTime=D) - Ituran(LocTime=D-1) = km rodado no dia D-1
+        const odometerEndDate = new Date(referenceDateStr + 'T12:00:00Z');
+        const odometerStartDate = new Date(odometerEndDate);
+        odometerStartDate.setDate(odometerStartDate.getDate() - 1);
+
+        const odometerEndDateStr = odometerEndDate.toISOString().split('T')[0];
+        const odometerStartDateStr = odometerStartDate.toISOString().split('T')[0];
+
+        // Data efetiva do KM = dia anterior à referência (quando o veículo realmente rodou)
+        const effectiveKmDateStr = odometerStartDateStr;
+
+        console.log(`📅 Ref: ${referenceDateStr} | Odômetro: ${odometerStartDateStr} → ${odometerEndDateStr} | KM salvo em: ${effectiveKmDateStr}`);
 
         const results = {
             total: vehiclesToSync.length,
@@ -4629,13 +4639,13 @@ app.post('/api/mileage/sync', async (req, res) => {
             try {
                 console.log(`  🚗 Processando ${plate}...`);
 
-                // 1. Buscar odômetro de ontem (início)
+                // 1. Buscar odômetro do dia anterior (início)
                 const odometerStartResponse = await axios.get(
                     'https://iweb.ituran.com.br/ituranwebservice3/Service3.asmx/GetVehicleMileage_JSON',
                     {
                         params: {
                             Plate: plate,
-                            LocTime: previousDateStr,
+                            LocTime: odometerStartDateStr,
                             UserName: 'api@i9tecnologia',
                             Password: 'Api@In9Eng'
                         },
@@ -4657,13 +4667,13 @@ app.post('/api/mileage/sync', async (req, res) => {
 
                 const odometerStart = parseFloat(startData.resMileage) || 0;
 
-                // 2. Buscar odômetro de hoje (fim)
+                // 2. Buscar odômetro do dia de referência (fim)
                 const odometerEndResponse = await axios.get(
                     'https://iweb.ituran.com.br/ituranwebservice3/Service3.asmx/GetVehicleMileage_JSON',
                     {
                         params: {
                             Plate: plate,
-                            LocTime: targetDateStr,
+                            LocTime: odometerEndDateStr,
                             UserName: 'api@i9tecnologia',
                             Password: 'Api@In9Eng'
                         },
@@ -4702,7 +4712,7 @@ app.post('/api/mileage/sync', async (req, res) => {
 
                 const saveData = {
                     vehicle_plate: plate,
-                    date: targetDateStr,
+                    date: effectiveKmDateStr,
                     odometer_start: odometerStart,
                     odometer_end: odometerEnd,
                     km_driven: kmDriven,
@@ -4999,7 +5009,9 @@ async function syncKmBackground() {
     console.log(`${'='.repeat(70)}\n`);
 
     try {
-        const response = await axios.post('http://localhost:5000/api/mileage/sync', {}, {
+        const todayBRT = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+        console.log(`   Data BRT: ${todayBRT}`);
+        const response = await axios.post('http://localhost:5000/api/mileage/sync', { date: todayBRT }, {
             headers: { 'Content-Type': 'application/json' },
             timeout: 600000 // 10 minutos de timeout (para muitos veículos)
         });
@@ -5260,18 +5272,6 @@ app.listen(PORT, '0.0.0.0', async () => {
     }
 
     // ========== CONFIGURAÇÃO DE CRON JOBS ==========
-    // Atualizar quilometragem diária automaticamente todos os dias à meia-noite e meia
-    cron.schedule('30 0 * * *', async () => {
-        console.log('\n⏰ [CRON] Iniciando atualização automática de quilometragem...');
-        try {
-            await atualizarQuilometragemDiaria();
-            console.log('✅ [CRON] Atualização de quilometragem concluída com sucesso!\n');
-        } catch (error) {
-            console.error('❌ [CRON] Erro na atualização de quilometragem:', error);
-        }
-    });
-
-    console.log('\n⏰ Cron job configurado: Atualização de quilometragem todos os dias às 00:30h\n');
 
     // ========== CRON JOB DE VERIFICAÇÃO DE ALERTAS DE MANUTENÇÃO ==========
     // Verificar alertas de manutenção todos os dias às 06:00

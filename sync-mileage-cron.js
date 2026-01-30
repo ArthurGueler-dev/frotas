@@ -45,7 +45,7 @@ async function syncMileage() {
 
     try {
         // Calcular data de hoje
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
         log(`📅 Data alvo: ${today}`, 'blue');
 
         // Chamar endpoint de sincronização

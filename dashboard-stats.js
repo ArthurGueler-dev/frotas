@@ -1011,8 +1011,8 @@ async function calculateInBackground(startFrom = 0, initialData = null, progress
             if (progressText) progressText.textContent = `${progress}%`;
 
             // Chamar API com lote específico
-            // IMPORTANTE: Passar date como HOJE para mostrar dados de HOJE no dashboard
-            const today = new Date().toISOString().split('T')[0];
+            // IMPORTANTE: Passar date como HOJE (BRT) para mostrar dados de HOJE no dashboard
+            const today = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
             const response = await fetch('/api/mileage/sync', {
                 method: 'POST',
                 headers: {
